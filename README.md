@@ -8,6 +8,8 @@ This page you're currently reading was published through Obsidian Share.
 
 [See it live in action here](https://share.alan.fyi/572e1ae4a0aeadf5943862d1deaf8fe6.html).
 
+For any feedback or issues [post those in the forum thread](https://forum.obsidian.md/t/obsidian-share-publicly-share-notes-without-needing-a-full-digital-garden-supports-themes-images-callouts-and-more/).
+
 ## Features
 
 🔹 Uploads using your current theme.
