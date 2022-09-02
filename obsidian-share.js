@@ -1,6 +1,4 @@
-const HOST = 'https://example.com'
-const YAML_FIELD = 'share'
-const SECRET = 'some_fancy_secret'
+const WIDTH = 720
 
 const fs = require('fs')
 const startMode = app.workspace.activeLeaf.getViewState()
@@ -76,7 +74,7 @@ let html = `
 <div class="workspace-leaf mod-active">
 <div class="workspace-leaf-content">
 <div class="view-content">
-<div class="markdown-reading-view" style="max-width:700px;margin: 40px auto;">
+<div class="markdown-reading-view" style="max-width:${WIDTH}px;margin: 0 auto;">
 <div class="${previewView.className}">
 <div class="markdown-preview-sizer markdown-preview-section">
 ${content}
