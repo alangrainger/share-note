@@ -12,6 +12,7 @@ previewMode.state.mode = 'preview'
 app.workspace.activeLeaf.setViewState(previewMode)
 await new Promise(resolve => { setTimeout(() => { resolve() }, 200) })
 
+// Parse the current document
 let sections, content, body, previewView, css
 try {
     sections = app.workspace.activeLeaf.view.modes.preview.renderer.sections
@@ -27,7 +28,7 @@ try {
     new Notice('Failed to parse current note, check console for details', 5000)
 }
 
-// Revert to the original mode
+// Revert to the original view mode
 setTimeout(() => {
     app.workspace.activeLeaf.setViewState(startMode)
 }, 200)
@@ -84,6 +85,7 @@ ${content}
 </div></div></div></div></div></div></div></div></div></body></html>`
 
 try {
+    // Generate the HTML file for uploading
     const dom = new DOMParser().parseFromString(html, 'text/html')
     // Remove frontmatter to avoid sharing unwanted data
     dom.querySelector('pre.frontmatter')?.remove()
