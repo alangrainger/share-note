@@ -4,19 +4,19 @@ const SECRET = 'some_fancy_secret'
 const WIDTH = 720
 
 const fs = require('fs')
-const startMode = app.workspace.activeLeaf.getViewState()
+const leaf = app.workspace.activeLeaf
+const startMode = leaf.getViewState()
 
 // Switch to Preview mode
-const previewMode = app.workspace.activeLeaf.getViewState()
+const previewMode = leaf.getViewState()
 previewMode.state.mode = 'preview'
-app.workspace.activeLeaf.setViewState(previewMode)
+leaf.setViewState(previewMode)
 await new Promise(resolve => { setTimeout(() => { resolve() }, 200) })
 
 // Parse the current document
-let sections, content, body, previewView, css
+let content, body, previewView, css
 try {
-    sections = app.workspace.activeLeaf.view.modes.preview.renderer.sections
-    content = sections.reduce((prev, curr) => prev + curr.el.innerHTML, '')
+    content = leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.innerHTML, '')
     body = document.getElementsByTagName('body')[0]
     previewView = document.getElementsByClassName('markdown-preview-view markdown-rendered')[0]
     css = [...document.styleSheets].map(x => {
@@ -30,7 +30,7 @@ try {
 
 // Revert to the original view mode
 setTimeout(() => {
-    app.workspace.activeLeaf.setViewState(startMode)
+    leaf.setViewState(startMode)
 }, 200)
 
 if (!previewView) {
