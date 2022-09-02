@@ -1,3 +1,6 @@
+const HOST = 'https://example.com'
+const YAML_FIELD = 'share'
+const SECRET = 'some_fancy_secret'
 const WIDTH = 720
 
 const fs = require('fs')
