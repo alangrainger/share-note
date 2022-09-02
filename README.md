@@ -2,27 +2,38 @@
 
 There are times I want to create a public link to one of my notes, without having an entire "digital garden" through Obsidian Publish.
 
-Enter **Obsidian Share**. To share a page, just run a single Templater script. This page you're currently reading was published through Obsidian Share.
+Enter **Obsidian Share**. To share a page, just run a single Templater script. Templater is also optional - it's plain Javascript so you can launch it from anywhere.
 
-[Get it on Github here](https://github.com/alangrainger/obsidian-share).
+This page you're currently reading was published through Obsidian Share.
+
+[See it live in action here](https://share.alan.fyi/572e1ae4a0aeadf5943862d1deaf8fe6.html).
 
 ## Features
 
-🔹 Uploads using your current theme. I'm using [Primary](https://github.com/ceciliamay/obsidianmd-theme-primary) in this document.
+🔹 Uploads using your current theme.
 
-🔹 Local and remote image support.
+🔹 Local and remote image support:
 
-🔹 Supports anything that Obsidian Preview mode does. I'm talking rendered Dataview queries, and any custom CSS you might have enabled.
+![[Pasted image 20220902124223.png]]
+
+🔹 Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
+
+🔹 Supports callouts with full styling!
+
+> [!warning] Warning
+> Contents may be epic 😵
 
 🔹 Filenames are anonymised through hashing so people can't discover your other shared notes.
 
-🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage.
+🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage. Example: [[Obsidian Share link example|Some other document]]
+
+🔹 Frontmatter is stripped on upload to avoid leaking unwanted data.
 
 ## Requirements
 
-**NOTE:** While the script is easy, you will need your own webserver to share the files. If you don't already have a web server, or you don't know how to post JSON data to a server, you will definitely run into trouble.
+**NOTE:** While the script is simple, you will need your own webserver to share the files. If you don't already have a web server, or you don't know how to post JSON data to a server, you will definitely run into trouble.
 
-#### Templater
+### Templater (optional!)
 I used Templater solely because it's an easy way to launch a script. You don't actually need Templater for this to work, it's just plain Javascript.
 
 Download Templater from the Community Plugins.
