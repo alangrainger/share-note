@@ -14,20 +14,15 @@ For any feedback or issues [post those in the forum thread](https://forum.obsidi
 
 🔹 Uploads using your current theme.
 
-🔹 Local and remote image support:
-
-![[Pasted image 20220902124223.png]]
+🔹 Local and remote image support.
 
 🔹 Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
 
 🔹 Supports callouts with full styling!
 
-> [!warning] Warning
-> Contents may be epic 😵
-
 🔹 Filenames are anonymised through hashing so people can't discover your other shared notes.
 
-🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage. Example: [[Obsidian Share link example|Some other document]]
+🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage.
 
 🔹 Frontmatter is stripped on upload to avoid leaking unwanted data.
 
