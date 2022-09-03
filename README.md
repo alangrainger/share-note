@@ -4,8 +4,6 @@ There are times I want to create a public link to one of my notes, without havin
 
 Enter **Obsidian Share**. To share a page, just run a single Templater script. Templater is also optional - it's plain Javascript so you can launch it from anywhere.
 
-This page you're currently reading was published through Obsidian Share.
-
 [See it live in action here](https://share.alan.fyi/572e1ae4a0aeadf5943862d1deaf8fe6.html).
 
 For any feedback or issues [post those in the forum thread](https://forum.obsidian.md/t/obsidian-share-publicly-share-notes-without-needing-a-full-digital-garden-supports-themes-images-callouts-and-more/).
@@ -77,6 +75,7 @@ $file = explode('.', $data->filename);
 $file[0] = preg_replace("/[^a-z0-9]/", '', $file[0]);
 if (count($file) === 2 && in_array($file[1], $whitelist) && ! empty($file[0])) {
     if ($data->encoding === 'base64') {
+        // Decode uploaded images
         $data->content = base64_decode($data->content);
     }
     file_put_contents(__DIR__ . "/$file[0].$file[1]", $data->content);
