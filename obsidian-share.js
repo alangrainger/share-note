@@ -94,7 +94,7 @@ try {
     for (const el of dom.querySelectorAll("a.internal-link")) {
         const file = app.metadataCache.getFirstLinkpathDest(el.getAttribute('href'), '')
         const meta = app.metadataCache.getFileCache(file)
-        if (meta.frontmatter[YAML_FIELD + '_link']) {
+        if (meta?.frontmatter && meta.frontmatter[YAML_FIELD + '_link']) {
             // This file is shared, so update the link with the share URL
             el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
             el.removeAttribute('target')
