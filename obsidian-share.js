@@ -127,12 +127,12 @@ try {
     // To force a CSS re-upload, just remove the `share_link` frontmatter field
     if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
         // Extract any embedded fonts from the CSS
-        const fontReg = /url\("data:font\/(\w+)[^"]+?base64,([A-Za-z0-9/=+]+)"\)/
+        const fontReg = /url\([^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)\s*format\(\W?(\w+)\W?\)/
         for (const font of css.match(new RegExp(fontReg, 'g')) || []) {
             if (match = font.match(new RegExp(fontReg))) {
-                const filename = (await getHash(match[2])) + `.${match[1].toLowerCase()}`
+                const filename = (await getHash(match[1])) + `.${match[2].toLowerCase()}`
                 css = css.replace(match[0], `url("${filename}")`)
-                upload({ filename: filename, content: match[2], encoding: 'base64' })
+                upload({ filename: filename, content: match[1], encoding: 'base64' })
             }
         }
         upload({ filename: 'style.css', content: css })
