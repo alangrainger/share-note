@@ -38,7 +38,8 @@ Download Templater from the Community Plugins.
 ## Configuration options
 
 - `YAML_FIELD` - The frontmatter field prefix for storing share link and updated time. A value of `share` will create frontmatter fields of `share_link` and `share_updated`.
-- `HOST` - Your web server to upload the files.
+- `UPLOAD_LOCATION` - The root path for uploaded files. Needs to end with a trailing slash.
+- `UPLOAD_ENDPOINT` - Path to the upload endpoint relative to  upload location.
 - `SECRET` - Authentication secret for file uploading. See the simple upload script at the bottom for an example.
 
 ## Installation with Templater
