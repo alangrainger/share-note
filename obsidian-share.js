@@ -3,6 +3,7 @@ const UPLOAD_ENDPOINT = 'upload.php' // path to the upload endpoint, relative to
 const YAML_FIELD = 'share'
 const SECRET = 'some_fancy_secret'
 const WIDTH = 700
+const UPLOAD_CSS = true
 
 const fs = require('fs')
 const leaf = app.workspace.activeLeaf
@@ -121,7 +122,7 @@ try {
     // Share the file
     const shareFile = (await getHash(file.path)) + '.html'
     upload({ filename: shareFile, content: dom.documentElement.innerHTML })
-    upload({ filename: 'style.css', content: css })
+    if (UPLOAD_CSS) upload({ filename: 'style.css', content: css })
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
     contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${UPLOAD_LOCATION}${shareFile}`)
