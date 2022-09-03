@@ -3,7 +3,6 @@ const UPLOAD_ENDPOINT = 'upload.php' // path to the upload endpoint, relative to
 const YAML_FIELD = 'share'
 const SECRET = 'some_fancy_secret'
 const WIDTH = 700
-const UPLOAD_CSS = true
 
 const fs = require('fs')
 const leaf = app.workspace.activeLeaf
@@ -24,7 +23,7 @@ try {
     css = [...document.styleSheets].map(x => {
         try { return [...x.cssRules].map(rule => rule.cssText).join('') }
         catch (e) { }
-    }).filter(Boolean).join('\n').replace(/\s{2,}/g, ' ')
+    }).filter(Boolean).join('').replace(/\n/g, '')
 } catch (e) {
     console.log(e)
     new Notice('Failed to parse current note, check console for details', 5000)
@@ -94,16 +93,18 @@ try {
     dom.querySelector('div.frontmatter-container')?.remove()
     // Replace links
     for (const el of dom.querySelectorAll("a.internal-link")) {
-        const file = app.metadataCache.getFirstLinkpathDest(el.getAttribute('href'), '')
-        const meta = app.metadataCache.getFileCache(file)
-        if (meta?.frontmatter?.[YAML_FIELD + '_link']) {
-            // This file is shared, so update the link with the share URL
-            el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
-            el.removeAttribute('target')
-        } else {
-            // This file is not shared, so remove the link
-            el.replaceWith(el.innerHTML)
+        if (href = el.getAttribute('href').match(/^([^#]+)/)) {
+            const file = app.metadataCache.getFirstLinkpathDest(href[1], '')
+            const meta = app.metadataCache.getFileCache(file)
+            if (meta?.frontmatter?.[YAML_FIELD + '_link']) {
+                // This file is shared, so update the link with the share URL
+                el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
+                el.removeAttribute('target')
+                continue
+            }
         }
+        // This file is not shared, so remove the link
+        el.replaceWith(el.innerText)
     }
     // Upload local images
     for (const el of dom.querySelectorAll('img')) {
@@ -122,7 +123,21 @@ try {
     // Share the file
     const shareFile = (await getHash(file.path)) + '.html'
     upload({ filename: shareFile, content: dom.documentElement.innerHTML })
-    if (UPLOAD_CSS) upload({ filename: 'style.css', content: css })
+    // Upload theme CSS, unless this file has already been shared
+    // To force a CSS re-upload, just remove the `share_link` frontmatter field
+    if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
+        // Extract any embedded fonts from the CSS
+        const fontReg = /url\("data:font\/(\w+)[^"]+?base64,([A-Za-z0-9/=+]+)"\)/
+        for (const font of css.match(new RegExp(fontReg, 'g')) || []) {
+            if (match = font.match(new RegExp(fontReg))) {
+                const filename = (await getHash(match[2])) + `.${match[1].toLowerCase()}`
+                css = css.replace(match[0], `url("${filename}")`)
+                upload({ filename: filename, content: match[2], encoding: 'base64' })
+            }
+        }
+        upload({ filename: 'style.css', content: css })
+    }
+    // Update frontmatter
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
     contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${UPLOAD_LOCATION}${shareFile}`)
