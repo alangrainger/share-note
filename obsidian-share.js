@@ -1,7 +1,8 @@
-const HOST = 'https://example.com'
+const UPLOAD_LOCATION = 'https://example.com/somepath/' // the web root where the files will be uploaded. End in a trailing slash.
+const UPLOAD_ENDPOINT = 'upload.php' // path to the upload endpoint, relative to UPLOAD_LOCATION
 const YAML_FIELD = 'share'
 const SECRET = 'some_fancy_secret'
-const WIDTH = 720
+const WIDTH = 700
 
 const fs = require('fs')
 const leaf = app.workspace.activeLeaf
@@ -57,7 +58,7 @@ function updateFrontmatter(contents, field, value) {
 async function upload(data) {
     data.nonce = Date.now().toString()
     data.auth = await sha256(data.nonce + SECRET)
-    await requestUrl({ url: HOST + '/upload.php', method: 'POST', body: JSON.stringify(data) })
+    await requestUrl({ url: UPLOAD_LOCATION + UPLOAD_ENDPOINT, method: 'POST', body: JSON.stringify(data) })
 }
 
 const file = app.workspace.getActiveFile()
@@ -94,7 +95,7 @@ try {
     for (const el of dom.querySelectorAll("a.internal-link")) {
         const file = app.metadataCache.getFirstLinkpathDest(el.getAttribute('href'), '')
         const meta = app.metadataCache.getFileCache(file)
-        if (meta?.frontmatter && meta.frontmatter[YAML_FIELD + '_link']) {
+        if (meta?.frontmatter?.[YAML_FIELD + '_link']) {
             // This file is shared, so update the link with the share URL
             el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
             el.removeAttribute('target')
@@ -123,7 +124,7 @@ try {
     upload({ filename: 'style.css', content: css })
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
-    contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${HOST}/${shareFile}`)
+    contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${UPLOAD_LOCATION}${shareFile}`)
     app.vault.modify(file, contents)
     new Notice('File has been shared', 5000)
 } catch (e) {
