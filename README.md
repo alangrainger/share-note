@@ -61,7 +61,7 @@ Here's an example using PHP:
 ```php
 <?php
 
-$whitelist = ['html', 'css', 'jpg', 'png'];
+$whitelist = ['html', 'css', 'jpg', 'png', 'ttf', 'otf', 'woff', 'woff2'];
 $secret = 'some_fancy_secret';
 
 $data = json_decode(file_get_contents('php://input'));
