@@ -37,16 +37,9 @@ try {
     console.log(e)
     new Notice('Failed to parse current note, check console for details', 5000)
 }
-
 // Revert to the original view mode
-setTimeout(() => {
-    leaf.setViewState(startMode)
-}, 200)
-
-if (!previewView) {
-    // Failed to parse current note
-    return
-}
+setTimeout(() => { leaf.setViewState(startMode) }, 200)
+if (!previewView) return // Failed to parse current note
 
 async function sha256(text) {
     const encoder = new TextEncoder();
@@ -64,20 +57,35 @@ function updateFrontmatter(contents, field, value) {
     return f && f[1].match(x) ? contents.replace(x, v) : `---\n${s}${v}\n---\n${e}`
 }
 
+/**
+ * Upload to web server
+ * Will add two new properties to the POST data:
+ * 'nonce' - here using millisecond timestamp
+ * 'auth' - SHA256 of nonce + SECRET
+ * @param {Object} data - An object with the following properties:
+ * @param {string} data.filename - Filename for the destination file
+ * @param {string} data.content - File content
+ * @param {string} [data.encoding] - Optional encoding type, accepts only 'base64'
+ */
 async function upload(data) {
     data.nonce = Date.now().toString()
     data.auth = await sha256(data.nonce + SECRET)
     await requestUrl({ url: UPLOAD_LOCATION + UPLOAD_ENDPOINT, method: 'POST', body: JSON.stringify(data) })
 }
 
+/**
+ * Convert mime-type to file extension
+ * If you want any additional base64 encoded files to be extracted from your CSS,
+ * add the extension and mime-type(s) here.
+ * @param {string} mimeType
+ * @returns {string} File extension
+ */
 function extension(mimeType) {
-    // If you want any additional base64 encoded files to be extracted from your CSS,
-    // add the extension and mime-type(s) here.
     const mimes = {
         ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
         otf: ['font/otf', 'application/x-font-opentype'],
-        woff: ['font/woff', 'application/font-woff'],
-        woff2: ['font/woff2', 'application/font-woff2'],
+        woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
+        woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
     }
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
 }
@@ -149,9 +157,9 @@ try {
     if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
         // Extract any base64 encoded attachments from the CSS.
         // Will use the mime-type list above to determine which attachments to extract.
-        const attReg = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-        for (const att of css.match(new RegExp(attReg, 'g')) || []) {
-            if (match = att.match(new RegExp(attReg))) {
+        const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
+        for (const attachment of css.match(new RegExp(regex, 'g')) || []) {
+            if (match = attachment.match(new RegExp(regex))) {
                 if (extension(match[1])) {
                     const filename = (await getHash(match[2])) + `.${extension(match[1])}`
                     css = css.replace(match[0], `url("${filename}")`)
@@ -161,7 +169,7 @@ try {
         }
         upload({ filename: 'style.css', content: css })
     }
-    // Update the frontmatter
+    // Update the frontmatter in the current note
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
     contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${UPLOAD_LOCATION}${shareFile}`)
