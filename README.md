@@ -10,26 +10,41 @@ For any feedback or issues [post those in the forum thread](https://forum.obsidi
 
 ## Features
 
-🔹 Uploads using your current theme.
+🔹 Uploads using your current theme. I'm using [Primary](https://github.com/ceciliamay/obsidianmd-theme-primary) in this document.
 
-🔹 Local and remote image support.
+🔹 Local and remote image support:
+
+![[Pasted image 20220902124223.png]]
 
 🔹 Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
 
-🔹 Supports callouts with full styling!
+Here's an example inline Dataview query. It will be correctly rendered when sharing:
+
+```
+The answer is `= 7 + 8`!
+```
+
+The answer is `= 7 + 8`!
+
+🔹 Supports callouts with full styling:
+
+> [!warning] Warning
+> Contents may be epic 😵
 
 🔹 Filenames are anonymised through hashing so people can't discover your other shared notes.
 
-🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage.
+🔹 If your shared note links to another note which is also shared, that link will also function on the shared webpage. Example: [[Obsidian Share link example|Some other document]]
 
 🔹 Frontmatter is stripped on upload to avoid leaking unwanted data.
 
 ## Requirements
 
-**NOTE:** While the script is simple, you will need your own webserver to share the files. If you don't already have a web server, or you don't know how to post JSON data to a server, you will definitely run into trouble.
+While the script is simple, you will need your own webserver to share the files. If you don't already have one, it's not as scary as it sounds. You can find hosting for as cheap as [$4 per year](https://hostdive.com/shared).
 
-### Templater (optional!)
-I used Templater solely because it's an easy way to launch a script. You don't actually need Templater for this to work, it's just plain Javascript.
+You need to add an endpoint on your server where the script can upload the files. If you don't know what you're doing, most webservers run PHP and you can find instructions and an example PHP upload script at the bottom of this document.
+
+### Templater (optional)
+I use Templater solely because it's an easy way to launch a script. You don't actually need Templater for this to work, it's just plain Javascript.
 
 Download Templater from the Community Plugins.
 
@@ -49,14 +64,31 @@ Download Templater from the Community Plugins.
   // Paste the script contents here
   %> 
 ```
-3. Update the configuration to match your server.
-4. Go to any note and execute the script the same as you would any Templater template.
+3. Create some sort of upload endpoint on your server. The data is JSON POST, and the authentication is SHA256 of a nonce + secret. See below for an example in PHP.
+4. Update the configuration to match your server.
+5. Go to any note and execute the script the same as you would any Templater template.
 
-## Example PHP uploader
+## Usage
 
-On your server, you just need something simple to accept the incoming POST data from the script. The authentication is a SHA256 of a nonce + secret.
+The first time a file is shared, the script will automatically upload all the theme styles along with it into a separate `style.css` file. This will allow all your shared files to point to the same cached CSS file on your webserver to speed up browsing.
 
-Here's an example using PHP:
+The next time you share the same file, it will ignore the CSS. **If you want to force the theme CSS to re-upload, just remove the `share_link` property from your frontmatter.**
+
+## Web server setup
+
+On your server, you just need something simple to accept the incoming POST data from the script. 
+
+Most personal web hosting runs PHP, so here are the basic steps to set up your PHP-based server to host the files:
+
+1.  Create a new folder on your web server.
+2.  Make a file called `upload.php` and copy the below PHP script into that file.
+3.  Change the `SECRET` in both the PHP file and the Templater script to something complex that only you know. Random characters are fine.
+4.  Upload the `upload.php` file to the new folder on your web server.
+5.  Update the Templater script config to match steps 1 and 2:
+	1. `UPLOAD_LOCATION` would be the URL of the folder you created in step 1. It will be the web location so will start with `https://...`
+	2. `UPLOAD_ENDPOINT` will be the name of the file from step 2: `upload.php`.
+
+### Example PHP upload script
 
 ```php
 <?php
