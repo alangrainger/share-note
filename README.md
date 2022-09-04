@@ -10,7 +10,7 @@ For any feedback or issues [post those in the forum thread](https://forum.obsidi
 
 ## Features
 
-🔹 Uploads using your current theme. I'm using [Primary](https://github.com/ceciliamay/obsidianmd-theme-primary) in this document.
+🔹 Uploads using your current theme.
 
 🔹 Local and remote image support.
 
