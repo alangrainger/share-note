@@ -21,7 +21,7 @@ try {
     body = document.getElementsByTagName('body')[0]
     previewView = document.getElementsByClassName('markdown-preview-view markdown-rendered')[0]
     css = [...document.styleSheets].map(x => {
-        try { return [...x.cssRules].map(rule => rule.cssText).join('') }
+        try { return [...x.cssRules].map(x => x.cssText).join('') }
         catch (e) { }
     }).filter(Boolean).join('').replace(/\n/g, '')
 } catch (e) {
@@ -59,6 +59,16 @@ async function upload(data) {
     data.nonce = Date.now().toString()
     data.auth = await sha256(data.nonce + SECRET)
     await requestUrl({ url: UPLOAD_LOCATION + UPLOAD_ENDPOINT, method: 'POST', body: JSON.stringify(data) })
+}
+
+function extension(mimeType) {
+    const mimes = {
+        ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
+        otf: ['font/otf', 'application/x-font-opentype'],
+        woff: ['font/woff', 'application/font-woff'],
+        woff2: ['font/woff2', 'application/font-woff2'],
+    }
+    return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
 }
 
 const file = app.workspace.getActiveFile()
@@ -126,13 +136,15 @@ try {
     // Upload theme CSS, unless this file has already been shared
     // To force a CSS re-upload, just remove the `share_link` frontmatter field
     if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
-        // Extract any embedded fonts from the CSS
-        const fontReg = /url\([^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)\s*format\(\W?(\w+)\W?\)/
-        for (const font of css.match(new RegExp(fontReg, 'g')) || []) {
-            if (match = font.match(new RegExp(fontReg))) {
-                const filename = (await getHash(match[1])) + `.${match[2].toLowerCase()}`
-                css = css.replace(match[0], `url("${filename}")`)
-                upload({ filename: filename, content: match[1], encoding: 'base64' })
+        // Extract any base64 encoded attachments from the CSS. Will use the mime-type list above to determine which to extract.
+        const attReg = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
+        for (const att of css.match(new RegExp(attReg, 'g')) || []) {
+            if (match = att.match(new RegExp(attReg))) {
+                if (extension(match[1])) {
+                    const filename = (await getHash(match[2])) + `.${extension(match[1])}`
+                    css = css.replace(match[0], `url("${filename}")`)
+                    upload({ filename: filename, content: match[2], encoding: 'base64' })
+                }
             }
         }
         upload({ filename: 'style.css', content: css })
