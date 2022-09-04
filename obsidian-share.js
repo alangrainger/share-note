@@ -4,6 +4,15 @@ const YAML_FIELD = 'share'
 const SECRET = 'some_fancy_secret'
 const WIDTH = 700
 
+/*
+ * Obsidian Share
+ * 
+ * Created by Alan Grainger
+ * https://github.com/alangrainger/obsidian-share/
+ * 
+ * v1.1.0
+ */
+
 const fs = require('fs')
 const leaf = app.workspace.activeLeaf
 const startMode = leaf.getViewState()
@@ -62,6 +71,8 @@ async function upload(data) {
 }
 
 function extension(mimeType) {
+    // If you want any additional base64 encoded files to be extracted from your CSS,
+    // add the extension and mime-type(s) here.
     const mimes = {
         ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
         otf: ['font/otf', 'application/x-font-opentype'],
@@ -113,7 +124,7 @@ try {
                 continue
             }
         }
-        // This file is not shared, so remove the link
+        // This file is not shared, so remove the link and replace with plain-text
         el.replaceWith(el.innerText)
     }
     // Upload local images
@@ -133,10 +144,11 @@ try {
     // Share the file
     const shareFile = (await getHash(file.path)) + '.html'
     upload({ filename: shareFile, content: dom.documentElement.innerHTML })
-    // Upload theme CSS, unless this file has already been shared
+    // Upload theme CSS, unless this file has previously been shared
     // To force a CSS re-upload, just remove the `share_link` frontmatter field
     if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
-        // Extract any base64 encoded attachments from the CSS. Will use the mime-type list above to determine which to extract.
+        // Extract any base64 encoded attachments from the CSS.
+        // Will use the mime-type list above to determine which attachments to extract.
         const attReg = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
         for (const att of css.match(new RegExp(attReg, 'g')) || []) {
             if (match = att.match(new RegExp(attReg))) {
@@ -149,7 +161,7 @@ try {
         }
         upload({ filename: 'style.css', content: css })
     }
-    // Update frontmatter
+    // Update the frontmatter
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
     contents = updateFrontmatter(contents, YAML_FIELD + '_link', `${UPLOAD_LOCATION}${shareFile}`)
