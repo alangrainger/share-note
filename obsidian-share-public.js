@@ -43,6 +43,7 @@ async function sha256(text) {
     return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 const getHash = async (path) => { return (await sha256(path)).slice(0, 32) }
+const id = await getHash(app.appId)
 
 function updateFrontmatter(contents, field, value) {
     const f = contents.match(/^---\r?\n(.*?)\n---\r?\n(.*)$/s),
@@ -53,6 +54,7 @@ function updateFrontmatter(contents, field, value) {
 }
 
 async function upload(data) {
+    data.id = id
     await requestUrl({
         url: 'https://file.obsidianshare.com/sharefile.php',
         method: 'POST',
@@ -71,7 +73,7 @@ function extension(mimeType) {
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
 }
 
-const id = await getHash(app.appId)
+
 const file = app.workspace.getActiveFile()
 const footer = '<div class="status-bar"><div class="status-bar-item"><span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Obsidian Share</a></span></div></div>'
 let html = `
