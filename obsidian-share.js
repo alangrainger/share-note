@@ -3,6 +3,7 @@ const UPLOAD_ENDPOINT = 'upload.php' // path to the upload endpoint, relative to
 const YAML_FIELD = 'share'
 const SECRET = 'some_fancy_secret'
 const WIDTH = 700
+const SHOW_FOOTER = true
 
 /*
  * Obsidian Share
@@ -10,7 +11,7 @@ const WIDTH = 700
  * Created by Alan Grainger
  * https://github.com/alangrainger/obsidian-share/
  * 
- * v1.1.0
+ * v1.1.1
  */
 
 const fs = require('fs')
@@ -59,7 +60,7 @@ function updateFrontmatter(contents, field, value) {
 
 /**
  * Upload to web server
- * Will add two new properties to the POST data:
+ * Will add two additional properties to the POST data:
  * 'nonce' - here using millisecond timestamp
  * 'auth' - SHA256 of nonce + SECRET
  * @param {Object} data - An object with the following properties:
@@ -91,6 +92,7 @@ function extension(mimeType) {
 }
 
 const file = app.workspace.getActiveFile()
+const footer = '<div class="status-bar"><div class="status-bar-item"><span class="status-bar-item-segment">Published with <a href="https://github.com/alangrainger/obsidian-share/" target="_blank">Obsidian Share</a></span></div></div>'
 let html = `
 <!DOCTYPE HTML>
 <html>
@@ -99,6 +101,14 @@ let html = `
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="style.css">
+    <style>
+    html, body {
+        overflow: visible !important;
+    }
+    .view-content {
+        height: 100% !important;
+    }
+    </style>
 </head>
 <body class="${body.className}" style="${body.style.cssText.replace(/"/g, `'`)}">
 <div class="app-container">
@@ -112,7 +122,7 @@ let html = `
 <div class="${previewView.className}">
 <div class="markdown-preview-sizer markdown-preview-section">
 ${content}
-</div></div></div></div></div></div></div></div></div></body></html>`
+</div></div></div></div></div></div></div></div>${SHOW_FOOTER ? footer : ''}</div></div></body></html>`
 
 try {
     // Generate the HTML file for uploading
