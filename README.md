@@ -4,9 +4,11 @@ There are times I want to create a public link to one of my notes, without havin
 
 Enter **Obsidian Share**. To share a page, just run a single Templater script. Templater is also optional - it's plain Javascript so you can launch it from anywhere.
 
-[See it live in action here](https://share.alan.fyi/572e1ae4a0aeadf5943862d1deaf8fe6.html).
+[See it live in action here](https://share.alan.fyi/572e1ae4a0aeadf5943862d1deaf8fe6.html), along with installation instructions and usage.
 
 For any feedback or issues [post those in the forum thread](https://forum.obsidian.md/t/obsidian-share-publicly-share-notes-without-needing-a-full-digital-garden-supports-themes-images-callouts-and-more/).
+
+You can also host your own private version, [see details here](https://file.obsidianshare.com/5d9dadb08ee4ec00323c694930722702.html).
 
 ## Features
 
