@@ -11,7 +11,7 @@ const SHOW_FOOTER = true
  * Created by Alan Grainger
  * https://github.com/alangrainger/obsidian-share/
  * 
- * v1.1.1
+ * v1.1.5
  */
 
 const fs = require('fs')
@@ -92,12 +92,15 @@ function extension(mimeType) {
 }
 
 const file = app.workspace.getActiveFile()
-const footer = '<div class="status-bar"><div class="status-bar-item"><span class="status-bar-item-segment">Published with <a href="https://github.com/alangrainger/obsidian-share/" target="_blank">Obsidian Share</a></span></div></div>'
+const footer = '<div class="status-bar"><div class="status-bar-item"><span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Obsidian Share</a></span></div></div>'
 let html = `
 <!DOCTYPE HTML>
 <html>
 <head>
     <title>${file.basename}</title>
+    <meta property="og:title" content="${file.basename}" />
+    <meta id="head-description" name="description" content="">
+    <meta id="head-og-description" property="og:description" content="">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="style.css">
@@ -130,6 +133,12 @@ try {
     // Remove frontmatter to avoid sharing unwanted data
     dom.querySelector('pre.frontmatter')?.remove()
     dom.querySelector('div.frontmatter-container')?.remove()
+    // Set the meta description and OG description
+    try {
+        const desc = Array.from(dom.querySelectorAll("p")).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 160) + '...'
+        dom.querySelector('#head-description').content = desc
+        dom.querySelector('#head-og-description').content = desc
+    } catch (e) { }    
     // Replace links
     for (const el of dom.querySelectorAll("a.internal-link")) {
         if (href = el.getAttribute('href').match(/^([^#]+)/)) {
