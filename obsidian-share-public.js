@@ -1,3 +1,6 @@
+// Add a unique identifier for yourself. At some point in the future I might add user accounts, so it would be a good
+// idea to use your email address. **This will not be sent to the server!** Privacy first.
+const ACCOUNT_ID = 'A unique ID'
 const YAML_FIELD = 'share'
 const WIDTH = 700
 const SHOW_FOOTER = true
@@ -8,7 +11,7 @@ const SHOW_FOOTER = true
  * Created by Alan Grainger
  * https://github.com/alangrainger/obsidian-share/
  * 
- * v1.1.3
+ * v1.1.5
  */
 
 const fs = require('fs')
@@ -43,7 +46,7 @@ async function sha256(text) {
     return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 const getHash = async (path) => { return (await sha256(path)).slice(0, 32) }
-const id = await getHash(app.appId)
+const id = await getHash(ACCOUNT_ID)
 
 function updateFrontmatter(contents, field, value) {
     const f = contents.match(/^---\r?\n(.*?)\n---\r?\n(.*)$/s),
@@ -84,6 +87,8 @@ let html = `
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${file.basename}</title>
     <meta property="og:title" content="${file.basename}" />
+    <meta id="head-description" name="description" content="">
+    <meta id="head-og-description" property="og:description" content="">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="${id}.css">
     <style>
@@ -115,6 +120,12 @@ try {
     // Remove frontmatter to avoid sharing unwanted data
     dom.querySelector('pre.frontmatter')?.remove()
     dom.querySelector('div.frontmatter-container')?.remove()
+    // Set the meta description and OG description
+    try {
+        const desc = Array.from(dom.querySelectorAll("p")).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 160) + '...'
+        dom.querySelector('#head-description').content = desc
+        dom.querySelector('#head-og-description').content = desc
+    } catch (e) { }
     // Replace links
     for (const el of dom.querySelectorAll("a.internal-link")) {
         if (href = el.getAttribute('href').match(/^([^#]+)/)) {
@@ -136,7 +147,7 @@ try {
         if (!src.startsWith('app://')) continue
         try {
             const localFile = window.decodeURIComponent(src.match(/app:\/\/local\/([^?#]+)/)[1])
-            const url = (await getHash(localFile)) + '.' + localFile.split('.').pop()
+            const url = (await getHash(id + localFile)) + '.' + localFile.split('.').pop()
             el.setAttribute('src', url)
             el.removeAttribute('alt')
             upload({ filename: url, content: fs.readFileSync(localFile, { encoding: 'base64' }), encoding: 'base64' })
@@ -145,7 +156,7 @@ try {
         }
     }
     // Share the file
-    const shareFile = (await getHash(file.path)) + '.html'
+    const shareFile = (await getHash(id + file.path)) + '.html'
     upload({ filename: shareFile, content: dom.documentElement.innerHTML })
     // Upload theme CSS, unless this file has previously been shared
     // To force a CSS re-upload, just remove the `share_link` frontmatter field
