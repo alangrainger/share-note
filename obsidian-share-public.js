@@ -122,7 +122,7 @@ try {
     dom.querySelector('div.frontmatter-container')?.remove()
     // Set the meta description and OG description
     try {
-        const desc = Array.from(dom.querySelectorAll("p")).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 160) + '...'
+        const desc = Array.from(dom.querySelectorAll("p")).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 200) + '...'
         dom.querySelector('#head-description').content = desc
         dom.querySelector('#head-og-description').content = desc
     } catch (e) { }
