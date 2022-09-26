@@ -7,11 +7,11 @@ const SHOW_FOOTER = true
 
 /*
  * Obsidian Share Public
- * 
+ *
  * Created by Alan Grainger
  * https://github.com/alangrainger/obsidian-share/
- * 
- * v1.1.5
+ *
+ * v1.1.6
  */
 
 const fs = require('fs')
@@ -38,6 +38,7 @@ try {
 // Revert to the original view mode
 setTimeout(() => { leaf.setViewState(startMode) }, 200)
 if (!previewView) return // Failed to parse current note
+const status = new Notice('Sharing note...', 60000)
 
 async function sha256(text) {
     const encoder = new TextEncoder();
@@ -50,17 +51,19 @@ const id = await getHash(ACCOUNT_ID)
 
 function updateFrontmatter(contents, field, value) {
     const f = contents.match(/^---\r?\n(.*?)\n---\r?\n(.*)$/s),
-        v = `${field}: ${value}`,
-        x = new RegExp(`^${field}:.*$`, 'm'),
-        [s, e] = f ? [`${f[1]}\n`, f[2]] : ['', contents]
+      v = `${field}: ${value}`,
+      x = new RegExp(`^${field}:.*$`, 'm'),
+      [s, e] = f ? [`${f[1]}\n`, f[2]] : ['', contents]
     return f && f[1].match(x) ? contents.replace(x, v) : `---\n${s}${v}\n---\n${e}`
 }
 
 async function upload(data) {
     data.id = id
-    await requestUrl({
+    status.setMessage(`Uploading ${data.filename}...`)
+    return requestUrl({
         url: 'https://file.obsidianshare.com/sharefile.php',
         method: 'POST',
+        timeout: 1000,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
@@ -121,6 +124,7 @@ try {
     dom.querySelector('pre.frontmatter')?.remove()
     dom.querySelector('div.frontmatter-container')?.remove()
     // Set the meta description and OG description
+    const meta = app.metadataCache.getFileCache(file)
     try {
         const desc = Array.from(dom.querySelectorAll("p")).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 200) + '...'
         dom.querySelector('#head-description').content = desc
@@ -130,7 +134,6 @@ try {
     for (const el of dom.querySelectorAll("a.internal-link")) {
         if (href = el.getAttribute('href').match(/^([^#]+)/)) {
             const file = app.metadataCache.getFirstLinkpathDest(href[1], '')
-            const meta = app.metadataCache.getFileCache(file)
             if (meta?.frontmatter?.[YAML_FIELD + '_link']) {
                 // This file is shared, so update the link with the share URL
                 el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
@@ -150,17 +153,19 @@ try {
             const url = (await getHash(id + localFile)) + '.' + localFile.split('.').pop()
             el.setAttribute('src', url)
             el.removeAttribute('alt')
-            upload({ filename: url, content: fs.readFileSync(localFile, { encoding: 'base64' }), encoding: 'base64' })
+            await upload({ filename: url, content: fs.readFileSync(localFile, { encoding: 'base64' }), encoding: 'base64' })
         } catch (e) {
             console.log(e)
         }
     }
     // Share the file
-    const shareFile = (await getHash(id + file.path)) + '.html'
-    upload({ filename: shareFile, content: dom.documentElement.innerHTML })
+    const shareName = meta?.frontmatter?.[YAML_FIELD + '_hash'] || await getHash(id + file.path)
+    const shareFile = shareName + '.html'
+    await upload({ filename: shareFile, content: dom.documentElement.innerHTML })
     // Upload theme CSS, unless this file has previously been shared
     // To force a CSS re-upload, just remove the `share_link` frontmatter field
-    if (!app.metadataCache.getFileCache(file)?.frontmatter?.[YAML_FIELD + '_link']) {
+    if (!meta?.frontmatter?.[YAML_FIELD + '_link']) {
+        await upload({ filename: id + '.css', content: css })
         // Extract any base64 encoded attachments from the CSS.
         // Will use the mime-type list above to determine which attachments to extract.
         const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
@@ -169,19 +174,20 @@ try {
                 if (extension(match[1])) {
                     const filename = (await getHash(match[2])) + `.${extension(match[1])}`
                     css = css.replace(match[0], `url("${filename}")`)
-                    upload({ filename: filename, content: match[2], encoding: 'base64' })
+                    await upload({ filename: filename, content: match[2], encoding: 'base64' })
                 }
             }
         }
-        upload({ filename: id + '.css', content: css })
     }
     // Update the frontmatter in the current note
     let contents = await app.vault.read(file)
     contents = updateFrontmatter(contents, YAML_FIELD + '_updated', moment().format())
     contents = updateFrontmatter(contents, YAML_FIELD + '_link', 'https://file.obsidianshare.com/' + shareFile)
     app.vault.modify(file, contents)
-    new Notice('File has been shared', 5000)
+    status.hide()
+    new Notice('File has been shared', 4000)
 } catch (e) {
     console.log(e)
-    new Notice('Failed to share file', 5000)
+    status.hide()
+    new Notice('Failed to share file', 4000)
 }
