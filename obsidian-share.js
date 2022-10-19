@@ -11,7 +11,7 @@ const SHOW_FOOTER = true
  * Created by Alan Grainger
  * https://github.com/alangrainger/obsidian-share/
  *
- * v1.1.6
+ * v1.2.0
  */
 
 const fs = require('fs')
@@ -127,7 +127,7 @@ let html = `
 <div class="${previewView.className}">
 <div class="markdown-preview-sizer markdown-preview-section">
 ${content}
-</div></div></div></div></div></div></div></div>${SHOW_FOOTER ? footer : ''}</div></div></body></html>`
+</div></div></div></div></div></div></div></div></div>${SHOW_FOOTER ? footer : ''}</div></body></html>`
 
 try {
     // Generate the HTML file for uploading
