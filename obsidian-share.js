@@ -145,13 +145,18 @@ try {
     // Replace links
     for (const el of dom.querySelectorAll("a.internal-link")) {
         if (href = el.getAttribute('href').match(/^([^#]+)/)) {
-            const file = app.metadataCache.getFirstLinkpathDest(href[1], '')
-            if (meta?.frontmatter?.[YAML_FIELD + '_link']) {
-                // This file is shared, so update the link with the share URL
-                el.setAttribute('href', meta.frontmatter[YAML_FIELD + '_link'])
-                el.removeAttribute('target')
-                continue
-            }
+	    try {
+	        const linkedfile = app.metadataCache.getFirstLinkpathDest(href[1], '')
+	        const linkedmeta = app.metadataCache.getFileCache(linkedfile)
+	        if (linkedmeta?.frontmatter?.[YAML_FIELD + '_link']) {
+	            // This file is shared, so update the link with the share URL
+	            el.setAttribute('href', linkedmeta.frontmatter[YAML_FIELD + '_link'])
+	            el.removeAttribute('target')
+	            continue
+	        }
+	    } catch(e) {
+	        console.log(e)
+	    }
         }
         // This file is not shared, so remove the link and replace with plain-text
         el.replaceWith(el.innerText)
