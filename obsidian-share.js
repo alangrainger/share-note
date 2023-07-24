@@ -161,7 +161,7 @@ try {
         const src = el.getAttribute('src')
         if (!src.startsWith('app://')) continue
         try {
-            const localFile = window.decodeURIComponent(src.match(/app:\/\/local\/([^?#]+)/)[1])
+            const localFile = window.decodeURIComponent(src.match(/app:\/\/\w+\/([^?#]+)/)[1])
             const url = (await getHash(localFile)) + '.' + localFile.split('.').pop()
             el.setAttribute('src', url)
             el.removeAttribute('alt')
