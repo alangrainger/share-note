@@ -52,10 +52,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .addButton(btn => btn
         .setButtonText('Request API key')
         .setCta()
-        .onClick(async () => {
+        .onClick(() => {
           if (this.plugin.settings.email) {
             new Notice('An API key has been sent to ' + this.plugin.settings.email, 3000)
-            await this.plugin.api.post('/signup', {
+            this.plugin.api.post('/v1/account/key', {
               email: this.plugin.settings.email
             })
           }
