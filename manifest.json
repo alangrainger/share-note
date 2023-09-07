@@ -1,0 +1,11 @@
+{
+	"id": "share-note",
+	"name": "Share Note",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"description": "Share a note publicly with full styling. Data is stored encrypted on the server and only you have the key.",
+	"author": "Alan Grainger",
+	"authorUrl": "https://github.com/alangrainger",
+	"fundingUrl": "https://ko-fi.com/alan_",
+	"isDesktopOnly": false
+}
