@@ -35,3 +35,7 @@ https://file.obsidianshare.com/572e1ae4a0aeadf5943862d1deaf8fe6.html#rhA5Um75sfB
 the part you want to copy is the bit between `obsidianshare.com/` and `.html`
 
 In this case you would set the `share_hash` property to be `572e1ae4a0aeadf5943862d1deaf8fe6` and the URL will stay the same no matter if you rename or move the Obsidian note.
+
+## Attributions
+
+Encryption code is based with thanks on code from https://github.com/mcndt/obsidian-quickshare
