@@ -53,11 +53,13 @@ export default class Note {
     // The timeout is required, even though we 'await' the preview mode setting earlier
     setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
-    this.status = new Notice('Sharing note...', 60000)
+    // Create a semi-permanent status notice which we can update
+    this.status = new Notice('Sharing note...', 30 * 1000)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
       // No active file
+      this.status.hide()
       return
     }
     this.meta = this.plugin.app.metadataCache.getFileCache(file)

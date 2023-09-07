@@ -15,9 +15,10 @@ export default class SharePlugin extends Plugin {
     this.addCommand({
       id: 'share',
       name: 'Share current note',
-      callback: () => {
+      callback: async () => {
         const note = new Note(this)
-        note.parse()
+        await note.parse()
+        note.status.hide() // clean up status just in case
       }
     })
 
