@@ -5,6 +5,12 @@ import SharePlugin from './main'
 import { UploadData } from './api'
 import * as fs from 'fs'
 
+interface YamlField {
+  link: string;
+  updated: string;
+  hash: string;
+}
+
 export default class Note {
   plugin: SharePlugin
   leaf: WorkspaceLeaf
@@ -14,10 +20,18 @@ export default class Note {
   css: string
   dom: Document
   meta: CachedMetadata | null
+  yamlField: YamlField
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
+    // Set up YAML property names based on the user's chosen prefix
+    const base = this.plugin.settings.yamlField
+    this.yamlField = {
+      link: base + '_link',
+      updated: base + '_updated',
+      hash: base + '_hash',
+    }
   }
 
   async parse () {
@@ -90,9 +104,9 @@ export default class Note {
         const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(href[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-          if (linkedMeta?.frontmatter?.[this.plugin.settings.yamlField + '_link']) {
+          if (linkedMeta?.frontmatter?.[this.yamlField.link]) {
             // This file is shared, so update the link with the share URL
-            el.setAttribute('href', linkedMeta.frontmatter[this.plugin.settings.yamlField + '_link'])
+            el.setAttribute('href', linkedMeta.frontmatter[this.yamlField.link])
             el.removeAttribute('target')
             continue
           }
@@ -109,8 +123,8 @@ export default class Note {
 
     // Use previous key if it exists, so that links will stay consistent across updates
     let existingKey
-    if (this.meta?.frontmatter?.[this.plugin.settings.yamlField + '_link']) {
-      const key = this.meta.frontmatter[this.plugin.settings.yamlField + '_link'].match(/#(.+)$/)
+    if (this.meta?.frontmatter?.[this.yamlField.link]) {
+      const key = this.meta.frontmatter[this.yamlField.link].match(/#(.+)$/)
       if (key) {
         existingKey = key[1]
       }
@@ -126,24 +140,30 @@ export default class Note {
     }))
 
     // Share the file
-    const shareName = this.meta?.frontmatter?.[this.plugin.settings.yamlField + '_hash'] || await hash(this.plugin.settings.uid + file.path)
+    const shareName = this.meta?.frontmatter?.[this.yamlField.hash] || await hash(this.plugin.settings.uid + file.path)
     const shareFile = shareName + '.html'
 
     const baseRes = await this.upload({
       filename: shareFile,
       content: outputFile.html
     })
+    const shareLink = baseRes + '#' + encryptedData.key
     await this.uploadCss()
 
+    let shareNoticeSuffix = ''
     if (baseRes) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-        frontmatter[this.plugin.settings.yamlField + '_updated'] = moment().format()
-        frontmatter[this.plugin.settings.yamlField + '_link'] = baseRes + '#' + encryptedData.key
+        frontmatter[this.yamlField.link] = shareLink
+        frontmatter[this.yamlField.updated] = moment().format()
       })
+      if (this.plugin.settings.clipboard) {
+        await navigator.clipboard.writeText(shareLink)
+        shareNoticeSuffix = ' and the link has been copied to your clipboard'
+      }
     }
 
     this.status.hide()
-    new Notice('File has been shared', 4000)
+    new Notice('Note has been shared' + shareNoticeSuffix, 4000)
   }
 
   async upload (data: UploadData) {
@@ -152,7 +172,7 @@ export default class Note {
   }
 
   /**
-   * Upload local images, encoded as base64
+   * Upload images encoded as base64
    */
   async processImages () {
     for (const el of this.dom.querySelectorAll('img')) {
@@ -167,9 +187,7 @@ export default class Note {
         el.removeAttribute('alt')
         await this.upload({
           filename: url,
-          content: fs.readFileSync(localFile, {
-            encoding: 'base64'
-          }),
+          content: fs.readFileSync(localFile, { encoding: 'base64' }),
           encoding: 'base64'
         })
       } catch (e) {
@@ -178,13 +196,15 @@ export default class Note {
     }
   }
 
+  /**
+   * Upload theme CSS, unless this file has previously been shared.
+   * To force a CSS re-upload, just remove the `share_link` frontmatter field.
+   */
   async uploadCss () {
-    // Upload theme CSS, unless this file has previously been shared
-    // To force a CSS re-upload, just remove the `share_link` frontmatter field
-    if (!this.meta?.frontmatter?.[this.plugin.settings.yamlField + '_link']) {
+    if (!this.meta?.frontmatter?.[this.yamlField.link]) {
       await this.upload({ filename: this.plugin.settings.uid + '.css', content: this.css })
       // Extract any base64 encoded attachments from the CSS.
-      // Will use the mime-type list above to determine which attachments to extract.
+      // Will use the mime-type whitelist to determine which attachments to extract.
       const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
       for (const attachment of this.css.match(new RegExp(regex, 'g')) || []) {
         const match = attachment.match(new RegExp(regex))
@@ -206,7 +226,7 @@ export default class Note {
   }
 
   /**
-   * Turn a mime-type into an extension. This is also a whitelist of allowed filetypes.
+   * Turn the font mime-type into an extension.
    * @param {string} mimeType
    * @return {string|undefined}
    */

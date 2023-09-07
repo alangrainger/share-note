@@ -10,6 +10,7 @@ export interface ShareSettings {
   noteWidth: string;
   showFooter: boolean;
   removeYaml: boolean;
+  clipboard: boolean;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
@@ -19,7 +20,8 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   yamlField: 'share',
   noteWidth: '700px',
   showFooter: true,
-  removeYaml: true
+  removeYaml: true,
+  clipboard: true
 }
 
 export class ShareSettingsTab extends PluginSettingTab {
@@ -70,9 +72,21 @@ export class ShareSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
+    // Local YAML field
+    new Setting(containerEl)
+      .setName('Frontmatter property prefix')
+      .setDesc('The frontmatter property for storing the shared link and updated time. A value of `share` will create frontmatter fields of `share_link` and `share_updated`.')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.yamlField)
+        .setValue(this.plugin.settings.yamlField)
+        .onChange(async (value) => {
+          this.plugin.settings.yamlField = value || DEFAULT_SETTINGS.yamlField
+          await this.plugin.saveSettings()
+        }))
+
     // Strip frontmatter
     new Setting(containerEl)
-      .setName('Remove frontmatter/YAML')
+      .setName('Remove published frontmatter/YAML')
       .setDesc('Remove frontmatter/YAML/properties from the shared note')
       .addToggle(toggle => {
         toggle
@@ -92,6 +106,19 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.showFooter)
           .onChange(async (value) => {
             this.plugin.settings.showFooter = value
+            await this.plugin.saveSettings()
+            this.display()
+          })
+      })
+
+    // Copy to clipboard
+    new Setting(containerEl)
+      .setName('Copy the link to clipboard after sharing')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.clipboard)
+          .onChange(async (value) => {
+            this.plugin.settings.clipboard = value
             await this.plugin.saveSettings()
             this.display()
           })

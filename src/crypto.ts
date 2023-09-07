@@ -11,24 +11,6 @@ export interface EncryptedString {
   iv: string;
 }
 
-/**
- * Generates a 256-bit key from a seed.
- *
- * @param seed passphrase-like data to generate the key from.
- */
-export async function generateKey (seed: string): Promise<ArrayBuffer> {
-  const _seed = new TextEncoder().encode(seed)
-  return _generateKey(_seed)
-}
-
-/**
- * Generates a random 256-bit key using crypto.getRandomValues.
- */
-export async function generateRandomKey (): Promise<ArrayBuffer> {
-  const seed = window.crypto.getRandomValues(new Uint8Array(64))
-  return _generateKey(seed)
-}
-
 async function _generateKey (seed: ArrayBuffer) {
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
@@ -54,23 +36,6 @@ async function _generateKey (seed: ArrayBuffer) {
 
 export function masterKeyToString (masterKey: ArrayBuffer): string {
   return arrayBufferToBase64(masterKey)
-}
-
-export async function _encryptString (
-  md: string,
-  secret: ArrayBuffer
-): Promise<EncryptedData> {
-  const plaintext = new TextEncoder().encode(md)
-  const iv = window.crypto.getRandomValues(new Uint8Array(16))
-  const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    await _getAesGcmKey(secret),
-    plaintext
-  )
-
-  const ciphertext = arrayBufferToBase64(bufCiphertext)
-
-  return { ciphertext, iv: arrayBufferToBase64(iv) }
 }
 
 export async function decryptString (
