@@ -21,19 +21,23 @@ export default class API {
       id: this.plugin.settings.uid,
       key: this.plugin.settings.apiKey
     })
-    return requestUrl({
-      url: BASEURL + endpoint,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    })
+    try {
+      return requestUrl({
+        url: BASEURL + endpoint,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   async upload (data: UploadData) {
     const res = await this.post('/v1/file/upload', data)
-    if (res.status === 200) {
+    if (res && res.status === 200) {
       return 'https://file.obsidianshare.com/' + data.filename
     } else {
       return ''
