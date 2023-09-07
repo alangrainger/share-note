@@ -167,7 +167,7 @@ export default class Note {
   }
 
   async upload (data: UploadData) {
-    this.status.setMessage(`Uploading ${data.filename}...`)
+    // this.status.setMessage(`Uploading ${data.filename}...`)
     return this.plugin.api.upload(data)
   }
 
