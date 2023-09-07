@@ -26,4 +26,12 @@ The next time you share the same file, it will ignore the CSS since it's already
 
 The URL of the shared file is based on the note path + name. If you've changed the path or name and want to keep the same URL, you can add a  `share_hash` YAML property with the original hash.
 
-For example, if your URL was https://file.obsidianshare.com/572e1ae4a0aeadf5943862d1deaf8fe6.html, you would set `share_hash` to be `572e1ae4a0aeadf5943862d1deaf8fe6` and the URL will stay the same no matter if you rename or move the Obsidian note.
+For example, if your URL was:
+
+```
+https://file.obsidianshare.com/572e1ae4a0aeadf5943862d1deaf8fe6.html#rhA5Um75sfBc+d1ahskptuNnriaHq3mTiEdk3Lfa4t4
+```
+
+the part you want to copy is the bit between `obsidianshare.com/` and `.html`
+
+In this case you would set the `share_hash` property to be `572e1ae4a0aeadf5943862d1deaf8fe6` and the URL will stay the same no matter if you rename or move the Obsidian note.
