@@ -9,6 +9,10 @@ export const Placeholder = {
   footer: 'TEMPLATE_FOOTER'
 }
 
+/**
+ * .reading-view-extra gives a custom width for the note text.
+ * .status-bar makes the status bar pinned to the right, rather than full-page.
+ */
 const html = `
 <!DOCTYPE HTML>
 <html>
@@ -30,6 +34,10 @@ const html = `
         .reading-view-extra {
             max-width: TEMPLATE_WIDTH;
             margin: 0 auto;
+        }
+        
+        .status-bar {
+            position: fixed !important;
         }
     </style>
 </head>
@@ -109,7 +117,7 @@ const html = `
 `
 
 export const defaultFooter = `
-<div id="footer" class="status-bar">
+<div class="status-bar">
         <div class="status-bar-item">
             <span class="status-bar-item-segment">Published with <a
                     href="https://obsidianshare.com/" target="_blank">Share Note</a> for Obsidian</span>
