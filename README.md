@@ -1,4 +1,4 @@
-# Obsidian Share
+# Share Note
 
 Free, encrypted public note sharing for Obsidian.
 
