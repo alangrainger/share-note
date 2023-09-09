@@ -22,6 +22,7 @@ export default class Note {
   meta: CachedMetadata | null
   yamlField: YamlField
   isForceUpload: boolean
+  outputFile: Template
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
@@ -78,15 +79,14 @@ export default class Note {
       return
     }
     this.meta = this.plugin.app.metadataCache.getFileCache(file)
-    const outputFile = new Template()
+    this.outputFile = new Template()
 
     // Make template value replacements
-    outputFile.set(Placeholder.css, `${this.plugin.settings.uid}.css`)
-    outputFile.set(Placeholder.noteWidth, this.plugin.settings.noteWidth)
-    outputFile.set(Placeholder.previewViewClass, this.previewViewEl.className || '')
-    outputFile.set(Placeholder.bodyClass, document.body.className)
-    outputFile.set(Placeholder.bodyStyle, document.body.style.cssText.replace(/"/g, '\''))
-    outputFile.set(Placeholder.footer, this.plugin.settings.showFooter ? defaultFooter : '')
+    this.outputFile.set(Placeholder.noteWidth, this.plugin.settings.noteWidth)
+    this.outputFile.set(Placeholder.previewViewClass, this.previewViewEl.className || '')
+    this.outputFile.set(Placeholder.bodyClass, document.body.className)
+    this.outputFile.set(Placeholder.bodyStyle, document.body.style.cssText.replace(/"/g, '\''))
+    this.outputFile.set(Placeholder.footer, this.plugin.settings.showFooter ? defaultFooter : '')
 
     // Generate the HTML file for uploading
     this.dom = new DOMParser().parseFromString(this.content, 'text/html')
@@ -117,7 +117,8 @@ export default class Note {
       el.replaceWith(el.innerHTML)
     }
 
-    // Upload local images
+    // Process CSS and images
+    await this.uploadCss()
     await this.processImages()
 
     // Encrypt the note content
@@ -137,7 +138,7 @@ export default class Note {
       basename: file.basename
     })
     const encryptedData = await encryptString(plaintext, existingKey)
-    outputFile.set(Placeholder.payload, JSON.stringify({
+    this.outputFile.set(Placeholder.payload, JSON.stringify({
       ciphertext: encryptedData.ciphertext,
       iv: encryptedData.iv
     }))
@@ -150,10 +151,9 @@ export default class Note {
 
     const baseRes = await this.upload({
       filename: shareFile,
-      content: outputFile.html
+      content: this.outputFile.html
     })
     const shareLink = baseRes + '#' + encryptedData.key
-    await this.uploadCss()
 
     let shareMessage = 'Note has been shared'
     if (baseRes) {
@@ -186,14 +186,14 @@ export default class Note {
         const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
         if (!srcMatch) continue
         const localFile = window.decodeURIComponent(srcMatch[1])
-        const url = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
-        el.setAttribute('src', url)
-        el.removeAttribute('alt')
-        await this.upload({
-          filename: url,
+        const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
+        const url = await this.upload({
+          filename: filename,
           content: fs.readFileSync(localFile, { encoding: 'base64' }),
           encoding: 'base64'
         })
+        el.setAttribute('src', url)
+        el.removeAttribute('alt')
       } catch (e) {
         console.log(e)
       }
@@ -206,7 +206,12 @@ export default class Note {
    */
   async uploadCss () {
     if (!this.meta?.frontmatter?.[this.yamlField.link] || this.isForceUpload) {
-      await this.upload({ filename: this.plugin.settings.uid + '.css', content: this.css })
+      // Upload the main CSS file
+      const cssUrl = await this.upload({
+        filename: this.plugin.settings.uid + '.css',
+        content: this.css
+      })
+      this.outputFile.set(Placeholder.css, cssUrl)
       // Extract any base64 encoded attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
       const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
@@ -217,12 +222,12 @@ export default class Note {
           const extension = this.extensionFromMime(match[1])
           if (extension) {
             const filename = (await hash(match[2])) + '.' + extension
-            this.css = this.css.replace(match[0], `url("${filename}")`)
-            await this.upload({
+            const assetUrl = await this.upload({
               filename,
               content: match[2],
               encoding: 'base64'
             })
+            this.css = this.css.replace(match[0], `url("${assetUrl}")`)
           }
         }
       }

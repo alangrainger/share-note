@@ -39,8 +39,8 @@ export default class API {
 
   async upload (data: UploadData) {
     const res = await this.post('/v1/file/upload', data)
-    if (res && res.status === 200) {
-      return 'https://file.obsidianshare.com/' + data.filename
+    if (res && res.status === 200 && res.json.success) {
+      return res.json.filename
     } else {
       return ''
     }
