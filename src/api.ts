@@ -17,7 +17,7 @@ export default class API {
     this.plugin = plugin
   }
 
-  async post (endpoint: string, data: object) {
+  async post (endpoint: string, data = {}) {
     Object.assign(data, {
       id: this.plugin.settings.uid,
       key: this.plugin.settings.apiKey,

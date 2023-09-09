@@ -205,7 +205,23 @@ export default class Note {
    * or the user has requested a force re-upload
    */
   async uploadCss () {
+    let uploadCss = false
     if (!this.meta?.frontmatter?.[this.yamlField.link] || this.isForceUpload) {
+      uploadCss = true
+    } else {
+      // Check with the server to see if we have an existing CSS file
+      try {
+        const res = await this.plugin.api.post('/v1/file/check-css')
+        if (res?.json.success) {
+          // Existing CSS file, use that
+          this.outputFile.set(Placeholder.css, res.json.filename)
+          return
+        }
+      } catch (e) { }
+      uploadCss = true
+    }
+
+    if (uploadCss) {
       // Upload the main CSS file
       const cssUrl = await this.upload({
         filename: this.plugin.settings.uid + '.css',
