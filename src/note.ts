@@ -150,7 +150,7 @@ export default class Note {
     const shareLink = baseRes + '#' + encryptedData.key
     await this.uploadCss()
 
-    let shareNoticeSuffix = ''
+    let shareMessage = 'Note has been shared'
     if (baseRes) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
         frontmatter[this.yamlField.link] = shareLink
@@ -158,16 +158,15 @@ export default class Note {
       })
       if (this.plugin.settings.clipboard) {
         await navigator.clipboard.writeText(shareLink)
-        shareNoticeSuffix = ' and the link has been copied to your clipboard'
+        shareMessage += ' and the link has been copied to your clipboard'
       }
     }
 
     this.status.hide()
-    new Notice('Note has been shared' + shareNoticeSuffix, 4000)
+    new Notice(shareMessage, 6000)
   }
 
   async upload (data: UploadData) {
-    // this.status.setMessage(`Uploading ${data.filename}...`)
     return this.plugin.api.upload(data)
   }
 

@@ -1,5 +1,6 @@
 import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
+const pluginVersion = require('../manifest.json').version
 
 const BASEURL = 'https://api.obsidianshare.com'
 
@@ -19,7 +20,8 @@ export default class API {
   async post (endpoint: string, data: object) {
     Object.assign(data, {
       id: this.plugin.settings.uid,
-      key: this.plugin.settings.apiKey
+      key: this.plugin.settings.apiKey,
+      version: pluginVersion
     })
     try {
       return requestUrl({
