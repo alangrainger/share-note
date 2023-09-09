@@ -21,6 +21,7 @@ export default class Note {
   dom: Document
   meta: CachedMetadata | null
   yamlField: YamlField
+  isForceUpload: boolean
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
@@ -121,12 +122,14 @@ export default class Note {
 
     // Encrypt the note content
 
-    // Use previous key if it exists, so that links will stay consistent across updates
+    // Use previous name and key if they exist, so that links will stay consistent across updates
+    let shareName
     let existingKey
     if (this.meta?.frontmatter?.[this.yamlField.link]) {
-      const key = this.meta.frontmatter[this.yamlField.link].match(/#(.+)$/)
-      if (key) {
-        existingKey = key[1]
+      const match = this.meta.frontmatter[this.yamlField.link].match(/(\w+)\.html#(.+?)$/)
+      if (match) {
+        shareName = match[1]
+        existingKey = match[2]
       }
     }
     const plaintext = JSON.stringify({
@@ -140,7 +143,9 @@ export default class Note {
     }))
 
     // Share the file
-    const shareName = this.meta?.frontmatter?.[this.yamlField.hash] || await hash(this.plugin.settings.uid + file.path)
+    if (!shareName) {
+      shareName = await hash(this.plugin.settings.uid + Date.now())
+    }
     const shareFile = shareName + '.html'
 
     const baseRes = await this.upload({
@@ -196,11 +201,12 @@ export default class Note {
   }
 
   /**
-   * Upload theme CSS, unless this file has previously been shared.
-   * To force a CSS re-upload, just remove the `share_link` frontmatter field.
+   * Upload theme CSS, unless this file has previously been shared,
+   * or the user has requested a force re-upload
    */
   async uploadCss () {
-    if (!this.meta?.frontmatter?.[this.yamlField.link]) {
+    if (!this.meta?.frontmatter?.[this.yamlField.link] || this.isForceUpload) {
+      console.log('css')
       await this.upload({ filename: this.plugin.settings.uid + '.css', content: this.css })
       // Extract any base64 encoded attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
@@ -237,5 +243,9 @@ export default class Note {
       woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2']
     }
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
+  }
+
+  forceUpload () {
+    this.isForceUpload = true
   }
 }

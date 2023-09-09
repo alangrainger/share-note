@@ -11,12 +11,24 @@ export default class SharePlugin extends Plugin {
     await this.loadSettings()
     this.api = new API(this)
 
-    // This adds an editor command that can perform some operation on the current editor instance
+    // Share note
     this.addCommand({
-      id: 'share',
+      id: 'share-note',
       name: 'Share current note',
       callback: async () => {
         const note = new Note(this)
+        await note.parse()
+        note.status.hide() // clean up status just in case
+      }
+    })
+
+    // Share note and force a re-upload of all assets
+    this.addCommand({
+      id: 'force-upload',
+      name: 'Force re-upload of all data for this note',
+      callback: async () => {
+        const note = new Note(this)
+        note.forceUpload()
         await note.parse()
         note.status.hide() // clean up status just in case
       }
