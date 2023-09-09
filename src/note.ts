@@ -206,7 +206,6 @@ export default class Note {
    */
   async uploadCss () {
     if (!this.meta?.frontmatter?.[this.yamlField.link] || this.isForceUpload) {
-      console.log('css')
       await this.upload({ filename: this.plugin.settings.uid + '.css', content: this.css })
       // Extract any base64 encoded attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
