@@ -222,12 +222,6 @@ export default class Note {
     }
 
     if (uploadCss) {
-      // Upload the main CSS file
-      const cssUrl = await this.upload({
-        filename: this.plugin.settings.uid + '.css',
-        content: this.css
-      })
-      this.outputFile.set(Placeholder.css, cssUrl)
       // Extract any base64 encoded attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
       const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
@@ -247,6 +241,12 @@ export default class Note {
           }
         }
       }
+      // Upload the main CSS file
+      const cssUrl = await this.upload({
+        filename: this.plugin.settings.uid + '.css',
+        content: this.css
+      })
+      this.outputFile.set(Placeholder.css, cssUrl)
     }
   }
 
