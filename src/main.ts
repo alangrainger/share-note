@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian'
+import { Notice, Plugin } from 'obsidian'
 import { ShareSettings, ShareSettingsTab, DEFAULT_SETTINGS } from './settings'
 import Note from './note'
 import API from './api'
@@ -16,9 +16,7 @@ export default class SharePlugin extends Plugin {
       id: 'share-note',
       name: 'Share current note',
       callback: async () => {
-        const note = new Note(this)
-        await note.parse()
-        note.status.hide() // clean up status just in case
+        await this.uploadNote()
       }
     })
 
@@ -27,10 +25,7 @@ export default class SharePlugin extends Plugin {
       id: 'force-upload',
       name: 'Force re-upload of all data for this note',
       callback: async () => {
-        const note = new Note(this)
-        note.forceUpload()
-        await note.parse()
-        note.status.hide() // clean up status just in case
+        await this.uploadNote(true)
       }
     })
 
@@ -47,5 +42,18 @@ export default class SharePlugin extends Plugin {
 
   async saveSettings () {
     await this.saveData(this.settings)
+  }
+
+  async uploadNote (forceUpload = false) {
+    const note = new Note(this)
+    if (forceUpload) {
+      note.forceUpload()
+    }
+    try {
+      await note.parse()
+    } catch (e) {
+      new Notice('There was an error uploading the note, please try again.', 5000)
+    }
+    note.status.hide() // clean up status just in case
   }
 }
