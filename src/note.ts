@@ -206,14 +206,14 @@ export default class Note {
    */
   async uploadCss () {
     let uploadCss = false
-    if (!this.meta?.frontmatter?.[this.yamlField.link] || this.isForceUpload) {
+    if (this.isForceUpload) {
       uploadCss = true
     } else {
       // Check with the server to see if we have an existing CSS file
       try {
         const res = await this.plugin.api.post('/v1/file/check-css')
         if (res?.json.success) {
-          // Existing CSS file, use that
+          // There is an existing CSS file, so use that rather than uploading/replacing
           this.outputFile.set(Placeholder.css, res.json.filename)
           return
         }
