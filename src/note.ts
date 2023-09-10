@@ -1,9 +1,10 @@
-import { CachedMetadata, moment, Notice, TFile, WorkspaceLeaf } from 'obsidian'
-import Template, { Placeholder, defaultFooter } from './template'
+import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
+import Template, { defaultFooter, Placeholder } from './template'
 import { encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
 import * as fs from 'fs'
+import StatusMessage, { StatusType } from './StatusMessage'
 
 interface YamlField {
   link: string;
@@ -14,7 +15,7 @@ interface YamlField {
 export default class Note {
   plugin: SharePlugin
   leaf: WorkspaceLeaf
-  status: Notice
+  status: StatusMessage
   content: string
   previewViewEl: Element
   css: string
@@ -57,11 +58,11 @@ export default class Note {
       }).filter(Boolean).join('').replace(/\n/g, '')
     } catch (e) {
       console.log(e)
-      new Notice('Failed to parse current note, check console for details', 5000)
+      new StatusMessage('Failed to parse current note, check console for details', StatusType.Error)
       return
     }
     if (!this.content) {
-      new Notice('Failed to read current note, please try again.', 5000)
+      new StatusMessage('Failed to read current note, please try again', StatusType.Error)
       return
     }
 
@@ -70,7 +71,7 @@ export default class Note {
     setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
     // Create a semi-permanent status notice which we can update
-    this.status = new Notice('Sharing note...', 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Info, 30 * 1000)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
@@ -155,7 +156,7 @@ export default class Note {
     })
     const shareLink = baseRes + '#' + encryptedData.key
 
-    let shareMessage = 'Note has been shared'
+    let shareMessage = 'The note has been shared'
     if (baseRes) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
         frontmatter[this.yamlField.link] = shareLink
@@ -163,12 +164,12 @@ export default class Note {
       })
       if (this.plugin.settings.clipboard) {
         await navigator.clipboard.writeText(shareLink)
-        shareMessage += ' and the link has been copied to your clipboard'
+        shareMessage += ' and the link is copied to your clipboard'
       }
     }
 
     this.status.hide()
-    new Notice(shareMessage, 6000)
+    new StatusMessage(shareMessage, StatusType.Info, 6000)
   }
 
   async upload (data: UploadData) {

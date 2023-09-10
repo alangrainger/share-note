@@ -1,13 +1,15 @@
-import { Notice, Plugin } from 'obsidian'
-import { ShareSettings, ShareSettingsTab, DEFAULT_SETTINGS } from './settings'
+import { Plugin } from 'obsidian'
+import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
 import Note from './note'
 import API from './api'
+import StatusMessage, { StatusType } from './StatusMessage'
 
 export default class SharePlugin extends Plugin {
   settings: ShareSettings
   api: API
 
   async onload () {
+
     await this.loadSettings()
     this.api = new API(this)
 
@@ -52,7 +54,9 @@ export default class SharePlugin extends Plugin {
     try {
       await note.parse()
     } catch (e) {
-      new Notice('There was an error uploading the note, please try again.', 5000)
+      if (e === 'Unknown error') {
+        new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
+      }
     }
     note.status.hide() // clean up status just in case
   }
