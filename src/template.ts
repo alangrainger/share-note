@@ -116,17 +116,14 @@ const html = `
 </html>
 `
 
-export const defaultFooter = `
-<div class="status-bar">
+export const defaultFooter = `<div class="status-bar">
         <div class="status-bar-item">
-            <span class="status-bar-item-segment">Published with <a
-                    href="https://obsidianshare.com/" target="_blank">Share Note</a> for Obsidian</span>
+            <span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Share Note</a> for Obsidian</span>
         </div>
     </div>`
 
 export default class Template {
   html: string
-  footer: string
 
   constructor () {
     this.html = html

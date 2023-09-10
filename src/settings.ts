@@ -1,6 +1,7 @@
-import { App, Notice, PluginSettingTab, requestUrl, Setting } from 'obsidian'
+import { App, PluginSettingTab, Setting } from 'obsidian'
 import SharePlugin from './main'
 import { hash } from './crypto'
+import StatusMessage from './StatusMessage'
 
 export interface ShareSettings {
   uid: string;
@@ -52,10 +53,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .addButton(btn => btn
         .setButtonText('Request API key')
         .setCta()
-        .onClick(() => {
+        .onClick(async () => {
           if (this.plugin.settings.email) {
-            new Notice('An API key has been sent to ' + this.plugin.settings.email, 3000)
-            this.plugin.api.post('/v1/account/key', {
+            new StatusMessage('An API key has been sent to ' + this.plugin.settings.email)
+            await this.plugin.api.post('/v1/account/key', {
               email: this.plugin.settings.email
             })
           }
