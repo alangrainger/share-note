@@ -1,5 +1,3 @@
-// Copied with thanks from https://github.com/mcndt/obsidian-quickshare
-
 export interface EncryptedString {
   ciphertext: string;
   key: string;
