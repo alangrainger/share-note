@@ -2,6 +2,12 @@
 
 Free, encrypted public note sharing for Obsidian.
 
+## Encryption
+
+- Your notes are encrypted on your device with a key that only you have.
+- Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
+- The key is never sent to the server, it only exists as part of the share link created inside your device.
+
 ## Features
 
 - All note data is encrypted on the server. The decryption key is provided to you with the share link, and is never sent to the server at any point.
