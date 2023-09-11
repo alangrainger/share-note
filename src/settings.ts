@@ -1,11 +1,8 @@
-import { App, PluginSettingTab, Setting } from 'obsidian'
+import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
-import { hash } from './crypto'
-import StatusMessage from './StatusMessage'
 
 export interface ShareSettings {
   uid: string;
-  email: string;
   apiKey: string;
   yamlField: string;
   noteWidth: string;
@@ -16,7 +13,6 @@ export interface ShareSettings {
 
 export const DEFAULT_SETTINGS: ShareSettings = {
   uid: '',
-  email: '',
   apiKey: '',
   yamlField: 'share',
   noteWidth: '700px',
@@ -27,6 +23,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
 
 export class ShareSettingsTab extends PluginSettingTab {
   plugin: SharePlugin
+  apikeyEl: TextComponent
 
   constructor (app: App, plugin: SharePlugin) {
     super(app, plugin)
@@ -38,40 +35,26 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
-    // Email address
-    new Setting(containerEl)
-      .setName('Email address')
-      .setDesc('This is not stored on the Share server, it is solely used to send you an API key.')
-      .addText(text => text
-        .setValue(this.plugin.settings.email)
-        .onChange(async (value) => {
-          this.plugin.settings.email = value
-          // Store a hashed value of the email. This is what we use to communicate with the server.
-          this.plugin.settings.uid = await hash(value)
-          await this.plugin.saveSettings()
-        }))
-      .addButton(btn => btn
-        .setButtonText('Request API key')
-        .setCta()
-        .onClick(async () => {
-          if (this.plugin.settings.email) {
-            new StatusMessage('An API key has been sent to ' + this.plugin.settings.email)
-            await this.plugin.api.post('/v1/account/key', {
-              email: this.plugin.settings.email
-            })
-          }
-        }))
-
     // API key
     new Setting(containerEl)
       .setName('API key')
-      .setDesc('Enter the key which was sent to you via email.')
-      .addText(text => text
-        .setValue(this.plugin.settings.apiKey)
-        .onChange(async (value) => {
-          this.plugin.settings.apiKey = value
-          await this.plugin.saveSettings()
+      .setDesc('Click the button to request a new API key')
+      .addButton(btn => btn
+        .setButtonText('Connect plugin')
+        .setCta()
+        .onClick(() => {
+          window.open('https://challenge.obsidianshare.com?id=' + this.plugin.settings.uid)
         }))
+      .addText(inputEl => {
+        this.apikeyEl = inputEl // so we can update it with the API key during the URI callback
+        inputEl
+          .setPlaceholder('API key')
+          .setValue(this.plugin.settings.apiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.apiKey = value
+            await this.plugin.saveSettings()
+          })
+      })
 
     // Local YAML field
     new Setting(containerEl)
@@ -124,5 +107,12 @@ export class ShareSettingsTab extends PluginSettingTab {
             this.display()
           })
       })
+
+    new Setting(containerEl)
+      .setName('User ID')
+      .setDesc('If you need it for debugging purposes, this is your user ID')
+      .addText(text => text
+        .setValue(this.plugin.settings.uid)
+        .setDisabled(true))
   }
 }

@@ -16,7 +16,7 @@ Free, encrypted public note sharing for Obsidian.
 
 I have a server set up to host the shared notes. This is a free service for Obsidian users, as I already had the server and the costs to me are negligible.
 
-To use the service you will need to get an API key in the settings page.
+Connect your plugin by clicking the "Connect plugin" button on the Settings page.
 
 ## Usage
 

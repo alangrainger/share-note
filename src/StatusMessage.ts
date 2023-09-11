@@ -4,7 +4,8 @@ const pluginName = require('../manifest.json').name
 
 export enum StatusType {
   Info,
-  Error
+  Error,
+  Success
 }
 
 export default class StatusMessage extends Notice {
@@ -18,6 +19,10 @@ export default class StatusMessage extends Notice {
       const style = messageEl.parentElement.style
       if (type === StatusType.Error) {
         style.background = '#c10000'
+        style.color = 'white'
+      }
+      else if (type === StatusType.Success) {
+        style.background = '#459045'
         style.color = 'white'
       }
     }

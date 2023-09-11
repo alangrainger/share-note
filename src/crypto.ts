@@ -1,10 +1,5 @@
 // Copied with thanks from https://github.com/mcndt/obsidian-quickshare
 
-interface EncryptedData {
-  ciphertext: string;
-  iv: string;
-}
-
 export interface EncryptedString {
   ciphertext: string;
   key: string;
@@ -36,24 +31,6 @@ async function _generateKey (seed: ArrayBuffer) {
 
 export function masterKeyToString (masterKey: ArrayBuffer): string {
   return arrayBufferToBase64(masterKey)
-}
-
-export async function decryptString (
-  { ciphertext, iv }: EncryptedData,
-  secret: string
-): Promise<string> {
-  const ciphertextBuf = base64ToArrayBuffer(ciphertext)
-  const ivBuf = base64ToArrayBuffer(iv)
-  const plaintext = await window.crypto.subtle
-    .decrypt(
-      { name: 'AES-GCM', iv: ivBuf },
-      await _getAesGcmKey(base64ToArrayBuffer(secret)),
-      ciphertextBuf
-    )
-    .catch(() => {
-      throw new Error('Cannot decrypt ciphertext with this key.')
-    })
-  return new TextDecoder().decode(plaintext)
 }
 
 export function arrayBufferToBase64 (buffer: ArrayBuffer): string {
@@ -112,6 +89,6 @@ async function sha256 (text: string) {
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-export async function hash (path: string) {
-  return (await sha256(path)).slice(0, 32)
+export async function hash (text: string) {
+  return (await sha256(text)).slice(0, 32)
 }
