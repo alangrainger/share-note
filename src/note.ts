@@ -122,7 +122,9 @@ export default class Note {
     await this.uploadCss()
     await this.processImages()
 
-    // Encrypt the note content
+    /*
+     * Encrypt the note contents
+     */
 
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let shareName
@@ -138,6 +140,7 @@ export default class Note {
       content: this.dom.body.innerHTML,
       basename: file.basename
     })
+    // Encrypt the note
     const encryptedData = await encryptString(plaintext, existingKey)
     this.outputFile.set(Placeholder.payload, JSON.stringify({
       ciphertext: encryptedData.ciphertext,
@@ -154,15 +157,18 @@ export default class Note {
       filename: shareFile,
       content: this.outputFile.html
     })
+    // Add the decryption key to the share link
     const shareLink = baseRes + '#' + encryptedData.key
 
     let shareMessage = 'The note has been shared'
     if (baseRes) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+        // Update the frontmatter with the share link
         frontmatter[this.yamlField.link] = shareLink
         frontmatter[this.yamlField.updated] = moment().format()
       })
       if (this.plugin.settings.clipboard) {
+        // Copy the share link to the clipboard
         await navigator.clipboard.writeText(shareLink)
         shareMessage += ' and the link is copied to your clipboard'
       }
