@@ -1,22 +1,21 @@
 # Share Note
 
-Free, encrypted public note sharing for Obsidian.
-
-## Encryption
-
-- Your notes are encrypted on your device with a key that only you have.
-- Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
-- The key is never sent to the server, it only exists as part of the share link created inside your device.
+Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
 
 ## Features
 
-- All note data is encrypted on the server. The decryption key is provided to you with the share link, and is never sent to the server at any point.
 - Uploads using your current theme.
 - Local and remote image support.
 - Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
 - Supports callouts with full styling.
 - If your shared note links to another note which is also shared, that link will also function on the public page.
 - Frontmatter is stripped on upload by default to avoid leaking unwanted data.
+
+## Encryption
+
+- Your notes are encrypted on your device with a key that only you have.
+- Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
+- The key is never sent to the server, it only exists as part of the share link created inside your device.
 
 ## Setup
 
