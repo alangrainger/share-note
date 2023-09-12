@@ -1,0 +1,9 @@
+.share-note-status-error {
+    background: #c10000;
+    color: white
+}
+
+.share-note-status-success {
+    background: #4c864c;
+    color: white
+}
