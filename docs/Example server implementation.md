@@ -20,7 +20,7 @@ if (count($file) === 2 && in_array($file[1], $whitelist) && ! empty($file[0])) {
     $data->content = base64_decode($data->content);
   }
   $filename = $file[0].$file[1];
-  file_put_contents("/path/to/files/$filename", $data->content);
+  file_put_contents('/path/to/files/' . $filename, $data->content);
   echo json_encode([
     'success'  => true,
     'filename' => 'https://example.com/files/' . $filename
