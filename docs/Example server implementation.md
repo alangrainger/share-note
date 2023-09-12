@@ -6,6 +6,8 @@
  
 ### `/v1/file/upload`
 
+[Documentation](api/upload.md)
+
 ```php
 $whitelist = ['html', 'css', 'jpg', 'png', 'ttf', 'otf', 'woff', 'woff2'];
 $data = json_decode(file_get_contents('php://input'));
@@ -22,6 +24,8 @@ if (count($file) === 2 && in_array($file[1], $whitelist) && ! empty($file[0])) {
 ```
 
 ### `/v1/file/check-css`
+
+[Documentation](api/check-css.md)
 
 ```php
 $data = json_decode(file_get_contents('php://input'));
