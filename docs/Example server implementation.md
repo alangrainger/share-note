@@ -1,6 +1,6 @@
 ## Example server implementation
 
-> ⚠️ **WARNING!** This code should not be used as-is to implement a service that members of the public would use. It is fine for private use.
+> ⚠️ **WARNING!** This code should not be used as-is to implement a service for the public. It is fine for private use.
 
  This is a simple reference implementation using PHP.
  
