@@ -1,3 +1,5 @@
+![](https://img.shields.io/github/license/alangrainger/obsidian-share) ![](https://img.shields.io/github/v/release/alangrainger/obsidian-share?style=flat-square) ![](https://img.shields.io/github/downloads/alangrainger/obsidian-share/total)
+
 # Share Note
 
 Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
