@@ -23,6 +23,7 @@ export default class Note {
   meta: CachedMetadata | null
   yamlField: YamlField
   isForceUpload: boolean
+  isForceClipboard: boolean
   outputFile: Template
 
   constructor (plugin: SharePlugin) {
@@ -37,7 +38,7 @@ export default class Note {
     }
   }
 
-  async parse () {
+  async share () {
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
@@ -167,10 +168,11 @@ export default class Note {
         frontmatter[this.yamlField.link] = shareLink
         frontmatter[this.yamlField.updated] = moment().format()
       })
-      if (this.plugin.settings.clipboard) {
+      if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
         await navigator.clipboard.writeText(shareLink)
         shareMessage += ' and the link is copied to your clipboard'
+        this.isForceClipboard = false
       }
     }
 
@@ -266,7 +268,17 @@ export default class Note {
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
   }
 
+  /**
+   * Force all related assets to upload again
+   */
   forceUpload () {
     this.isForceUpload = true
+  }
+
+  /**
+   * Copy the shared link to the clipboard, regardless of the user setting
+   */
+  forceClipboard () {
+    this.isForceClipboard = true
   }
 }
