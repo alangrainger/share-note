@@ -3,7 +3,6 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 
 const pluginVersion = require('../manifest.json').version
-const BASEURL = 'https://api.obsidianshare.com'
 
 const statusCodes: { [key: number]: string } = {
   400: 'Malformed request, please try again',
@@ -33,7 +32,7 @@ export default class API {
     })
     try {
       return await requestUrl({
-        url: BASEURL + endpoint,
+        url: this.plugin.settings.server + endpoint,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -43,12 +42,13 @@ export default class API {
     } catch (e) {
       // I couldn't find a way to access the Request Response object,
       // so I extract the HTTP status code this way.
-      const match = e.toString().match(/Request failed, status (\d+)/)
+      const match = e.message.match(/Request failed, status (\d+)/)
       const code = match ? +match[1] : 0
       if (match && statusCodes[code]) {
         new StatusMessage(statusCodes[code], StatusType.Error)
         throw new Error('Known error')
       }
+      console.log(e)
       throw new Error('Unknown error')
     }
   }

@@ -75,7 +75,7 @@ export default class SharePlugin extends Plugin {
     try {
       await note.parse()
     } catch (e) {
-      if (e === 'Unknown error') {
+      if (e.message === 'Unknown error') {
         new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
       }
     }

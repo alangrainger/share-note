@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
 
 export interface ShareSettings {
+  server: string;
   uid: string;
   apiKey: string;
   yamlField: string;
@@ -12,6 +13,7 @@ export interface ShareSettings {
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
+  server: 'https://api.obsidianshare.com',
   uid: '',
   apiKey: '',
   yamlField: 'share',
