@@ -115,7 +115,7 @@ export default class SharePlugin extends Plugin {
     if (shareLink) {
       // The note is already shared, copy the link to the clipboard
       await navigator.clipboard.writeText(shareLink)
-      new StatusMessage('Shared link copied to clipboard')
+      new StatusMessage('📋 Shared link copied to clipboard')
     } else {
       // The note is not already shared, share it first and copy the link to the clipboard
       await this.uploadNote(false, true)

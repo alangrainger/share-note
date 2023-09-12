@@ -171,7 +171,7 @@ export default class Note {
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
         await navigator.clipboard.writeText(shareLink)
-        shareMessage += ' and the link is copied to your clipboard'
+        shareMessage = `📋 ${shareMessage} and the link is copied to your clipboard`
         this.isForceClipboard = false
       }
     }
