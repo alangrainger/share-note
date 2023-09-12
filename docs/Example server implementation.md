@@ -2,8 +2,8 @@
 
 > ⚠️ **WARNING!** This code should not be used as-is to implement a service for the public. It is fine for private use.
 
- This is a simple reference implementation using PHP.
- 
+This is a simple reference implementation using PHP.
+
 ### `/v1/file/upload`
 
 [Documentation](api/upload.md)
@@ -15,11 +15,16 @@ $file = explode('.', $data->filename);
 // Sanitize the filename
 $file[0] = preg_replace("/[^a-z0-9]/", '', $file[0]);
 if (count($file) === 2 && in_array($file[1], $whitelist) && ! empty($file[0])) {
-	if ($data->encoding === 'base64') {
-		// Decode uploaded images
-		$data->content = base64_decode($data->content);
-	}
-	file_put_contents(__DIR__ . "/$file[0].$file[1]", $data->content);
+  if ($data->encoding === 'base64') {
+    // Decode uploaded images
+    $data->content = base64_decode($data->content);
+  }
+  $filename = $file[0].$file[1];
+  file_put_contents(__DIR__ . "/$filename", $data->content);
+  echo json_encode([
+    'success'  => true,
+    'filename' => 'https://example.com/files/' . $filename
+  ]);
 }
 ```
 
