@@ -17,7 +17,9 @@ Free, encrypted public note sharing for Obsidian. Notes are encrypted on your de
 - Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
 - The key is never sent to the server, it only exists as part of the share link created inside your device.
 
-## Setup
+## Installation
+
+The plugin is awaiting review for the Community store. In the meantime you can install it using BRAT, [see the instructions here](docs/BRAT.md).
 
 I have a server set up to host the shared notes. This is a free service for Obsidian users, as I already had the server and the costs to me are negligible.
 
