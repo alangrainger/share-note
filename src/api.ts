@@ -24,7 +24,7 @@ export default class API {
     this.plugin = plugin
   }
 
-  async post (endpoint: string, data = {}) {
+  async post (endpoint: string, data: any = {}) {
     Object.assign(data, {
       id: this.plugin.settings.uid,
       key: this.plugin.settings.apiKey,
@@ -45,7 +45,12 @@ export default class API {
       const match = e.message.match(/Request failed, status (\d+)/)
       const code = match ? +match[1] : 0
       if (match && statusCodes[code]) {
-        new StatusMessage(statusCodes[code], StatusType.Error)
+        let message = statusCodes[code]
+        if (code === 415 && data.filename && data.filename.match(/^\w+\.\w+$/)) {
+          // Detailed message for unknown filetype
+          message = `Unsupported media type ${data.filename.split('.')[1].toUpperCase()}, please open an issue on Github`
+        }
+        new StatusMessage(message, StatusType.Error)
         throw new Error('Known error')
       }
       console.log(e)

@@ -189,21 +189,17 @@ export default class Note {
     for (const el of this.dom.querySelectorAll('img')) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
-      try {
-        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
-        if (!srcMatch) continue
-        const localFile = window.decodeURIComponent(srcMatch[1])
-        const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
-        const url = await this.upload({
-          filename: filename,
-          content: fs.readFileSync(localFile, { encoding: 'base64' }),
-          encoding: 'base64'
-        })
-        el.setAttribute('src', url)
-        el.removeAttribute('alt')
-      } catch (e) {
-        console.log(e)
-      }
+      const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
+      if (!srcMatch) continue
+      const localFile = window.decodeURIComponent(srcMatch[1])
+      const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
+      const url = await this.upload({
+        filename: filename,
+        content: fs.readFileSync(localFile, { encoding: 'base64' }),
+        encoding: 'base64'
+      })
+      el.setAttribute('src', url)
+      el.removeAttribute('alt')
     }
   }
 
@@ -217,14 +213,12 @@ export default class Note {
       uploadCss = true
     } else {
       // Check with the server to see if we have an existing CSS file
-      try {
-        const res = await this.plugin.api.post('/v1/file/check-css')
-        if (res?.json.success) {
-          // There is an existing CSS file, so use that rather than uploading/replacing
-          this.outputFile.set(Placeholder.css, res.json.filename)
-          return
-        }
-      } catch (e) { }
+      const res = await this.plugin.api.post('/v1/file/check-css')
+      if (res?.json.success) {
+        // There is an existing CSS file, so use that rather than uploading/replacing
+        this.outputFile.set(Placeholder.css, res.json.filename)
+        return
+      }
       uploadCss = true
     }
 
