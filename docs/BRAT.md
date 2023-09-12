@@ -1,6 +1,6 @@
 # How to install using BRAT
 
-1. Install BRAT from the Community Plugins store:
+1. Install BRAT from the Community Plugins store ([direct link](https://obsidian.md/plugins?id=obsidian42-brat)):
 
 ![](https://github.com/alangrainger/obsidian-share/assets/16197738/bf47b8ad-4493-40d0-ab98-9a84595c2485)
 
