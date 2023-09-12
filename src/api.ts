@@ -3,8 +3,8 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 
 const pluginVersion = require('../manifest.json').version
-
 const BASEURL = 'https://api.obsidianshare.com'
+
 const statusCodes: { [key: number]: string } = {
   400: 'Malformed request, please try again',
   401: 'Invalid API key, please request a new one through the Settings page',

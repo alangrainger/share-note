@@ -33,6 +33,10 @@ The first time a file is shared, the plugin will automatically upload all your t
 
 If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
 
+## Running your own server
+
+[See the docs here](docs/Running%20your%20own%20server.md).
+
 ## Attributions
 
 Encryption code is based with thanks on code from https://github.com/mcndt/obsidian-quickshare
