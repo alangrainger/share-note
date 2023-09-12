@@ -25,11 +25,14 @@ if (count($file) === 2 && in_array($file[1], $whitelist) && ! empty($file[0])) {
 
 ```php
 $data = json_decode(file_get_contents('php://input'));
-$filename = $data->id . '.css'
-if (file_exists('/path/to/files' . $filename)) {
-  echo json_encode([
-    'success'  => true,
-    'filename' => $this->f3->get('file_url_base') . $filename
-  ]);
+$id = preg_replace("/[^a-z0-9]/", '', $data->id);
+if ($id) {
+  $filename = $id . '.css'
+  if (file_exists('/path/to/files/' . $filename)) {
+    echo json_encode([
+      'success'  => true,
+      'filename' => 'https://example.com/files/' . $filename
+    ]);
+  }
 }
 ```
