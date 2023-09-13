@@ -28,10 +28,13 @@ export default class SharePlugin extends Plugin {
     // as a way to prevent abuse. The key is then sent back to Obsidian via this URI handler.
     // This way we do not require any personal data from the user like an email address.
     this.registerObsidianProtocolHandler('share-note', async (data) => {
-      if (data.action === 'share-note' && data.key && this.settingsPage.apikeyEl) {
+      if (data.action === 'share-note' && data.key) {
         this.settings.apiKey = data.key
         await this.saveSettings()
-        this.settingsPage.apikeyEl.setValue(data.key)
+        if (this.settingsPage.apikeyEl) {
+          // Live-update of the settings page input field
+          this.settingsPage.apikeyEl.setValue(data.key)
+        }
         new StatusMessage('Plugin successfully connected. You can now start sharing notes!', StatusType.Success, 6000)
       }
     })
