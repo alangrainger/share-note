@@ -34,7 +34,7 @@ export default class Note {
     this.yamlField = {
       link: base + '_link',
       updated: base + '_updated',
-      hash: base + '_hash',
+      hash: base + '_hash'
     }
   }
 
@@ -234,7 +234,7 @@ export default class Note {
           // ALlow whitelisted mime-types/extensions only
           const extension = this.extensionFromMime(match[1])
           if (extension) {
-            const filename = (await hash(match[2])) + '.' + extension
+            const filename = (await hash(this.plugin.settings.uid + match[2])) + '.' + extension
             const assetUrl = await this.upload({
               filename,
               content: match[2],

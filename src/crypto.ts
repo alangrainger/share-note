@@ -1,3 +1,5 @@
+// noinspection JSUnusedGlobalSymbols
+
 export interface EncryptedString {
   ciphertext: string[];
   key: string;

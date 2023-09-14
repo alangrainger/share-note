@@ -1,3 +1,5 @@
+// noinspection CssInvalidPropertyValue,HtmlRequiredLangAttribute,HtmlUnknownTarget
+
 export const Placeholder = {
   title: 'TEMPLATE_TITLE',
   css: 'TEMPLATE_STYLESHEET',
