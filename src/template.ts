@@ -81,16 +81,22 @@ const html = `
   }
 
   async function decryptString ({ ciphertext, iv }, secret) {
-    const ciphertextBuf = base64ToArrayBuffer(ciphertext)
-    const ivBuf = base64ToArrayBuffer(iv)
-    const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(secret), {
-      name: 'AES-GCM',
-      length: 256
-    }, false, ['decrypt'])
-    const plaintext = await window.crypto.subtle
+  const ivBuf = base64ToArrayBuffer(iv)
+  const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(secret), {
+    name: 'AES-GCM',
+    length: 256
+  }, false, ['decrypt'])
+
+  const plaintext = []
+
+  for (const ciphertextChunk of ciphertext) {
+    const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
+    const plaintextChunk = await window.crypto.subtle
       .decrypt({ name: 'AES-GCM', iv: ivBuf }, aesKey, ciphertextBuf)
-    return new TextDecoder().decode(plaintext)
+    plaintext.push(new TextDecoder().decode(plaintextChunk))
   }
+  return plaintext.join('')
+}
 
   /*
    * Decrypt the original note content

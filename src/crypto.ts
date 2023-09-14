@@ -1,5 +1,5 @@
 export interface EncryptedString {
-  ciphertext: string;
+  ciphertext: string[];
   key: string;
   iv: string;
 }
@@ -63,21 +63,49 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   } else {
     key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)))
   }
-
-  const encodedText = new TextEncoder().encode(plaintext)
   const iv = window.crypto.getRandomValues(new Uint8Array(16))
-  const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    await _getAesGcmKey(key),
-    encodedText
-  )
-  const ciphertext = arrayBufferToBase64(bufCiphertext)
+  const aesKey = await _getAesGcmKey(key)
+
+  const ciphertext = []
+  const length = plaintext.length
+  const chunkSize = 1000
+  let index = 0
+  while (index * chunkSize < length) {
+    const plaintextChunk = plaintext.slice(index * chunkSize, (index + 1) * chunkSize)
+    console.log(plaintextChunk)
+    const encodedText = new TextEncoder().encode(plaintextChunk)
+    const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      aesKey,
+      encodedText
+    )
+    ciphertext.push(arrayBufferToBase64(bufCiphertext))
+    index++
+  }
 
   return {
     ciphertext,
     iv: arrayBufferToBase64(iv),
     key: masterKeyToString(key).slice(0, 43)
   }
+}
+
+export async function decryptString (encryptedData: EncryptedString) {
+  const ivBuf = base64ToArrayBuffer(encryptedData.iv)
+  const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(encryptedData.key), {
+    name: 'AES-GCM',
+    length: 256
+  }, false, ['decrypt'])
+
+  const plaintext = []
+
+  for (const ciphertextChunk of encryptedData.ciphertext) {
+    const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
+    const plaintextChunk = await window.crypto.subtle
+      .decrypt({ name: 'AES-GCM', iv: ivBuf }, aesKey, ciphertextBuf)
+    plaintext.push(new TextDecoder().decode(plaintextChunk))
+  }
+  return plaintext.join('')
 }
 
 async function sha256 (text: string) {
