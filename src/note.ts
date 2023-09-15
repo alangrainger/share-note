@@ -10,6 +10,7 @@ interface YamlField {
   link: string;
   updated: string;
   hash: string;
+  unencrypted: string;
 }
 
 export default class Note {
@@ -22,9 +23,10 @@ export default class Note {
   dom: Document
   meta: CachedMetadata | null
   yamlField: YamlField
-  isForceUpload: boolean
-  isForceClipboard: boolean
   outputFile: Template
+  isEncrypted = true
+  isForceUpload = false
+  isForceClipboard = false
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
@@ -34,7 +36,8 @@ export default class Note {
     this.yamlField = {
       link: base + '_link',
       updated: base + '_updated',
-      hash: base + '_hash'
+      hash: base + '_hash',
+      unencrypted: base + '_unencrypted'
     }
   }
 
@@ -129,24 +132,32 @@ export default class Note {
 
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let shareName
-    let existingKey
+    let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.yamlField.link]) {
-      const match = this.meta.frontmatter[this.yamlField.link].match(/(\w+)\.html#(.+?)$/)
+      const match = this.meta.frontmatter[this.yamlField.link].match(/(\w+)\.html(#.+?|)$/)
       if (match) {
         shareName = match[1]
-        existingKey = match[2]
+        decryptionKey = match[2].slice(1)
       }
     }
-    const plaintext = JSON.stringify({
-      content: this.dom.body.innerHTML,
-      basename: file.basename
-    })
-    // Encrypt the note
-    const encryptedData = await encryptString(plaintext, existingKey)
-    this.outputFile.set(Placeholder.payload, JSON.stringify({
-      ciphertext: encryptedData.ciphertext,
-      iv: encryptedData.iv
-    }))
+    if (this.isEncrypted) {
+      const plaintext = JSON.stringify({
+        content: this.dom.body.innerHTML,
+        basename: file.basename
+      })
+      // Encrypt the note
+      const encryptedData = await encryptString(plaintext, decryptionKey)
+      this.outputFile.set(Placeholder.payload, JSON.stringify({
+        ciphertext: encryptedData.ciphertext,
+        iv: encryptedData.iv
+      }))
+      decryptionKey = encryptedData.key
+    } else {
+      // This is for notes shared without encryption, using the
+      // share_unencrypted frontmatter property
+      this.outputFile.set(Placeholder.noteContent, this.dom.body.innerHTML)
+      this.outputFile.set(Placeholder.payload, '')
+    }
 
     // Share the file
     if (!shareName) {
@@ -154,15 +165,17 @@ export default class Note {
     }
     const shareFile = shareName + '.html'
 
-    const baseRes = await this.upload({
+    let shareLink = await this.upload({
       filename: shareFile,
       content: this.outputFile.html
     })
     // Add the decryption key to the share link
-    const shareLink = baseRes + '#' + encryptedData.key
+    if (shareLink && this.isEncrypted) {
+      shareLink += '#' + decryptionKey
+    }
 
     let shareMessage = 'The note has been shared'
-    if (baseRes) {
+    if (shareLink) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
         // Update the frontmatter with the share link
         frontmatter[this.yamlField.link] = shareLink
@@ -196,7 +209,7 @@ export default class Note {
       const localFile = window.decodeURIComponent(srcMatch[1])
       const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
       const url = await this.upload({
-        filename: filename,
+        filename,
         content: fs.readFileSync(localFile, { encoding: 'base64' }),
         encoding: 'base64'
       })
@@ -280,5 +293,12 @@ export default class Note {
    */
   forceClipboard () {
     this.isForceClipboard = true
+  }
+
+  /**
+   * Enable/disable encryption for the note
+   */
+  shareAsPlainText (isPlainText: boolean) {
+    this.isEncrypted = !isPlainText
   }
 }

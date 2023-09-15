@@ -74,7 +74,6 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   let index = 0
   while (index * chunkSize < length) {
     const plaintextChunk = plaintext.slice(index * chunkSize, (index + 1) * chunkSize)
-    console.log(plaintextChunk)
     const encodedText = new TextEncoder().encode(plaintextChunk)
     const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },

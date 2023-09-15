@@ -8,7 +8,8 @@ export const Placeholder = {
   bodyStyle: 'TEMPLATE_BODY_STYLE',
   previewViewClass: 'TEMPLATE_PREVIEW_VIEW_CLASS',
   payload: 'TEMPLATE_ENCRYPTED_DATA',
-  footer: 'TEMPLATE_FOOTER'
+  footer: 'TEMPLATE_FOOTER',
+  noteContent: 'Encrypted note'
 }
 
 /**

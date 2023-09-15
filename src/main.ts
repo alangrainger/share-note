@@ -91,21 +91,31 @@ export default class SharePlugin extends Plugin {
    * @param forceClipboard - Optionally copy the link to the clipboard, regardless of the user setting
    */
   async uploadNote (forceUpload = false, forceClipboard = false) {
-    const note = new Note(this)
-    if (forceUpload) {
-      note.forceUpload()
-    }
-    if (forceClipboard) {
-      note.forceClipboard()
-    }
-    try {
-      await note.share()
-    } catch (e) {
-      if (e.message === 'Unknown error') {
-        new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
+    const file = this.app.workspace.getActiveFile()
+    if (file instanceof TFile) {
+      const meta = this.app.metadataCache.getFileCache(file)
+      const note = new Note(this)
+
+      // Check for a frontmatter property called 'share_unencrypted` = true
+      // otherwise the default is to share encrypted
+      if (meta?.frontmatter?.[note.yamlField.unencrypted] === true) {
+        note.shareAsPlainText(true)
       }
+      if (forceUpload) {
+        note.forceUpload()
+      }
+      if (forceClipboard) {
+        note.forceClipboard()
+      }
+      try {
+        await note.share()
+      } catch (e) {
+        if (e.message === 'Unknown error') {
+          new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
+        }
+      }
+      note.status.hide() // clean up status just in case
     }
-    note.status.hide() // clean up status just in case
   }
 
   /**

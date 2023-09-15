@@ -35,6 +35,12 @@ The first time a file is shared, the plugin will automatically upload all your t
 
 If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
 
+### Sharing a note unencrypted
+
+If you want to share a note without any encryption, you can set a frontmatter checkbox property:
+
+`share_unencrypted` = true
+
 ## Running your own server
 
 [See the docs here](docs/Running%20your%20own%20server.md).
