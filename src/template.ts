@@ -147,6 +147,9 @@ export default class Template {
 
   setBodyClasses (classes: DOMTokenList) {
     this.dom.body.addClasses([...classes])
+    // Remove any mobile classes if present.
+    // They will be toggled by the template depending on viewport size.
+    this.dom.body.removeClasses(['is-mobile', 'is-android', 'is-phone'])
   }
 
   setBodyStyle (style: string) {

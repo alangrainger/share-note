@@ -91,11 +91,7 @@ export default class Note {
     // Make template value replacements
     this.outputFile.setReadingWidth(this.plugin.settings.noteWidth)
     this.outputFile.setPreviewViewClasses(this.previewViewEl.classList || [])
-    const bodyClasses = document.body.classList
-    // Remove any mobile classes if present.
-    // They will be toggled by the template depending on viewport size.
-    bodyClasses.remove('is-mobile', 'is-android', 'is-phone')
-    this.outputFile.setBodyClasses(bodyClasses)
+    this.outputFile.setBodyClasses(document.body.classList)
     this.outputFile.setBodyStyle(document.body.style.cssText.replace(/"/g, '\''))
     if (!this.plugin.settings.showFooter) {
       this.outputFile.removeFooter()
