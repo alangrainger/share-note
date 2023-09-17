@@ -25,12 +25,6 @@ const html = `
     .status-bar {
       position: fixed !important;
     }
-
-    @media all and (max-width: 768px) {
-      #template-preview-view {
-        padding: 16px 8px;
-      }
-    }
   </style>
 </head>
 <body>
@@ -64,6 +58,21 @@ const html = `
   </div>
   <div id="encrypted-data" style="display: none;"></div>
   <script>
+    // Add/remove mobile classes depending on viewport size
+    function toggleMobileClasses () {
+      const mobileClasses = ['is-mobile', 'is-phone']
+      if (window.innerWidth <= 768) {
+        // Is mobile
+        document.body.classList.add(...mobileClasses)
+      } else {
+        document.body.classList.remove(...mobileClasses)
+      }
+    }
+    window.addEventListener('resize', () => {
+      toggleMobileClasses()
+    })
+    toggleMobileClasses()
+  
     function base64ToArrayBuffer(base64) {
       const binaryString = atob(base64)
       const bytes = new Uint8Array(binaryString.length)
@@ -93,9 +102,10 @@ const html = `
     /*
      * Decrypt the original note content
      */
-    const payload = JSON.parse(document.getElementById('encrypted-data').innerText)
+    const encryptedData = document.getElementById('encrypted-data').innerText.trim()
+    const payload = encryptedData ? JSON.parse(encryptedData) : ''
     const secret = window.location.hash.slice(1) // Taken from the URL # parameter
-    if (secret) {
+    if (payload && secret) {
       decryptString({ ciphertext: payload.ciphertext, iv: payload.iv }, secret)
         .then(text => {
           // Inject the user's data

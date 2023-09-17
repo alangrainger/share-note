@@ -17,6 +17,7 @@
     "rules": {
       "no-new": 0,
       "no-unused-vars": "off",
+      "@typescript-eslint/no-var-requires": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
