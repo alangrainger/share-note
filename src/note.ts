@@ -161,6 +161,9 @@ export default class Note {
       // share_unencrypted frontmatter property
       this.outputFile.addUnencryptedData(this.dom.body.innerHTML)
       this.outputFile.setTitle(file.basename)
+      // Create a meta description preview based off the <p> elements
+      const desc = Array.from(this.dom.querySelectorAll('p')).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 200) + '...'
+      this.outputFile.setMetaDescription(desc)
     }
 
     // Share the file

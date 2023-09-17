@@ -163,5 +163,20 @@ export default class Template {
 
   setTitle (title: string) {
     this.dom.title = title
+    const ogTitle = this.dom.createElement('meta')
+    ogTitle.setAttribute('property', 'og:title')
+    ogTitle.content = title
+    this.dom.head.appendChild(ogTitle)
+  }
+
+  setMetaDescription (text: string) {
+    const desc = this.dom.createElement('meta')
+    const ogDesc = this.dom.createElement('meta')
+    desc.name = 'description'
+    desc.content = text
+    ogDesc.content = text
+    ogDesc.setAttribute('property', 'og:description')
+    this.dom.head.appendChild(desc)
+    this.dom.head.appendChild(ogDesc)
   }
 }
