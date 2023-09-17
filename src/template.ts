@@ -8,102 +8,108 @@ const html = `
 <!DOCTYPE HTML>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title></title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <style>
-        html, body {
-            overflow: visible !important;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <style>
+    html,
+    body {
+      overflow: visible !important;
+    }
 
-        .view-content {
-            height: 100% !important;
-        }
-        
-        .status-bar {
-            position: fixed !important;
-        }
-    </style>
+    .view-content {
+      height: 100% !important;
+    }
+
+    .status-bar {
+      position: fixed !important;
+    }
+
+    @media all and (max-width: 768px) {
+      #template-preview-view {
+        padding: 16px 8px;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="app-container">
+  <div class="app-container">
     <div class="horizontal-main-container">
-        <div class="workspace">
-            <div class="workspace-split mod-vertical mod-root">
-                <div class="workspace-leaf mod-active">
-                    <div class="workspace-leaf-content">
-                        <div class="view-content">
-                            <div class="markdown-reading-view reading-view-extra">
-                                <div id="template-preview-view">
-                                    <div id="template-user-data"
-                                         class="markdown-preview-sizer markdown-preview-section">
-                                        <!-- Note content will be injected here -->
-                                        Encrypted note
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+      <div class="workspace">
+        <div class="workspace-split mod-vertical mod-root">
+          <div class="workspace-leaf mod-active">
+            <div class="workspace-leaf-content">
+              <div class="view-content">
+                <div class="markdown-reading-view reading-view-extra">
+                  <div id="template-preview-view">
+                    <div id="template-user-data" class="markdown-preview-sizer markdown-preview-section">
+                      <!-- Note content will be injected here -->
+                      Encrypted note
                     </div>
+                  </div>
                 </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
     </div>
     <div id="template-footer" class="status-bar">
-        <div class="status-bar-item">
-            <span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Share Note</a> for Obsidian</span>
-        </div>
+      <div class="status-bar-item">
+        <span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Share
+            Note</a> for Obsidian</span>
+      </div>
     </div>
-</div>
-<div id="encrypted-data" style="display: none;"></div>
-<script>
-  function base64ToArrayBuffer (base64) {
-    const binaryString = atob(base64)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
+  </div>
+  <div id="encrypted-data" style="display: none;"></div>
+  <script>
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      return bytes.buffer
     }
-    return bytes.buffer
-  }
 
-  async function decryptString ({ ciphertext, iv }, secret) {
-  const ivBuf = base64ToArrayBuffer(iv)
-  const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(secret), {
-    name: 'AES-GCM',
-    length: 256
-  }, false, ['decrypt'])
+    async function decryptString({ ciphertext, iv }, secret) {
+      const ivBuf = base64ToArrayBuffer(iv)
+      const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(secret), {
+        name: 'AES-GCM',
+        length: 256
+      }, false, ['decrypt'])
 
-  const plaintext = []
+      const plaintext = []
+      for (const ciphertextChunk of ciphertext) {
+        const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
+        const plaintextChunk = await window.crypto.subtle
+          .decrypt({ name: 'AES-GCM', iv: ivBuf }, aesKey, ciphertextBuf)
+        plaintext.push(new TextDecoder().decode(plaintextChunk))
+      }
+      return plaintext.join('')
+    }
 
-  for (const ciphertextChunk of ciphertext) {
-    const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
-    const plaintextChunk = await window.crypto.subtle
-      .decrypt({ name: 'AES-GCM', iv: ivBuf }, aesKey, ciphertextBuf)
-    plaintext.push(new TextDecoder().decode(plaintextChunk))
-  }
-  return plaintext.join('')
-}
-
-  /*
-   * Decrypt the original note content
-   */
-  const payload = JSON.parse(document.getElementById('encrypted-data').innerText)
-  const secret = window.location.hash.slice(1) // Taken from the URL # parameter
-  if (secret) {
-    decryptString({ ciphertext: payload.ciphertext, iv: payload.iv }, secret)
-      .then(text => {
-        // Inject the user's data
-        const data = JSON.parse(text)
-        const contentEl = document.getElementById('template-user-data')
-        if (contentEl) contentEl.innerHTML = data.content
-        document.title = data.basename
-      })
-      .catch(() => {
-        const contentEl = document.getElementById('template-user-data')
-        if (contentEl) contentEl.innerHTML = 'Unable to decrypt using this key.'
-      })
-  }
-</script>
+    /*
+     * Decrypt the original note content
+     */
+    const payload = JSON.parse(document.getElementById('encrypted-data').innerText)
+    const secret = window.location.hash.slice(1) // Taken from the URL # parameter
+    if (secret) {
+      decryptString({ ciphertext: payload.ciphertext, iv: payload.iv }, secret)
+        .then(text => {
+          // Inject the user's data
+          const data = JSON.parse(text)
+          const contentEl = document.getElementById('template-user-data')
+          if (contentEl) contentEl.innerHTML = data.content
+          document.title = data.basename
+        })
+        .catch(() => {
+          const contentEl = document.getElementById('template-user-data')
+          if (contentEl) contentEl.innerHTML = 'Unable to decrypt using this key.'
+        })
+    }
+  </script>
 </body>
 </html>
 `
