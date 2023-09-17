@@ -1,5 +1,5 @@
 import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
-import Template, { defaultFooter, Placeholder } from './template'
+import Template from './template'
 import { encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
@@ -57,6 +57,7 @@ export default class Note {
         try {
           return [...Array.from(x.cssRules)].map(x => x.cssText).join('')
         } catch (e) {
+          console.log(e)
           return ''
         }
       }).filter(Boolean).join('').replace(/\n/g, '')
@@ -81,17 +82,20 @@ export default class Note {
     if (!(file instanceof TFile)) {
       // No active file
       this.status.hide()
+      new StatusMessage('There is no active file to share')
       return
     }
     this.meta = this.plugin.app.metadataCache.getFileCache(file)
     this.outputFile = new Template()
 
     // Make template value replacements
-    this.outputFile.set(Placeholder.noteWidth, this.plugin.settings.noteWidth)
-    this.outputFile.set(Placeholder.previewViewClass, this.previewViewEl.className || '')
-    this.outputFile.set(Placeholder.bodyClass, document.body.className)
-    this.outputFile.set(Placeholder.bodyStyle, document.body.style.cssText.replace(/"/g, '\''))
-    this.outputFile.set(Placeholder.footer, this.plugin.settings.showFooter ? defaultFooter : '')
+    this.outputFile.setReadingWidth(this.plugin.settings.noteWidth)
+    this.outputFile.setPreviewViewClasses(this.previewViewEl.classList || [])
+    this.outputFile.setBodyClasses(document.body.classList)
+    this.outputFile.setBodyStyle(document.body.style.cssText.replace(/"/g, '\''))
+    if (!this.plugin.settings.showFooter) {
+      this.outputFile.removeFooter()
+    }
 
     // Generate the HTML file for uploading
     this.dom = new DOMParser().parseFromString(this.content, 'text/html')
@@ -147,7 +151,7 @@ export default class Note {
       })
       // Encrypt the note
       const encryptedData = await encryptString(plaintext, decryptionKey)
-      this.outputFile.set(Placeholder.payload, JSON.stringify({
+      this.outputFile.addEncryptedData(JSON.stringify({
         ciphertext: encryptedData.ciphertext,
         iv: encryptedData.iv
       }))
@@ -155,8 +159,8 @@ export default class Note {
     } else {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
-      this.outputFile.set(Placeholder.noteContent, this.dom.body.innerHTML)
-      this.outputFile.set(Placeholder.payload, '')
+      this.outputFile.addUnencryptedData(this.dom.body.innerHTML)
+      this.outputFile.setTitle(file.basename)
     }
 
     // Share the file
@@ -167,7 +171,7 @@ export default class Note {
 
     let shareLink = await this.upload({
       filename: shareFile,
-      content: this.outputFile.html
+      content: this.outputFile.dom.documentElement.outerHTML
     })
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
@@ -231,7 +235,7 @@ export default class Note {
       const res = await this.plugin.api.post('/v1/file/check-css')
       if (res?.json.success) {
         // There is an existing CSS file, so use that rather than uploading/replacing
-        this.outputFile.set(Placeholder.css, res.json.filename)
+        this.outputFile.setCssUrl(res.json.filename)
         return
       }
       uploadCss = true
@@ -262,7 +266,7 @@ export default class Note {
         filename: this.plugin.settings.uid + '.css',
         content: this.css
       })
-      this.outputFile.set(Placeholder.css, cssUrl)
+      this.outputFile.setCssUrl(cssUrl)
     }
   }
 
