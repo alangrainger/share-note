@@ -51,12 +51,11 @@ const html = `
     </div>
     <div id="template-footer" class="status-bar">
       <div class="status-bar-item">
-        <span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Share
-            Note</a> for Obsidian</span>
+        <span class="status-bar-item-segment">Published with <a href="https://obsidianshare.com/" target="_blank">Share Note</a> for Obsidian</span>
       </div>
     </div>
   </div>
-  <div id="encrypted-data" style="display: none;"></div>
+  <div id="encrypted-data" style="display: none"></div>
   <script>
     // Add/remove mobile classes depending on viewport size
     function toggleMobileClasses () {
@@ -68,9 +67,7 @@ const html = `
         document.body.classList.remove(...mobileClasses)
       }
     }
-    window.addEventListener('resize', () => {
-      toggleMobileClasses()
-    })
+    window.addEventListener('resize', toggleMobileClasses })
     toggleMobileClasses()
   
     function base64ToArrayBuffer(base64) {
