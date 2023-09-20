@@ -23,9 +23,7 @@ Free, encrypted public note sharing for Obsidian. Notes are encrypted on your de
 
 The plugin is awaiting review for the Community store. In the meantime you can install it using BRAT, [see the instructions here](docs/BRAT.md).
 
-I have a server set up to host the shared notes. This is a free service for Obsidian users, as I already had the server and the costs to me are negligible.
-
-Connect your plugin by clicking the "Connect plugin" button on the Settings page.
+Once you've installed the plugin, enable it by clicking the "Connect plugin" button on the Settings page.
 
 ## Usage
 
