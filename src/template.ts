@@ -132,6 +132,10 @@ export default class Template {
     this.dom = new DOMParser().parseFromString(html, 'text/html')
   }
 
+  getHtml () {
+    return this.dom.documentElement.outerHTML
+  }
+
   setCssUrl (url: string) {
     const el = this.dom.createElement('link')
     el.rel = 'stylesheet'
@@ -207,7 +211,7 @@ export default class Template {
       // Remove the existing theme
       this.dom.body.removeClasses(['theme-dark', 'theme-light'])
       // Add the preferred class
-      this.dom.body.addClasses(['theme-' + ThemeMode[mode]])
+      this.dom.body.addClasses(['theme-' + ThemeMode[mode].toLowerCase()])
     }
   }
 }

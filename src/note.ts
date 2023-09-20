@@ -175,7 +175,7 @@ export default class Note {
 
     let shareLink = await this.upload({
       filename: shareFile,
-      content: this.outputFile.dom.documentElement.outerHTML
+      content: this.outputFile.getHtml()
     })
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
