@@ -1,6 +1,10 @@
 // noinspection CssInvalidPropertyValue,HtmlRequiredLangAttribute,HtmlUnknownTarget
 
+import { ThemeMode } from './settings'
+
 /**
+ * CSS info:
+ *
  * .reading-view-extra gives a custom width for the note text.
  * .status-bar makes the status bar pinned to the right, rather than full-page.
  */
@@ -67,7 +71,7 @@ const html = `
         document.body.classList.remove(...mobileClasses)
       }
     }
-    window.addEventListener('resize', toggleMobileClasses })
+    window.addEventListener('resize', toggleMobileClasses )
     toggleMobileClasses()
   
     function base64ToArrayBuffer(base64) {
@@ -194,5 +198,16 @@ export default class Template {
     ogDesc.setAttribute('property', 'og:description')
     this.dom.head.appendChild(desc)
     this.dom.head.appendChild(ogDesc)
+  }
+
+  setThemeMode (mode: ThemeMode) {
+    if (mode === ThemeMode['Same as theme']) {
+      // Nothing to change
+    } else {
+      // Remove the existing theme
+      this.dom.body.removeClasses(['theme-dark', 'theme-light'])
+      // Add the preferred class
+      this.dom.body.addClasses(['theme-' + ThemeMode[mode]])
+    }
   }
 }

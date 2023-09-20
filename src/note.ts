@@ -96,6 +96,7 @@ export default class Note {
     if (!this.plugin.settings.showFooter) {
       this.outputFile.removeFooter()
     }
+    this.outputFile.setThemeMode(this.plugin.settings.themeMode) // must be after setBodyClasses
 
     // Generate the HTML file for uploading
     this.dom = new DOMParser().parseFromString(this.content, 'text/html')

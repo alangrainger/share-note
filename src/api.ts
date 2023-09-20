@@ -12,8 +12,8 @@ const statusCodes: { [key: number]: string } = {
 }
 
 export interface UploadData {
-  filename: string;
-  content: string;
+  filename?: string;
+  content?: string;
   encoding?: string;
 }
 
@@ -24,7 +24,7 @@ export default class API {
     this.plugin = plugin
   }
 
-  async post (endpoint: string, data: any = {}) {
+  async post (endpoint: string, data: UploadData = {}) {
     Object.assign(data, {
       id: this.plugin.settings.uid,
       key: this.plugin.settings.apiKey,

@@ -1,12 +1,19 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
 
+export enum ThemeMode {
+  'Same as theme',
+  Dark,
+  Light
+}
+
 export interface ShareSettings {
   server: string;
   uid: string;
   apiKey: string;
   yamlField: string;
   noteWidth: string;
+  themeMode: ThemeMode;
   showFooter: boolean;
   removeYaml: boolean;
   clipboard: boolean;
@@ -18,6 +25,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   apiKey: '',
   yamlField: 'share',
   noteWidth: '700px',
+  themeMode: ThemeMode['Same as theme'],
   showFooter: true,
   removeYaml: true,
   clipboard: true
@@ -36,6 +44,10 @@ export class ShareSettingsTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+
+    new Setting(containerEl)
+      .setName('Plugin setup')
+      .setHeading()
 
     // API key
     new Setting(containerEl)
@@ -70,6 +82,26 @@ export class ShareSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
+    new Setting(containerEl)
+      .setName('Upload options')
+      .setHeading()
+
+    // Show/hide the footer
+    new Setting(containerEl)
+      .setName('Light/Dark mode')
+      .setDesc('Choose the mode with which your files will be shared')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('Same as theme', 'Same as theme')
+          .addOption('Dark', 'Dark')
+          .addOption('Light', 'Light')
+          .setValue(ThemeMode[this.plugin.settings.themeMode])
+          .onChange(async value => {
+            this.plugin.settings.themeMode = ThemeMode[value as keyof typeof ThemeMode]
+            await this.plugin.saveSettings()
+          })
+      })
+
     // Strip frontmatter
     new Setting(containerEl)
       .setName('Remove published frontmatter/YAML')
@@ -79,6 +111,19 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.removeYaml)
           .onChange(async (value) => {
             this.plugin.settings.removeYaml = value
+            await this.plugin.saveSettings()
+            this.display()
+          })
+      })
+
+    // Copy to clipboard
+    new Setting(containerEl)
+      .setName('Copy the link to clipboard after sharing')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.clipboard)
+          .onChange(async (value) => {
+            this.plugin.settings.clipboard = value
             await this.plugin.saveSettings()
             this.display()
           })
@@ -97,18 +142,9 @@ export class ShareSettingsTab extends PluginSettingTab {
           })
       })
 
-    // Copy to clipboard
     new Setting(containerEl)
-      .setName('Copy the link to clipboard after sharing')
-      .addToggle(toggle => {
-        toggle
-          .setValue(this.plugin.settings.clipboard)
-          .onChange(async (value) => {
-            this.plugin.settings.clipboard = value
-            await this.plugin.saveSettings()
-            this.display()
-          })
-      })
+      .setName('Debug info')
+      .setHeading()
 
     new Setting(containerEl)
       .setName('User ID')
