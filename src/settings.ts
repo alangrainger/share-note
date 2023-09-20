@@ -102,6 +102,18 @@ export class ShareSettingsTab extends PluginSettingTab {
           })
       })
 
+    // Note reading width
+    new Setting(containerEl)
+      .setName('Note reading width')
+      .setDesc('The max width for the content of your shared note. Accepts any CSS unit.')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.noteWidth)
+        .setValue(this.plugin.settings.noteWidth)
+        .onChange(async (value) => {
+          this.plugin.settings.noteWidth = value || DEFAULT_SETTINGS.noteWidth
+          await this.plugin.saveSettings()
+        }))
+
     // Strip frontmatter
     new Setting(containerEl)
       .setName('Remove published frontmatter/YAML')

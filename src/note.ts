@@ -37,7 +37,7 @@ export default class Note {
    * @return {string} The name (key) of a frontmatter property
    */
   field (key: YamlField) {
-    return this.plugin.settings.yamlField + '_' + YamlField[key]
+    return [this.plugin.settings.yamlField, YamlField[key]].join('_')
   }
 
   async share () {
