@@ -1,6 +1,6 @@
 import { Plugin, TFile } from 'obsidian'
 import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
-import Note from './note'
+import Note, { YamlField } from './note'
 import API from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { hash } from './crypto'
@@ -98,7 +98,7 @@ export default class SharePlugin extends Plugin {
 
       // Check for a frontmatter property called 'share_unencrypted` = true
       // otherwise the default is to share encrypted
-      if (meta?.frontmatter?.[note.yamlField.unencrypted] === true) {
+      if (meta?.frontmatter?.[note.field(YamlField.unencrypted)] === true) {
         note.shareAsPlainText(true)
       }
       if (forceUpload) {
@@ -126,7 +126,7 @@ export default class SharePlugin extends Plugin {
    */
   async copyShareLink (file: TFile) {
     const meta = this.app.metadataCache.getFileCache(file)
-    const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_link']
+    const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
     if (shareLink) {
       // The note is already shared, copy the link to the clipboard
       await navigator.clipboard.writeText(shareLink)

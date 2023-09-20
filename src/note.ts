@@ -6,11 +6,10 @@ import { UploadData } from './api'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 
-interface YamlField {
-  link: string;
-  updated: string;
-  hash: string;
-  unencrypted: string;
+export enum YamlField {
+  link,
+  updated,
+  unencrypted
 }
 
 export default class Note {
@@ -22,7 +21,6 @@ export default class Note {
   css: string
   dom: Document
   meta: CachedMetadata | null
-  yamlField: YamlField
   outputFile: Template
   isEncrypted = true
   isForceUpload = false
@@ -31,14 +29,15 @@ export default class Note {
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
-    // Set up YAML property names based on the user's chosen prefix
-    const base = this.plugin.settings.yamlField
-    this.yamlField = {
-      link: base + '_link',
-      updated: base + '_updated',
-      hash: base + '_hash',
-      unencrypted: base + '_unencrypted'
-    }
+  }
+
+  /**
+   * Return the name (key) of a frontmatter property, eg 'share_link'
+   * @param key
+   * @return {string} The name (key) of a frontmatter property
+   */
+  field (key: YamlField) {
+    return this.plugin.settings.yamlField + '_' + YamlField[key]
   }
 
   async share () {
@@ -115,9 +114,9 @@ export default class Note {
         const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(href[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-          if (linkedMeta?.frontmatter?.[this.yamlField.link]) {
+          if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
             // This file is shared, so update the link with the share URL
-            el.setAttribute('href', linkedMeta.frontmatter[this.yamlField.link])
+            el.setAttribute('href', linkedMeta.frontmatter[this.field(YamlField.link)])
             el.removeAttribute('target')
             continue
           }
@@ -138,8 +137,8 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let shareName
     let decryptionKey = ''
-    if (this.meta?.frontmatter?.[this.yamlField.link]) {
-      const match = this.meta.frontmatter[this.yamlField.link].match(/(\w+)\.html(#.+?|)$/)
+    if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
+      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/(\w+)\.html(#.+?|)$/)
       if (match) {
         shareName = match[1]
         decryptionKey = match[2].slice(1)
@@ -186,8 +185,8 @@ export default class Note {
     if (shareLink) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
         // Update the frontmatter with the share link
-        frontmatter[this.yamlField.link] = shareLink
-        frontmatter[this.yamlField.updated] = moment().format()
+        frontmatter[this.field(YamlField.link)] = shareLink
+        frontmatter[this.field(YamlField.updated)] = moment().format()
       })
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
