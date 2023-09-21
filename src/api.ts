@@ -1,6 +1,7 @@
 import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
+import { hash } from './crypto'
 
 const pluginVersion = require('../manifest.json').version
 
@@ -25,9 +26,11 @@ export default class API {
   }
 
   async post (endpoint: string, data: UploadData = {}) {
+    const nonce = Date.now().toString()
     Object.assign(data, {
       id: this.plugin.settings.uid,
-      key: this.plugin.settings.apiKey,
+      key: await hash(nonce + this.plugin.settings.apiKey),
+      nonce,
       version: pluginVersion
     })
     try {

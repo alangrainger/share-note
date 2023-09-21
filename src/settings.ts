@@ -105,7 +105,7 @@ export class ShareSettingsTab extends PluginSettingTab {
     // Note reading width
     new Setting(containerEl)
       .setName('Note reading width')
-      .setDesc('The max width for the content of your shared note. Accepts any CSS unit.')
+      .setDesc('The max width for the content of your shared note, accepts any CSS unit. The width is also limited by the reading width in your theme, so if you set it to 100% it will be limited at that point by your theme.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.noteWidth)
         .setValue(this.plugin.settings.noteWidth)
