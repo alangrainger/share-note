@@ -43,6 +43,12 @@ If you want to share a note without any encryption, you can set a frontmatter ch
 
 [See the docs here](docs/Running%20your%20own%20server.md).
 
+## Troubleshooting
+
+### MathJax / LaTeX
+
+If your MathJax / LaTeX elements are not displaying correctly, `Force re-upload` the note which is having the issues to force your custom stylesheet to be rebuilt with the MathJax classes included.
+
 ## Attributions
 
 Encryption code is based with thanks on code from https://github.com/mcndt/obsidian-quickshare
