@@ -130,6 +130,11 @@ export default class Note {
     await this.uploadCss()
     await this.processImages()
 
+    // Check for MathJax
+    if (this.dom.body.innerHTML.match(/<mjx-container/)) {
+      this.outputFile.enableMathJax()
+    }
+
     /*
      * Encrypt the note contents
      */

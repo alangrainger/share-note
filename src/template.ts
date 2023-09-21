@@ -214,4 +214,11 @@ export default class Template {
       this.dom.body.addClasses(['theme-' + ThemeMode[mode].toLowerCase()])
     }
   }
+
+  enableMathJax () {
+    const script = this.dom.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js'
+    script.async = true
+    this.dom.head.appendChild(script)
+  }
 }
