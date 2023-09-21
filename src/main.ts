@@ -3,12 +3,16 @@ import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
 import Note, { YamlField } from './note'
 import API from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
-import { hash } from './crypto'
+import { hash, sha256 } from './crypto'
 
 export default class SharePlugin extends Plugin {
   settings: ShareSettings
   api: API
   settingsPage: ShareSettingsTab
+
+  // Expose some tools in the plugin object
+  hash = hash
+  sha256 = sha256
 
   async onload () {
     // Settings page
@@ -124,7 +128,7 @@ export default class SharePlugin extends Plugin {
    * Copy the share link to the clipboard. The note will be shared first if neccessary.
    * @param file
    */
-  async copyShareLink (file: TFile) {
+  async copyShareLink (file: TFile): Promise<string | null> {
     const meta = this.app.metadataCache.getFileCache(file)
     const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
     if (shareLink) {
@@ -135,5 +139,6 @@ export default class SharePlugin extends Plugin {
       // The note is not already shared, share it first and copy the link to the clipboard
       await this.uploadNote(false, true)
     }
+    return shareLink
   }
 }

@@ -109,7 +109,7 @@ export async function decryptString (encryptedData: EncryptedString) {
   return plaintext.join('')
 }
 
-async function sha256 (text: string) {
+export async function sha256 (text: string) {
   const encoder = new TextEncoder()
   const data = encoder.encode(text)
   const hash = await crypto.subtle.digest('SHA-256', data)
