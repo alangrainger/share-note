@@ -45,6 +45,9 @@ export default class Note {
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
+    // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
+    // @ts-ignore // 'view.previewMode'
+    this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
     await new Promise(resolve => setTimeout(resolve, 200))
     try {
@@ -98,7 +101,6 @@ export default class Note {
     this.outputFile.setThemeMode(this.plugin.settings.themeMode) // must be after setBodyClasses
     // Copy classes and styles
     this.outputFile.copyClassesAndStyles('markdown-preview-view markdown-rendered', document)
-    this.outputFile.copyClassesAndStyles('markdown-preview-sizer markdown-preview-section', document)
     this.outputFile.copyClassesAndStyles('markdown-preview-pusher', document)
 
     // Generate the HTML file for uploading
