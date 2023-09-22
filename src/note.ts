@@ -49,7 +49,7 @@ export default class Note {
     await new Promise(resolve => setTimeout(resolve, 200))
     try {
       // @ts-ignore // 'view.modes'
-      this.content = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.innerHTML, '')
+      this.content = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
       // Fetch the preview view classes
       this.previewViewEl = document.getElementsByClassName('markdown-preview-view markdown-rendered')[0]
       this.css = [...Array.from(document.styleSheets)].map(x => {
