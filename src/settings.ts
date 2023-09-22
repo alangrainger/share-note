@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   uid: '',
   apiKey: '',
   yamlField: 'share',
-  noteWidth: '700px',
+  noteWidth: '',
   themeMode: ThemeMode['Same as theme'],
   showFooter: true,
   removeYaml: true,
