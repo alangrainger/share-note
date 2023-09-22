@@ -96,6 +96,10 @@ export default class Note {
       this.outputFile.removeFooter()
     }
     this.outputFile.setThemeMode(this.plugin.settings.themeMode) // must be after setBodyClasses
+    // Copy classes and styles
+    this.outputFile.copyClassesAndStyles('markdown-preview-view markdown-rendered', document)
+    this.outputFile.copyClassesAndStyles('markdown-preview-sizer markdown-preview-section', document)
+    this.outputFile.copyClassesAndStyles('markdown-preview-pusher', document)
 
     // Generate the HTML file for uploading
     this.dom = new DOMParser().parseFromString(this.content, 'text/html')

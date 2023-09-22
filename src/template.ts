@@ -39,11 +39,14 @@ const html = `
           <div class="workspace-leaf mod-active">
             <div class="workspace-leaf-content">
               <div class="view-content">
-                <div class="markdown-reading-view reading-view-extra">
-                  <div id="template-preview-view">
-                    <div id="template-user-data" class="markdown-preview-sizer markdown-preview-section">
-                      <!-- Note content will be injected here -->
-                      Encrypted note
+                <div class="markdown-reading-view" style="height:100%;width:100%;">
+                  <div class="markdown-preview-view markdown-rendered">
+                    <div class="markdown-preview-sizer markdown-preview-section">
+                      <div class="markdown-preview-pusher"></div>
+                      <div id="template-user-data">
+                        <!-- Note content will be injected here -->
+                        Encrypted note
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -112,7 +115,7 @@ const html = `
           // Inject the user's data
           const data = JSON.parse(text)
           const contentEl = document.getElementById('template-user-data')
-          if (contentEl) contentEl.innerHTML = data.content
+          if (contentEl) contentEl.outerHTML = data.content
           document.title = data.basename
         })
         .catch(() => {
@@ -144,10 +147,12 @@ export default class Template {
   }
 
   setReadingWidth (width: string) {
-    const style = `.reading-view-extra { max-width: ${width}; margin: 0 auto; }`
-    const el = this.dom.createElement('style')
-    el.textContent = style
-    this.dom.head.appendChild(el)
+    if (width) {
+      const style = `.markdown-preview-sizer.markdown-preview-section { max-width: ${width} !important; margin: 0 auto; }`
+      const el = this.dom.createElement('style')
+      el.textContent = style
+      this.dom.head.appendChild(el)
+    }
   }
 
   setBodyClasses (classes: DOMTokenList) {
@@ -181,7 +186,7 @@ export default class Template {
   addUnencryptedData (plaintextHtml: string) {
     const el = this.dom.getElementById('template-user-data')
     if (el) {
-      el.innerHTML = plaintextHtml
+      el.outerHTML = plaintextHtml
     }
   }
 
@@ -220,5 +225,16 @@ export default class Template {
     script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js'
     script.async = true
     this.dom.head.appendChild(script)
+  }
+
+  copyClassesAndStyles (selector: string, noteDom: Document) {
+    try {
+      const noteEl = noteDom.getElementsByClassName(selector)[0] as HTMLElement
+      const outputEl = this.dom.getElementsByClassName(selector)[0] as HTMLElement
+      outputEl.className = noteEl.className
+      outputEl.style.cssText = noteEl.style.cssText
+    } catch (e) {
+      console.log(e)
+    }
   }
 }
