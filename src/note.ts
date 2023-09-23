@@ -1,6 +1,6 @@
 import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
 import Template from './template'
-import { encryptString, hash } from './crypto'
+import { arrayBufferToBase64, encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
 import * as fs from 'fs'
@@ -10,6 +10,14 @@ export enum YamlField {
   link,
   updated,
   unencrypted
+}
+
+const cssAttachmentWhitelist: { [key: string]: string[] } = {
+  ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
+  otf: ['font/otf', 'application/x-font-opentype'],
+  woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
+  woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
+  svg: ['image/svg+xml']
 }
 
 export default class Note {
@@ -78,7 +86,7 @@ export default class Note {
     setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Info, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
@@ -179,7 +187,7 @@ export default class Note {
 
     // Share the file
     if (!shareName) {
-      shareName = await hash(this.plugin.settings.uid + Date.now())
+      shareName = await this.hash(Date.now().toString())
     }
     const shareFile = shareName + '.html'
 
@@ -202,7 +210,7 @@ export default class Note {
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
         await navigator.clipboard.writeText(shareLink)
-        shareMessage = `📋 ${shareMessage} and the link is copied to your clipboard`
+        shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
         this.isForceClipboard = false
       }
     }
@@ -225,7 +233,7 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
+      const filename = (await this.hash(localFile)) + '.' + localFile.split('.').pop()
       const url = await this.upload({
         filename,
         content: fs.readFileSync(localFile, { encoding: 'base64' }),
@@ -241,9 +249,9 @@ export default class Note {
    * or the user has requested a force re-upload
    */
   async uploadCss () {
-    let uploadCss = false
+    let uploadNeeded = false
     if (this.isForceUpload) {
-      uploadCss = true
+      uploadNeeded = true
     } else {
       // Check with the server to see if we have an existing CSS file
       const res = await this.plugin.api.post('/v1/file/check-css')
@@ -252,36 +260,52 @@ export default class Note {
         this.outputFile.setCssUrl(res.json.filename)
         return
       }
-      uploadCss = true
+      uploadNeeded = true
     }
+    if (!uploadNeeded) {
+      return
+    }
+    const cssNotice = new StatusMessage('Uploading theme, this may take some time...', StatusType.Info, 30000)
 
-    if (uploadCss) {
-      // Extract any base64 encoded attachments from the CSS.
-      // Will use the mime-type whitelist to determine which attachments to extract.
-      const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-      for (const attachment of this.css.match(new RegExp(regex, 'g')) || []) {
-        const match = attachment.match(new RegExp(regex))
-        if (match) {
-          // ALlow whitelisted mime-types/extensions only
-          const extension = this.extensionFromMime(match[1])
-          if (extension) {
-            const filename = (await hash(this.plugin.settings.uid + match[2])) + '.' + extension
-            const assetUrl = await this.upload({
-              filename,
-              content: match[2],
-              encoding: 'base64'
-            })
-            this.css = this.css.replace(match[0], `url("${assetUrl}")`)
+    // Extract any attachments from the CSS.
+    // Will use the mime-type whitelist to determine which attachments to extract.
+    for (const attachment of this.css.match(/\w:\s*url\s*\(.*?\)/g) || []) {
+      const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
+      if (!assetMatch) continue
+      const assetUrl = assetMatch[1]
+      if (assetUrl.startsWith('data:')) {
+        // Base64 encoded inline attachment, we will leave this inline for now
+        // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
+      } else if (assetUrl && !assetUrl.startsWith('http')) {
+        // Locally stored CSS attachment
+        try {
+          const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
+          if (filename) {
+            if (cssAttachmentWhitelist[filename[2]]) {
+              // Download the attachment content
+              const res = await fetch(assetUrl)
+              // Reupload to the server
+              const uploadUrl = await this.upload({
+                filename: (await this.hash(assetUrl)) + '.' + filename[2],
+                content: arrayBufferToBase64(await res.arrayBuffer()),
+                encoding: 'base64'
+              })
+              this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+            }
           }
+        } catch (e) {
+          // Unable to download the attachment
+          console.log(e)
         }
       }
-      // Upload the main CSS file
-      const cssUrl = await this.upload({
-        filename: this.plugin.settings.uid + '.css',
-        content: this.css
-      })
-      this.outputFile.setCssUrl(cssUrl)
     }
+    cssNotice.hide()
+    // Upload the main CSS file
+    const cssUrl = await this.upload({
+      filename: this.plugin.settings.uid + '.css',
+      content: this.css
+    })
+    this.outputFile.setCssUrl(cssUrl)
   }
 
   /**
@@ -290,12 +314,7 @@ export default class Note {
    * @return {string|undefined}
    */
   extensionFromMime (mimeType: string) {
-    const mimes: { [key: string]: string[] } = {
-      ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
-      otf: ['font/otf', 'application/x-font-opentype'],
-      woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
-      woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2']
-    }
+    const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
   }
 
@@ -318,5 +337,14 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
+  }
+
+  /**
+   * A wrapper for hash() which always adds the salt
+   * @param value
+   */
+  async hash (value: string): Promise<string> {
+    const uid = this.plugin.settings.uid
+    return uid ? hash(uid + value) : ''
   }
 }
