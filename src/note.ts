@@ -1,6 +1,6 @@
 import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
 import Template from './template'
-import { encryptString, hash } from './crypto'
+import { arrayBufferToBase64, encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
 import * as fs from 'fs'
@@ -10,6 +10,14 @@ export enum YamlField {
   link,
   updated,
   unencrypted
+}
+
+const cssAttachmentWhitelist: { [key: string]: string[] } = {
+  ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
+  otf: ['font/otf', 'application/x-font-opentype'],
+  woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
+  woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
+  svg: ['image/svg+xml']
 }
 
 export default class Note {
@@ -241,9 +249,9 @@ export default class Note {
    * or the user has requested a force re-upload
    */
   async uploadCss () {
-    let uploadCss = false
+    let uploadNeeded = false
     if (this.isForceUpload) {
-      uploadCss = true
+      uploadNeeded = true
     } else {
       // Check with the server to see if we have an existing CSS file
       const res = await this.plugin.api.post('/v1/file/check-css')
@@ -252,36 +260,47 @@ export default class Note {
         this.outputFile.setCssUrl(res.json.filename)
         return
       }
-      uploadCss = true
+      uploadNeeded = true
+    }
+    if (!uploadNeeded) {
+      return
     }
 
-    if (uploadCss) {
-      // Extract any base64 encoded attachments from the CSS.
-      // Will use the mime-type whitelist to determine which attachments to extract.
-      const regex = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-      for (const attachment of this.css.match(new RegExp(regex, 'g')) || []) {
-        const match = attachment.match(new RegExp(regex))
-        if (match) {
-          // ALlow whitelisted mime-types/extensions only
-          const extension = this.extensionFromMime(match[1])
-          if (extension) {
-            const filename = (await hash(this.plugin.settings.uid + match[2])) + '.' + extension
-            const assetUrl = await this.upload({
-              filename,
-              content: match[2],
-              encoding: 'base64'
-            })
-            this.css = this.css.replace(match[0], `url("${assetUrl}")`)
+    // Extract any attachments from the CSS.
+    // Will use the mime-type whitelist to determine which attachments to extract.
+    for (const attachment of this.css.match(/url\s*\(.*?\)/ig) || []) {
+      const assetUrl = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)?.[1] || ''
+      if (assetUrl.startsWith('data:')) {
+        // Base64 encoded inline attachment, we will leave this inline for now
+        // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
+      } else if (assetUrl) {
+        try {
+          const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
+          if (filename) {
+            if (cssAttachmentWhitelist[filename[2]]) {
+              // Download the attachment content
+              const res = await fetch(assetUrl)
+              // Reupload to the server
+              const uploadUrl = await this.upload({
+                filename: (await hash(this.plugin.settings.uid + assetUrl)) + '.' + filename[2],
+                content: arrayBufferToBase64(await res.arrayBuffer()),
+                encoding: 'base64'
+              })
+              this.css = this.css.replace(attachment, `url("${uploadUrl}")`)
+            }
           }
+        } catch (e) {
+          // Unable to download the attachment
+          console.log(e)
         }
       }
-      // Upload the main CSS file
-      const cssUrl = await this.upload({
-        filename: this.plugin.settings.uid + '.css',
-        content: this.css
-      })
-      this.outputFile.setCssUrl(cssUrl)
     }
+    // Upload the main CSS file
+    const cssUrl = await this.upload({
+      filename: this.plugin.settings.uid + '.css',
+      content: this.css
+    })
+    this.outputFile.setCssUrl(cssUrl)
   }
 
   /**
@@ -290,12 +309,7 @@ export default class Note {
    * @return {string|undefined}
    */
   extensionFromMime (mimeType: string) {
-    const mimes: { [key: string]: string[] } = {
-      ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
-      otf: ['font/otf', 'application/x-font-opentype'],
-      woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
-      woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2']
-    }
+    const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
   }
 
