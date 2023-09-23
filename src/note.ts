@@ -187,7 +187,7 @@ export default class Note {
 
     // Share the file
     if (!shareName) {
-      shareName = await hash(this.plugin.settings.uid + Date.now())
+      shareName = await this.hash(Date.now().toString())
     }
     const shareFile = shareName + '.html'
 
@@ -210,7 +210,7 @@ export default class Note {
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
         await navigator.clipboard.writeText(shareLink)
-        shareMessage = `📋 ${shareMessage} and the link is copied to your clipboard`
+        shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
         this.isForceClipboard = false
       }
     }
@@ -233,7 +233,7 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await hash(this.plugin.settings.uid + localFile)) + '.' + localFile.split('.').pop()
+      const filename = (await this.hash(localFile)) + '.' + localFile.split('.').pop()
       const url = await this.upload({
         filename,
         content: fs.readFileSync(localFile, { encoding: 'base64' }),
@@ -286,7 +286,7 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const uploadUrl = await this.upload({
-                filename: (await hash(this.plugin.settings.uid + assetUrl)) + '.' + filename[2],
+                filename: (await this.hash(assetUrl)) + '.' + filename[2],
                 content: arrayBufferToBase64(await res.arrayBuffer()),
                 encoding: 'base64'
               })
@@ -337,5 +337,14 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
+  }
+
+  /**
+   * A wrapper for hash() which always adds the salt
+   * @param value
+   */
+  async hash (value: string): Promise<string> {
+    const uid = this.plugin.settings.uid
+    return uid ? hash(uid + value) : ''
   }
 }

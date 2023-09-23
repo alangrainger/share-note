@@ -21,7 +21,7 @@ const statuses: { [key: number]: StatusAttributes } = {
   },
   [StatusType.Info]: {
     class: 'share-note-status-info',
-    icon: '🛈 '
+    icon: ''
   },
   [StatusType.Success]: {
     class: 'share-note-status-success',
@@ -34,7 +34,7 @@ export default class StatusMessage extends Notice {
     const messageDoc = new DocumentFragment()
     const icon = statuses[type]?.icon || ''
     const messageEl = messageDoc.createEl('div', {
-      text: icon + pluginName + ': ' + text
+      text: `${icon}${pluginName}: ${text}`
     })
     super(messageDoc, duration)
     if (messageEl.parentElement) {
