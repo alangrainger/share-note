@@ -271,9 +271,9 @@ export default class Note {
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
-    const attachments = this.css.match(/\w:\s*url\s*\(.*?\)/g) || []
+    const attachments = this.css.match(/url\s*\(.*?\)/g) || []
     let count = 0
-    const total = attachments.length + 1 // add 1 for the CSS file itself
+    const total = attachments.filter(x => !x.includes('data:')).length + 1 // add 1 for the CSS file itself
     for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
       if (!assetMatch) {
