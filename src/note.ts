@@ -273,7 +273,8 @@ export default class Note {
       if (assetUrl.startsWith('data:')) {
         // Base64 encoded inline attachment, we will leave this inline for now
         // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-      } else if (assetUrl) {
+      } else if (assetUrl && !assetUrl.startsWith('http')) {
+        // Locally stored CSS attachment
         try {
           const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
           if (filename) {
