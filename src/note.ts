@@ -49,6 +49,7 @@ export default class Note {
   }
 
   async share () {
+    if (!this.plugin.settings.uid || !this.plugin.settings.apiKey) return
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
@@ -187,7 +188,7 @@ export default class Note {
 
     // Share the file
     if (!shareName) {
-      shareName = await this.hash(Date.now().toString())
+      shareName = await this.saltedHash(Date.now().toString())
     }
     const shareFile = shareName + '.html'
 
@@ -233,7 +234,7 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await this.hash(localFile)) + '.' + localFile.split('.').pop()
+      const filename = (await this.saltedHash(localFile)) + '.' + localFile.split('.').pop()
       const url = await this.upload({
         filename,
         content: fs.readFileSync(localFile, { encoding: 'base64' }),
@@ -286,7 +287,7 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const uploadUrl = await this.upload({
-                filename: (await this.hash(assetUrl)) + '.' + filename[2],
+                filename: (await this.saltedHash(assetUrl)) + '.' + filename[2],
                 content: arrayBufferToBase64(await res.arrayBuffer()),
                 encoding: 'base64'
               })
@@ -343,8 +344,7 @@ export default class Note {
    * A wrapper for hash() which always adds the salt
    * @param value
    */
-  async hash (value: string): Promise<string> {
-    const uid = this.plugin.settings.uid
-    return uid ? hash(uid + value) : ''
+  async saltedHash (value: string): Promise<string> {
+    return hash(this.plugin.settings.uid + value)
   }
 }
