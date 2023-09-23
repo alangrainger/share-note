@@ -49,6 +49,7 @@ export default class Note {
   }
 
   async share () {
+    if (!this.plugin.settings.uid || !this.plugin.settings.apiKey) return
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
@@ -187,7 +188,7 @@ export default class Note {
 
     // Share the file
     if (!shareName) {
-      shareName = await this.hash(Date.now().toString())
+      shareName = await this.saltedHash(Date.now().toString())
     }
     const shareFile = shareName + '.html'
 
@@ -233,7 +234,7 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await this.hash(localFile)) + '.' + localFile.split('.').pop()
+      const filename = (await this.saltedHash(localFile)) + '.' + localFile.split('.').pop()
       const url = await this.upload({
         filename,
         content: fs.readFileSync(localFile, { encoding: 'base64' }),
@@ -265,17 +266,25 @@ export default class Note {
     if (!uploadNeeded) {
       return
     }
-    const cssNotice = new StatusMessage('Uploading theme, this may take some time...', StatusType.Info, 30000)
+    const cssNoticeText = 'Uploading theme, this may take some time, but will only happen once.'
+    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 40000)
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
-    for (const attachment of this.css.match(/\w:\s*url\s*\(.*?\)/g) || []) {
+    const attachments = this.css.match(/\w:\s*url\s*\(.*?\)/g) || []
+    let count = 0
+    const total = attachments.length + 1 // add 1 for the CSS file itself
+    for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
-      if (!assetMatch) continue
+      if (!assetMatch) {
+        count++
+        continue
+      }
       const assetUrl = assetMatch[1]
       if (assetUrl.startsWith('data:')) {
         // Base64 encoded inline attachment, we will leave this inline for now
         // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
+        count++
       } else if (assetUrl && !assetUrl.startsWith('http')) {
         // Locally stored CSS attachment
         try {
@@ -286,7 +295,7 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const uploadUrl = await this.upload({
-                filename: (await this.hash(assetUrl)) + '.' + filename[2],
+                filename: (await this.saltedHash(assetUrl)) + '.' + filename[2],
                 content: arrayBufferToBase64(await res.arrayBuffer()),
                 encoding: 'base64'
               })
@@ -297,15 +306,18 @@ export default class Note {
           // Unable to download the attachment
           console.log(e)
         }
+        count++
+        cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count} of ${total} theme files`)
       }
     }
-    cssNotice.hide()
     // Upload the main CSS file
+    cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
     const cssUrl = await this.upload({
       filename: this.plugin.settings.uid + '.css',
       content: this.css
     })
     this.outputFile.setCssUrl(cssUrl)
+    cssNotice.hide()
   }
 
   /**
@@ -343,8 +355,7 @@ export default class Note {
    * A wrapper for hash() which always adds the salt
    * @param value
    */
-  async hash (value: string): Promise<string> {
-    const uid = this.plugin.settings.uid
-    return uid ? hash(uid + value) : ''
+  async saltedHash (value: string): Promise<string> {
+    return hash(this.plugin.settings.uid + value)
   }
 }
