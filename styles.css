@@ -3,7 +3,12 @@
     color: white
 }
 
+.share-note-status-info.notice {
+    background: hsl(204, 86%, 53%);
+    color: white
+}
+
 .share-note-status-success.notice {
-    background: #4c864c;
+    background: #629762;
     color: white
 }

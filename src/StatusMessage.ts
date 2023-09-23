@@ -3,6 +3,7 @@ import { Notice } from 'obsidian'
 const pluginName = require('../manifest.json').name
 
 export enum StatusType {
+  Default,
   Info,
   Error,
   Success
@@ -18,6 +19,10 @@ const statuses: { [key: number]: StatusAttributes } = {
     class: 'share-note-status-error',
     icon: '❌ '
   },
+  [StatusType.Info]: {
+    class: 'share-note-status-info',
+    icon: '🛈 '
+  },
   [StatusType.Success]: {
     class: 'share-note-status-success',
     icon: '✔ '
@@ -25,7 +30,7 @@ const statuses: { [key: number]: StatusAttributes } = {
 }
 
 export default class StatusMessage extends Notice {
-  constructor (text: string, type: StatusType = StatusType.Info, duration = 5000) {
+  constructor (text: string, type: StatusType = StatusType.Default, duration = 5000) {
     const messageDoc = new DocumentFragment()
     const icon = statuses[type]?.icon || ''
     const messageEl = messageDoc.createEl('div', {

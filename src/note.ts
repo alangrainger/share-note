@@ -86,7 +86,7 @@ export default class Note {
     setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Info, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
@@ -265,6 +265,7 @@ export default class Note {
     if (!uploadNeeded) {
       return
     }
+    const cssNotice = new StatusMessage('Uploading theme, this may take some time...', StatusType.Info, 30000)
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
@@ -298,6 +299,7 @@ export default class Note {
         }
       }
     }
+    cssNotice.hide()
     // Upload the main CSS file
     const cssUrl = await this.upload({
       filename: this.plugin.settings.uid + '.css',
