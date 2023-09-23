@@ -268,8 +268,10 @@ export default class Note {
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
-    for (const attachment of this.css.match(/url\s*\(.*?\)/ig) || []) {
-      const assetUrl = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)?.[1] || ''
+    for (const attachment of this.css.match(/\w:\s*url\s*\(.*?\)/g) || []) {
+      const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
+      if (!assetMatch) continue
+      const assetUrl = assetMatch[1]
       if (assetUrl.startsWith('data:')) {
         // Base64 encoded inline attachment, we will leave this inline for now
         // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
@@ -287,7 +289,7 @@ export default class Note {
                 content: arrayBufferToBase64(await res.arrayBuffer()),
                 encoding: 'base64'
               })
-              this.css = this.css.replace(attachment, `url("${uploadUrl}")`)
+              this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
             }
           }
         } catch (e) {
