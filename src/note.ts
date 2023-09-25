@@ -122,11 +122,18 @@ export default class Note {
     }
 
     // Replace links
-    for (const el of this.dom.querySelectorAll('a.internal-link')) {
-      const hrefEl = el.getAttribute('href')
-      const href = hrefEl ? hrefEl.match(/^([^#]+)/) : null
-      if (href) {
-        const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(href[1], '')
+    for (const el of this.dom.querySelectorAll<HTMLElement>('a.internal-link')) {
+      const href = el.getAttribute('href')
+      const match = href ? href.match(/^([^#]+)/) : null
+      if (href?.match(/^#/)) {
+        // Internal link, we need to add custom Javascript to jump to that heading
+        el.setAttribute('onclick', `document.querySelectorAll('[data-heading="${href.slice(1)}"]')[0].scrollIntoView(true)`)
+        el.removeAttribute('target')
+        el.removeAttribute('href')
+        continue
+      } else if (match) {
+        // External link
+        const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(match[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
           if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
