@@ -126,7 +126,7 @@ export default class Note {
       const href = el.getAttribute('href')
       const match = href ? href.match(/^([^#]+)/) : null
       if (href?.match(/^#/)) {
-        // Internal link, we need to add custom Javascript to jump to that heading
+        // Anchor link to a document heading, we need to add custom Javascript to jump to that heading
         const selector = `[data-heading="${href.slice(1)}"]`
         if (document.querySelectorAll(selector)?.[0]) {
           el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
@@ -135,8 +135,7 @@ export default class Note {
         el.removeAttribute('href')
         continue
       } else if (match) {
-        // External link
-        el.removeAttribute('target')
+        // A link to another note - check to see if we can link to an already shared note
         const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(match[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
@@ -150,6 +149,10 @@ export default class Note {
       }
       // This file is not shared, so remove the link and replace with the non-link content
       el.replaceWith(el.innerHTML)
+    }
+    for (const el of this.dom.querySelectorAll<HTMLElement>('a.external-link')) {
+      // Remove target=_blank from external links
+      el.removeAttribute('target')
     }
 
     // Process CSS and images
