@@ -1,7 +1,7 @@
 {
 	"id": "share-note",
 	"name": "Share Note",
-	"version": "0.3.9",
+	"version": "0.3.10",
 	"minAppVersion": "0.15.0",
 	"description": "Share a note publicly with full styling. Data is shared encrypted by default and only you have the key.",
 	"author": "Alan Grainger",

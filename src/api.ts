@@ -16,6 +16,7 @@ export interface UploadData {
   filename?: string;
   content?: string;
   encoding?: string;
+  encrypted?: boolean;
 }
 
 export default class API {
