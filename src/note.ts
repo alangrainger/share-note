@@ -136,6 +136,7 @@ export default class Note {
         continue
       } else if (match) {
         // External link
+        el.removeAttribute('target')
         const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(match[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
