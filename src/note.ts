@@ -127,7 +127,10 @@ export default class Note {
       const match = href ? href.match(/^([^#]+)/) : null
       if (href?.match(/^#/)) {
         // Internal link, we need to add custom Javascript to jump to that heading
-        el.setAttribute('onclick', `document.querySelectorAll('[data-heading="${href.slice(1)}"]')[0].scrollIntoView(true)`)
+        const selector = `[data-heading="${href.slice(1)}"]`
+        if (document.querySelectorAll(selector)?.[0]) {
+          el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
+        }
         el.removeAttribute('target')
         el.removeAttribute('href')
         continue
@@ -201,7 +204,8 @@ export default class Note {
 
     let shareLink = await this.upload({
       filename: shareFile,
-      content: this.outputFile.getHtml()
+      content: this.outputFile.getHtml(),
+      encrypted: this.isEncrypted
     })
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
