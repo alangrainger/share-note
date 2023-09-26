@@ -13,8 +13,8 @@ const statusCodes: { [key: number]: string } = {
 }
 
 export interface UploadData {
-  filename?: string;
-  content?: string;
+  filename: string;
+  content: string;
   encoding?: string;
   encrypted?: boolean;
 }
@@ -26,9 +26,9 @@ export default class API {
     this.plugin = plugin
   }
 
-  async post (endpoint: string, data: UploadData = {}) {
+  async post (endpoint: string, data?: UploadData) {
     const nonce = Date.now().toString()
-    Object.assign(data, {
+    const body = Object.assign({}, data, {
       id: this.plugin.settings.uid,
       key: await hash(nonce + this.plugin.settings.apiKey),
       nonce,
@@ -41,7 +41,7 @@ export default class API {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(body)
       })
     } catch (e) {
       // I couldn't find a way to access the Request Response object,
@@ -50,7 +50,7 @@ export default class API {
       const code = match ? +match[1] : 0
       if (match && statusCodes[code]) {
         let message = statusCodes[code]
-        if (code === 415 && data.filename && data.filename.match(/^\w+\.\w+$/)) {
+        if (code === 415 && data?.filename && data.filename.match(/^\w+\.\w+$/)) {
           // Detailed message for unknown filetype
           message = `Unsupported media type ${data.filename.split('.')[1].toUpperCase()}, please open an issue on Github`
         }
