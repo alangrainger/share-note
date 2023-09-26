@@ -60,7 +60,7 @@ export default class Note {
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
