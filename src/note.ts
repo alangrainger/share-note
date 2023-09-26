@@ -33,6 +33,7 @@ export default class Note {
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
+  uploadedFiles: string[]
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
@@ -50,15 +51,21 @@ export default class Note {
 
   async share () {
     if (!this.plugin.settings.uid || !this.plugin.settings.apiKey) return
+
+    // Create a semi-permanent status notice which we can update
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+
+    this.uploadedFiles = []
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
+    await new Promise(resolve => setTimeout(resolve, 100))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 1000))
     try {
       // @ts-ignore // 'view.modes'
       this.content = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
@@ -74,20 +81,19 @@ export default class Note {
       }).filter(Boolean).join('').replace(/\n/g, '')
     } catch (e) {
       console.log(e)
+      this.status.hide()
       new StatusMessage('Failed to parse current note, check console for details', StatusType.Error)
       return
     }
     if (!this.content) {
+      this.status.hide()
       new StatusMessage('Failed to read current note, please try again', StatusType.Error)
       return
     }
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
-
-    // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
@@ -236,7 +242,12 @@ export default class Note {
   }
 
   async upload (data: UploadData) {
-    return this.plugin.api.upload(data)
+    // Track the uploaded files and don't both re-uploading any duplicates
+    if (!this.uploadedFiles.includes(data.filename)) {
+      const url = await this.plugin.api.upload(data)
+      this.uploadedFiles.push(data.filename)
+      return url
+    }
   }
 
   /**
@@ -340,10 +351,11 @@ export default class Note {
    * @param {string} mimeType
    * @return {string|undefined}
    */
-  extensionFromMime (mimeType: string) {
+
+  /* extensionFromMime (mimeType: string) {
     const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
-  }
+  } */
 
   /**
    * Force all related assets to upload again

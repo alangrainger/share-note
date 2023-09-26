@@ -61,7 +61,16 @@ export default class SharePlugin extends Plugin {
       }
     })
 
-    // Add a menu item to the 3-dot editor menu
+    // Add command - Copy shared link
+    this.addCommand({
+      id: 'copy-link',
+      name: 'Copy shared note link',
+      callback: async () => {
+        await this.copyShareLink()
+      }
+    })
+
+    // Add a 'Copy shared link' menu item to the 3-dot editor menu
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file) => {
         if (file instanceof TFile && file.extension === 'md') {
@@ -128,7 +137,15 @@ export default class SharePlugin extends Plugin {
    * Copy the share link to the clipboard. The note will be shared first if neccessary.
    * @param file
    */
-  async copyShareLink (file: TFile): Promise<string | null> {
+  async copyShareLink (file?: TFile | null): Promise<string | undefined> {
+    if (!file) {
+      // If no provided file, use the active file
+      file = this.app.workspace.getActiveFile()
+      if (!(file instanceof TFile)) {
+        // No active file
+        return
+      }
+    }
     const meta = this.app.metadataCache.getFileCache(file)
     const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
     if (shareLink) {
