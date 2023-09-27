@@ -282,9 +282,9 @@ export default class Note {
     } else {
       // Check with the server to see if we have an existing CSS file
       const res = await this.plugin.api.post('/v1/file/check-css')
-      if (res?.json.success) {
+      if (res?.success) {
         // There is an existing CSS file, so use that rather than uploading/replacing
-        this.outputFile.setCssUrl(res.json.filename)
+        this.outputFile.setCssUrl(res.url)
         return
       }
       uploadNeeded = true
@@ -299,19 +299,14 @@ export default class Note {
     // Will use the mime-type whitelist to determine which attachments to extract.
     const attachments = this.css.match(/url\s*\(.*?\)/g) || []
     let count = 0
-    const total = attachments.filter(x => !x.includes('data:')).length + 1 // add 1 for the CSS file itself
+    const total = attachments.length + 1 // add 1 for the CSS file itself
     for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
-      if (!assetMatch) {
-        count++
-        continue
-      }
-      const assetUrl = assetMatch[1]
+      const assetUrl = assetMatch?.[1] || ''
       if (assetUrl.startsWith('data:')) {
         // Base64 encoded inline attachment, we will leave this inline for now
         // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-        count++
-      } else if (assetUrl && !assetUrl.startsWith('http')) {
+      } else if (assetMatch && assetUrl && !assetUrl.startsWith('http')) {
         // Locally stored CSS attachment
         try {
           const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
@@ -332,9 +327,10 @@ export default class Note {
           // Unable to download the attachment
           console.log(e)
         }
-        count++
-        cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count} of ${total} theme files`)
       }
+      count++
+      await new Promise(resolve => setTimeout(resolve, 60))
+      cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count} of ${total} theme files`)
     }
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
