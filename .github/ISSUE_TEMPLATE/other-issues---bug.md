@@ -1,7 +1,7 @@
 ---
 name: Other issues / bug
 about: Something went wrong when I tried to share
-title: "[BUG] "
+title: ''
 labels: bug
 assignees: ''
 
