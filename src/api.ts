@@ -1,4 +1,4 @@
-import { request } from 'obsidian'
+import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { hash } from './crypto'
@@ -28,7 +28,7 @@ export default class API {
       version: pluginVersion
     })
     try {
-      const res = await request({
+      const res = await requestUrl({
         url: this.plugin.settings.server + endpoint,
         method: 'POST',
         headers: {
@@ -36,7 +36,7 @@ export default class API {
         },
         body: JSON.stringify(body)
       })
-      return JSON.parse(res)
+      return res.json
     } catch (e) {
       let message = e.headers.message
       if (message) {
