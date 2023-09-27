@@ -134,7 +134,7 @@ export default class Note {
       if (href?.match(/^#/)) {
         // Anchor link to a document heading, we need to add custom Javascript to jump to that heading
         const selector = `[data-heading="${href.slice(1)}"]`
-        if (document.querySelectorAll(selector)?.[0]) {
+        if (this.dom.querySelectorAll(selector)?.[0]) {
           el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
         }
         el.removeAttribute('target')
