@@ -54,6 +54,10 @@ And see if that gets the note to share correctly.
 
 If your MathJax / LaTeX elements are not displaying correctly, `Force re-upload` the note which is having the issues to force your custom stylesheet to be rebuilt with the MathJax classes included.
 
+### Video files aren't uploading
+
+Local video files aren't supported due to how much hosting storage would be required. You can host a video file with any third-party provider and the embed it into your note.
+
 ## Running your own server
 
 [See the docs here](docs/Running%20your%20own%20server.md).
