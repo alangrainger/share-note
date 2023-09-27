@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+👇 **READ THIS** 👇
+
 Have you read the documentation first to check if the feature already exists?
 
 https://github.com/alangrainger/obsidian-share

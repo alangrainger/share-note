@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+👇 **READ THIS** 👇
+
 Firstly, follow the troubleshooting steps here to see if that resolves your problem:
 
 https://github.com/alangrainger/obsidian-share#troubleshooting
