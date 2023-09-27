@@ -65,8 +65,13 @@ export default class SharePlugin extends Plugin {
     this.addCommand({
       id: 'copy-link',
       name: 'Copy shared note link',
-      callback: async () => {
-        await this.copyShareLink()
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile()
+        if (checking) {
+          return file instanceof TFile
+        } else if (file) {
+          this.copyShareLink(file)
+        }
       }
     })
 
@@ -137,15 +142,7 @@ export default class SharePlugin extends Plugin {
    * Copy the share link to the clipboard. The note will be shared first if neccessary.
    * @param file
    */
-  async copyShareLink (file?: TFile | null): Promise<string | undefined> {
-    if (!file) {
-      // If no provided file, use the active file
-      file = this.app.workspace.getActiveFile()
-      if (!(file instanceof TFile)) {
-        // No active file
-        return
-      }
-    }
+  async copyShareLink (file: TFile): Promise<string | undefined> {
     const meta = this.app.metadataCache.getFileCache(file)
     const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
     if (shareLink) {
