@@ -15,4 +15,4 @@ https://github.com/alangrainger/obsidian-share
 
 Have you checked to make sure there's not already an existing request for this?
 
-https://github.com/alangrainger/obsidian-share/labels/enhancement
+https://github.com/alangrainger/obsidian-share/labels/feature%20request
