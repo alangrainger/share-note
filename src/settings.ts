@@ -45,10 +45,6 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
-    new Setting(containerEl)
-      .setName('Plugin setup')
-      .setHeading()
-
     // API key
     new Setting(containerEl)
       .setName('API key')
