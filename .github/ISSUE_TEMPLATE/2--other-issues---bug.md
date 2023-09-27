@@ -1,5 +1,5 @@
 ---
-name: Other issues / bug
+name: 2. Other issues / bug
 about: Something went wrong when I tried to share
 title: ''
 labels: bug

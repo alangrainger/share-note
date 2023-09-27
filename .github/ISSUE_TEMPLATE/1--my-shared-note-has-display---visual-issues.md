@@ -1,5 +1,5 @@
 ---
-name: My shared note has display / visual issues
+name: 1. My shared note has display / visual issues
 about: The shared note doesn't look the same as my Obsidian note
 title: My note doesn't display correctly
 labels: display issue
