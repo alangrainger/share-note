@@ -1,6 +1,6 @@
 ---
-name: Issue/error/bug with Share Note
-about: Default issue template
+name: Other issues / bug
+about: Something went wrong when I tried to share
 title: "[BUG] "
 labels: bug
 assignees: ''
