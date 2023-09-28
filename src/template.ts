@@ -233,6 +233,12 @@ export default class Template {
       const outputEl = this.dom.getElementsByClassName(selector)[0] as HTMLElement
       outputEl.className = noteEl.className
       outputEl.style.cssText = noteEl.style.cssText
+      if (selector === 'markdown-preview-pusher') {
+        // Remove the bottom margin from the pusher. This is the element which pushes items down the
+        // page. It can cause issues with a large blank section appearing before the shared content.
+        // For themes which use banners, they appear to use the margin-top attribute.
+        outputEl.style.removeProperty('margin-bottom')
+      }
     } catch (e) {
       console.log(e)
     }
