@@ -30,6 +30,7 @@ const html = `
       position: fixed !important;
     }
   </style>
+  <script src="https://file.obsidianshare.com/assets/app.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -117,11 +118,14 @@ const html = `
           const contentEl = document.getElementById('template-user-data')
           if (contentEl) contentEl.outerHTML = data.content
           document.title = data.basename
+          initDocument()
         })
         .catch(() => {
           const contentEl = document.getElementById('template-user-data')
           if (contentEl) contentEl.innerHTML = 'Unable to decrypt using this key.'
         })
+    } else {
+      initDocument()
     }
   </script>
 </body>
