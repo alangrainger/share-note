@@ -129,7 +129,7 @@ export default class SharePlugin extends Plugin {
         await note.share()
       } catch (e) {
         // Known errors are outputted by api.js
-        if (e.message === 'Unknown error') {
+        if (e.message !== 'Known error') {
           console.log(e)
           new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
         }

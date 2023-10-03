@@ -2,14 +2,16 @@ import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { hash } from './crypto'
+import NoteTemplate from './NoteTemplate'
 
 const pluginVersion = require('../manifest.json').version
 
 export interface UploadData {
-  filename: string;
-  content: string;
-  encoding?: string;
-  encrypted?: boolean;
+  filename: string
+  content?: string
+  template?: NoteTemplate
+  encoding?: string
+  encrypted?: boolean
 }
 
 export default class API {
@@ -54,6 +56,14 @@ export default class API {
 
   async upload (data: UploadData) {
     const res = await this.post('/v1/file/upload', data)
+    return res.url
+  }
+
+  async createNote (template: NoteTemplate) {
+    const res = await this.post('/v1/file/create-note', {
+      filename: template.filename,
+      template
+    })
     return res.url
   }
 }
