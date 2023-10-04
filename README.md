@@ -4,6 +4,8 @@
 
 Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
 
+[📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
+
 ## Features
 
 - Uploads using your current theme.
