@@ -1,10 +1,10 @@
-![](https://img.shields.io/github/license/alangrainger/obsidian-share) ![](https://img.shields.io/github/v/release/alangrainger/obsidian-share?style=flat-square) ![](https://img.shields.io/github/downloads/alangrainger/obsidian-share/total)
-
 # Share Note
 
-Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
+<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
+
+Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
 
 ## Features
 
