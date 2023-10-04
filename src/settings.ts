@@ -14,7 +14,6 @@ export interface ShareSettings {
   yamlField: string;
   noteWidth: string;
   themeMode: ThemeMode;
-  showFooter: boolean;
   removeYaml: boolean;
   clipboard: boolean;
 }
@@ -26,7 +25,6 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   yamlField: 'share',
   noteWidth: '',
   themeMode: ThemeMode['Same as theme'],
-  showFooter: true,
   removeYaml: true,
   clipboard: true
 }
@@ -82,7 +80,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setName('Upload options')
       .setHeading()
 
-    // Show/hide the footer
+    // Choose light/dark theme mode
     new Setting(containerEl)
       .setName('Light/Dark mode')
       .setDesc('Choose the mode with which your files will be shared')
@@ -131,19 +129,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.clipboard)
           .onChange(async (value) => {
             this.plugin.settings.clipboard = value
-            await this.plugin.saveSettings()
-            this.display()
-          })
-      })
-
-    // Show/hide the footer
-    new Setting(containerEl)
-      .setName('Show the footer')
-      .addToggle(toggle => {
-        toggle
-          .setValue(this.plugin.settings.showFooter)
-          .onChange(async (value) => {
-            this.plugin.settings.showFooter = value
             await this.plugin.saveSettings()
             this.display()
           })

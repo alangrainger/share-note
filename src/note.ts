@@ -1,10 +1,11 @@
 import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
-import Template from './template'
 import { arrayBufferToBase64, encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
+import NoteTemplate, { getElementStyle } from './NoteTemplate'
+import { ThemeMode } from './settings'
 
 export enum YamlField {
   link,
@@ -24,20 +25,20 @@ export default class Note {
   plugin: SharePlugin
   leaf: WorkspaceLeaf
   status: StatusMessage
-  content: string
-  previewViewEl: Element
   css: string
-  dom: Document
+  domCopy: Document
+  contentDom: Document
   meta: CachedMetadata | null
-  outputFile: Template
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
   uploadedFiles: string[]
+  template: NoteTemplate
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
+    this.template = new NoteTemplate()
   }
 
   /**
@@ -67,10 +68,11 @@ export default class Note {
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
     await new Promise(resolve => setTimeout(resolve, 1000))
     try {
+      // Take a clone of the DOM
+      this.domCopy = new DOMParser().parseFromString(document.documentElement.outerHTML, 'text/html')
       // @ts-ignore // 'view.modes'
-      this.content = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
-      // Fetch the preview view classes
-      this.previewViewEl = document.getElementsByClassName('markdown-preview-view markdown-rendered')[0]
+      const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
+      this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
       this.css = [...Array.from(document.styleSheets)].map(x => {
         try {
           return [...Array.from(x.cssRules)].map(x => x.cssText).join('')
@@ -83,11 +85,6 @@ export default class Note {
       console.log(e)
       this.status.hide()
       new StatusMessage('Failed to parse current note, check console for details', StatusType.Error)
-      return
-    }
-    if (!this.content) {
-      this.status.hide()
-      new StatusMessage('Failed to read current note, please try again', StatusType.Error)
       return
     }
 
@@ -103,38 +100,23 @@ export default class Note {
       return
     }
     this.meta = this.plugin.app.metadataCache.getFileCache(file)
-    this.outputFile = new Template()
-
-    // Make template value replacements
-    this.outputFile.setReadingWidth(this.plugin.settings.noteWidth)
-    this.outputFile.setPreviewViewClasses(this.previewViewEl.classList || [])
-    this.outputFile.setBodyClasses(document.body.classList)
-    this.outputFile.setBodyStyle(document.body.style.cssText.replace(/"/g, '\''))
-    if (!this.plugin.settings.showFooter) {
-      this.outputFile.removeFooter()
-    }
-    this.outputFile.setThemeMode(this.plugin.settings.themeMode) // must be after setBodyClasses
-    // Copy classes and styles
-    this.outputFile.copyClassesAndStyles('markdown-preview-view markdown-rendered', document)
-    this.outputFile.copyClassesAndStyles('markdown-preview-pusher', document)
 
     // Generate the HTML file for uploading
-    this.dom = new DOMParser().parseFromString(this.content, 'text/html')
     if (this.plugin.settings.removeYaml) {
       // Remove frontmatter to avoid sharing unwanted data
-      this.dom.querySelector('div.metadata-container')?.remove()
-      this.dom.querySelector('pre.frontmatter')?.remove()
-      this.dom.querySelector('div.frontmatter-container')?.remove()
+      this.contentDom.querySelector('div.metadata-container')?.remove()
+      this.contentDom.querySelector('pre.frontmatter')?.remove()
+      this.contentDom.querySelector('div.frontmatter-container')?.remove()
     }
 
     // Replace links
-    for (const el of this.dom.querySelectorAll<HTMLElement>('a.internal-link')) {
+    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link')) {
       const href = el.getAttribute('href')
       const match = href ? href.match(/^([^#]+)/) : null
       if (href?.match(/^#/)) {
         // Anchor link to a document heading, we need to add custom Javascript to jump to that heading
         const selector = `[data-heading="${href.slice(1)}"]`
-        if (this.dom.querySelectorAll(selector)?.[0]) {
+        if (this.contentDom.querySelectorAll(selector)?.[0]) {
           el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
         }
         el.removeAttribute('target')
@@ -156,7 +138,7 @@ export default class Note {
       // This file is not shared, so remove the link and replace with the non-link content
       el.replaceWith(el.innerHTML)
     }
-    for (const el of this.dom.querySelectorAll<HTMLElement>('a.external-link')) {
+    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.external-link')) {
       // Remove target=_blank from external links
       el.removeAttribute('target')
     }
@@ -165,58 +147,66 @@ export default class Note {
     await this.uploadCss()
     await this.processImages()
 
-    // Check for MathJax
-    if (this.dom.body.innerHTML.match(/<mjx-container/)) {
-      this.outputFile.enableMathJax()
-    }
-
     /*
      * Encrypt the note contents
      */
 
     // Use previous name and key if they exist, so that links will stay consistent across updates
-    let shareName
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
       const match = this.meta.frontmatter[this.field(YamlField.link)].match(/(\w+)\.html(#.+?|)$/)
       if (match) {
-        shareName = match[1]
+        this.template.filename = match[1] + '.html'
         decryptionKey = match[2].slice(1)
       }
     }
+    this.template.encrypted = this.isEncrypted
     if (this.isEncrypted) {
       const plaintext = JSON.stringify({
-        content: this.dom.body.innerHTML,
+        content: this.contentDom.body.innerHTML,
         basename: file.basename
       })
       // Encrypt the note
       const encryptedData = await encryptString(plaintext, decryptionKey)
-      this.outputFile.addEncryptedData(JSON.stringify({
+      this.template.content = JSON.stringify({
         ciphertext: encryptedData.ciphertext,
         iv: encryptedData.iv
-      }))
+      })
       decryptionKey = encryptedData.key
     } else {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
-      this.outputFile.addUnencryptedData(this.dom.body.innerHTML)
-      this.outputFile.setTitle(file.basename)
+      this.template.content = this.contentDom.body.innerHTML
+      this.template.title = file.basename
       // Create a meta description preview based off the <p> elements
-      const desc = Array.from(this.dom.querySelectorAll('p')).map(x => x.innerText).filter(x => !!x).join(' ').slice(0, 200) + '...'
-      this.outputFile.setMetaDescription(desc)
+      const desc = Array.from(this.contentDom.querySelectorAll('p'))
+        .map(x => x.innerText).filter(x => !!x)
+        .join(' ')
+      this.template.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
     }
 
     // Share the file
-    if (!shareName) {
-      shareName = await this.saltedHash(Date.now().toString())
+    if (!this.template.filename) {
+      this.template.filename = await this.saltedHash(Date.now().toString()) + '.html'
     }
-    const shareFile = shareName + '.html'
 
-    let shareLink = await this.upload({
-      filename: shareFile,
-      content: this.outputFile.getHtml(),
-      encrypted: this.isEncrypted
-    })
+    // Make template value replacements
+    this.template.width = this.plugin.settings.noteWidth
+    // Set theme light/dark
+    if (this.plugin.settings.themeMode !== ThemeMode['Same as theme']) {
+      // Remove the existing theme
+      this.domCopy.body.removeClasses(['theme-dark', 'theme-light'])
+      // Add the preferred class
+      this.domCopy.body.addClasses(['theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase()])
+    }
+    // Copy classes and styles
+    this.template.elements.push(getElementStyle('body', this.domCopy.body))
+    this.template.elements.push(getElementStyle('preview', this.domCopy.getElementsByClassName('markdown-preview-view markdown-rendered')[0] as HTMLElement))
+    this.template.elements.push(getElementStyle('pusher', this.domCopy.getElementsByClassName('markdown-preview-pusher')[0] as HTMLElement))
+    // Check for MathJax
+    this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
+
+    let shareLink = await this.plugin.api.createNote(this.template)
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
       shareLink += '#' + decryptionKey
@@ -231,8 +221,12 @@ export default class Note {
       })
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
-        await navigator.clipboard.writeText(shareLink)
-        shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
+        try {
+          await navigator.clipboard.writeText(shareLink)
+          shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
+        } catch (e) {
+          // If there's an error here it's because the user clicked away from the Obsidian window
+        }
         this.isForceClipboard = false
       }
     }
@@ -254,7 +248,7 @@ export default class Note {
    * Upload images encoded as base64
    */
   async processImages () {
-    for (const el of this.dom.querySelectorAll('img')) {
+    for (const el of this.contentDom.querySelectorAll('img')) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
@@ -284,7 +278,6 @@ export default class Note {
       const res = await this.plugin.api.post('/v1/file/check-css')
       if (res?.success) {
         // There is an existing CSS file, so use that rather than uploading/replacing
-        this.outputFile.setCssUrl(res.url)
         return
       }
       uploadNeeded = true
@@ -334,11 +327,10 @@ export default class Note {
     }
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
-    const cssUrl = await this.upload({
+    await this.upload({
       filename: this.plugin.settings.uid + '.css',
       content: this.css
     })
-    this.outputFile.setCssUrl(cssUrl)
     cssNotice.hide()
   }
 
