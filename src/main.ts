@@ -22,6 +22,11 @@ export default class SharePlugin extends Plugin {
       this.settings.uid = await hash('' + Date.now() + Math.random())
       await this.saveSettings()
     }
+    if (this.settings.server === 'https://api.obsidianshare.com') {
+      // Migrate to new server
+      this.settings.server = 'https://api.note.sx'
+      await this.saveSettings()
+    }
     this.settingsPage = new ShareSettingsTab(this.app, this)
     this.addSettingTab(this.settingsPage)
 
