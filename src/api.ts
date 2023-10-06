@@ -29,7 +29,6 @@ export default class API {
       nonce,
       version: pluginVersion
     })
-    console.log(body)
     while (retries > 0) {
       try {
         const res = await requestUrl({

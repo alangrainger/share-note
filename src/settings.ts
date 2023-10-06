@@ -50,11 +50,8 @@ export class ShareSettingsTab extends PluginSettingTab {
       .addButton(btn => btn
         .setButtonText('Connect plugin')
         .setCta()
-        .onClick(async () => {
-          // window.open('https://challenge.obsidianshare.com?id=' + this.plugin.settings.uid)
-          const data = await this.plugin.api.post('/v1/account/get-key')
-          this.plugin.settings.apiKey = data.key
-          await this.plugin.saveSettings()
+        .onClick(() => {
+          window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
         }))
       .addText(inputEl => {
         this.apikeyEl = inputEl // so we can update it with the API key during the URI callback
