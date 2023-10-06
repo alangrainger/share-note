@@ -1,4 +1,4 @@
-import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
 import { arrayBufferToBase64, encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
@@ -206,7 +206,10 @@ export default class Note {
     // Check for MathJax
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
 
+    // Share the file
     let shareLink = await this.plugin.api.createNote(this.template)
+    requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
+
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
       shareLink += '#' + decryptionKey
