@@ -257,13 +257,19 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await this.saltedHash(localFile)) + '.' + localFile.split('.').pop()
-      const url = await this.upload({
-        filename,
-        content: fs.readFileSync(localFile, { encoding: 'base64' }),
-        encoding: 'base64'
-      })
-      el.setAttribute('src', url)
+      const contents = fs.readFileSync(localFile, { encoding: 'base64' })
+      const filehash = await hash(contents)
+      const filetype = localFile.split('.').pop()
+      if (filetype) {
+        const filename = filehash + '.' + filetype
+        const url = await this.upload({
+          filename,
+          filetype,
+          content: contents,
+          encoding: 'base64'
+        })
+        el.setAttribute('src', url)
+      }
       el.removeAttribute('alt')
     }
   }
@@ -311,9 +317,12 @@ export default class Note {
               // Download the attachment content
               const res = await fetch(assetUrl)
               // Reupload to the server
+              const contents = arrayBufferToBase64(await res.arrayBuffer())
+              const filehash = await hash(contents)
               const uploadUrl = await this.upload({
-                filename: (await this.saltedHash(assetUrl)) + '.' + filename[2],
-                content: arrayBufferToBase64(await res.arrayBuffer()),
+                filename: filehash + '.' + filename[2],
+                filetype: filename[2],
+                content: contents,
                 encoding: 'base64'
               })
               this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
@@ -332,6 +341,7 @@ export default class Note {
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
     await this.upload({
       filename: this.plugin.settings.uid + '.css',
+      filetype: 'css',
       content: this.css
     })
     cssNotice.hide()

@@ -8,6 +8,7 @@ const pluginVersion = require('../manifest.json').version
 
 export interface UploadData {
   filename: string
+  filetype?: string
   content?: string
   template?: NoteTemplate
   encoding?: string
@@ -61,6 +62,15 @@ export default class API {
   }
 
   async upload (data: UploadData) {
+    // Test for existing file
+    if (data.filetype && !['html', 'css'].includes(data.filetype)) {
+      const exists = await this.post('/v1/file/check-file', {
+        filename: data.filename
+      })
+      if (exists?.success) {
+        return exists.url
+      }
+    }
     const res = await this.post('/v1/file/upload', data, 3)
     return res.url
   }
