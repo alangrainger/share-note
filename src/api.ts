@@ -1,7 +1,7 @@
 import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
-import { hash } from './crypto'
+import { sha256 } from './crypto'
 import NoteTemplate from './NoteTemplate'
 
 const pluginVersion = require('../manifest.json').version
@@ -25,10 +25,11 @@ export default class API {
     const nonce = Date.now().toString()
     const body = Object.assign({}, data, {
       id: this.plugin.settings.uid,
-      key: await hash(nonce + this.plugin.settings.apiKey),
+      key: await sha256(nonce + this.plugin.settings.apiKey),
       nonce,
       version: pluginVersion
     })
+    console.log(body)
     while (retries > 0) {
       try {
         const res = await requestUrl({
