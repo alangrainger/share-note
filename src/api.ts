@@ -41,7 +41,7 @@ export default class API {
         })
         return res.json
       } catch (e) {
-        if (e.status < 500 || retries === 1) {
+        if (e.status < 500 || retries <= 1) {
           let message = e.headers.message
           if (message) {
             if (e.headers.status === 415 && data?.filename && data.filename.match(/^\w+\.\w+$/)) {
