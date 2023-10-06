@@ -286,7 +286,7 @@ export default class Note {
       return
     }
     const cssNoticeText = 'Uploading theme, this may take some time, but will only happen once.'
-    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 40000)
+    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 120000)
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
@@ -319,7 +319,6 @@ export default class Note {
         } catch (e) {
           // Unable to upload the attachment
           console.log(e)
-          throw new Error()
         }
       }
       count++
