@@ -14,19 +14,17 @@ export interface ShareSettings {
   yamlField: string;
   noteWidth: string;
   themeMode: ThemeMode;
-  showFooter: boolean;
   removeYaml: boolean;
   clipboard: boolean;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
-  server: 'https://api.obsidianshare.com',
+  server: 'https://api.note.sx',
   uid: '',
   apiKey: '',
   yamlField: 'share',
   noteWidth: '',
   themeMode: ThemeMode['Same as theme'],
-  showFooter: true,
   removeYaml: true,
   clipboard: true
 }
@@ -45,10 +43,6 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
-    new Setting(containerEl)
-      .setName('Plugin setup')
-      .setHeading()
-
     // API key
     new Setting(containerEl)
       .setName('API key')
@@ -57,7 +51,7 @@ export class ShareSettingsTab extends PluginSettingTab {
         .setButtonText('Connect plugin')
         .setCta()
         .onClick(() => {
-          window.open('https://challenge.obsidianshare.com?id=' + this.plugin.settings.uid)
+          window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
         }))
       .addText(inputEl => {
         this.apikeyEl = inputEl // so we can update it with the API key during the URI callback
@@ -86,7 +80,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setName('Upload options')
       .setHeading()
 
-    // Show/hide the footer
+    // Choose light/dark theme mode
     new Setting(containerEl)
       .setName('Light/Dark mode')
       .setDesc('Choose the mode with which your files will be shared')
@@ -135,19 +129,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.clipboard)
           .onChange(async (value) => {
             this.plugin.settings.clipboard = value
-            await this.plugin.saveSettings()
-            this.display()
-          })
-      })
-
-    // Show/hide the footer
-    new Setting(containerEl)
-      .setName('Show the footer')
-      .addToggle(toggle => {
-        toggle
-          .setValue(this.plugin.settings.showFooter)
-          .onChange(async (value) => {
-            this.plugin.settings.showFooter = value
             await this.plugin.saveSettings()
             this.display()
           })

@@ -1,6 +1,8 @@
-![](https://img.shields.io/github/license/alangrainger/obsidian-share) ![](https://img.shields.io/github/v/release/alangrainger/obsidian-share?style=flat-square) ![](https://img.shields.io/github/downloads/alangrainger/obsidian-share/total)
-
 # Share Note
+
+<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
+
+[📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 
 Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
 
@@ -39,15 +41,28 @@ If you want to share a note without any encryption, you can set a frontmatter ch
 
 `share_unencrypted` = true
 
-## Running your own server
-
-[See the docs here](docs/Running%20your%20own%20server.md).
-
 ## Troubleshooting
+
+If your shared note isn't displaying correctly, before creating an Issue try these steps first:
+
+1. Change to Reading mode.
+2. Scroll to the top of the note.
+3. Use the command `Force re-upload of all data for this note`.
+4. Refresh the shared note a few times to make sure you're seeing the latest copy rather than a cached copy.
+
+And see if that gets the note to share correctly.
 
 ### MathJax / LaTeX
 
 If your MathJax / LaTeX elements are not displaying correctly, `Force re-upload` the note which is having the issues to force your custom stylesheet to be rebuilt with the MathJax classes included.
+
+### Video files aren't uploading
+
+Local video files aren't supported due to how much hosting storage would be required. You can host a video file with any third-party provider and the embed it into your note.
+
+## Running your own server
+
+[See the docs here](docs/Running%20your%20own%20server.md).
 
 ## Attributions
 
