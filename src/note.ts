@@ -154,7 +154,7 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+\/(\w+).*?(#.+?|)$/)
+      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
       if (match) {
         this.template.filename = match[1] + '.html'
         decryptionKey = match[2].slice(1)
@@ -317,8 +317,9 @@ export default class Note {
             }
           }
         } catch (e) {
-          // Unable to download the attachment
+          // Unable to upload the attachment
           console.log(e)
+          throw new Error()
         }
       }
       count++
