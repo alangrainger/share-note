@@ -1,4 +1,4 @@
-import { CachedMetadata, moment, TFile, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
 import { arrayBufferToBase64, encryptString, hash } from './crypto'
 import SharePlugin from './main'
 import { UploadData } from './api'
@@ -154,7 +154,7 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/(\w+)\.html(#.+?|)$/)
+      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
       if (match) {
         this.template.filename = match[1] + '.html'
         decryptionKey = match[2].slice(1)
@@ -206,7 +206,10 @@ export default class Note {
     // Check for MathJax
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
 
+    // Share the file
     let shareLink = await this.plugin.api.createNote(this.template)
+    requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
+
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
       shareLink += '#' + decryptionKey
@@ -286,7 +289,7 @@ export default class Note {
       return
     }
     const cssNoticeText = 'Uploading theme, this may take some time, but will only happen once.'
-    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 40000)
+    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 120000)
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
@@ -317,7 +320,7 @@ export default class Note {
             }
           }
         } catch (e) {
-          // Unable to download the attachment
+          // Unable to upload the attachment
           console.log(e)
         }
       }

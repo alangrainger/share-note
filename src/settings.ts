@@ -19,7 +19,7 @@ export interface ShareSettings {
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
-  server: 'https://api.obsidianshare.com',
+  server: 'https://api.note.sx',
   uid: '',
   apiKey: '',
   yamlField: 'share',
@@ -51,7 +51,7 @@ export class ShareSettingsTab extends PluginSettingTab {
         .setButtonText('Connect plugin')
         .setCta()
         .onClick(() => {
-          window.open('https://challenge.obsidianshare.com?id=' + this.plugin.settings.uid)
+          window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
         }))
       .addText(inputEl => {
         this.apikeyEl = inputEl // so we can update it with the API key during the URI callback
