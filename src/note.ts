@@ -1,5 +1,5 @@
 import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { arrayBufferToBase64, encryptString, sha256 } from './crypto'
+import { arrayBufferToBase64, encryptString, sha1, sha256 } from './crypto'
 import SharePlugin from './main'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -242,14 +242,14 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const contents = fs.readFileSync(localFile, { encoding: 'base64' })
-      const fileHash = await sha256(contents)
+      const hash = await sha1(fs.readFileSync(localFile, null))
+      const content = fs.readFileSync(localFile, { encoding: 'base64' })
       const filetype = localFile.split('.').pop()
       if (filetype) {
         const url = await this.plugin.api.upload({
           filetype,
-          hash: fileHash,
-          content: contents,
+          hash,
+          content,
           encoding: 'base64'
         })
         el.setAttribute('src', url)
@@ -301,11 +301,11 @@ export default class Note {
               // Download the attachment content
               const res = await fetch(assetUrl)
               // Reupload to the server
-              const contents = arrayBufferToBase64(await res.arrayBuffer())
+              const contents = await res.arrayBuffer()
               const uploadUrl = await this.plugin.api.upload({
                 filetype: filename[2],
-                hash: await sha256(contents),
-                content: contents,
+                hash: await sha1(contents),
+                content: arrayBufferToBase64(contents),
                 encoding: 'base64'
               })
               this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
@@ -324,7 +324,7 @@ export default class Note {
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
     await this.plugin.api.upload({
       filetype: 'css',
-      hash: await sha256(this.css),
+      hash: await sha1(this.css),
       content: this.css
     })
     cssNotice.hide()

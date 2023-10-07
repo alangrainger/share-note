@@ -1,7 +1,7 @@
 import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
-import { sha256 } from './crypto'
+import { sha1, sha256 } from './crypto'
 import NoteTemplate from './NoteTemplate'
 
 const pluginVersion = require('../manifest.json').version
@@ -46,7 +46,7 @@ export default class API {
         if (e.status < 500 || retries <= 1) {
           let message = e.headers.message
           if (message) {
-            if (e.headers.status === 415 && data?.filename && data.filename.match(/^\w+\.\w+$/)) {
+            if (e.status === 415 && data?.filename && data.filename.match(/^\w+\.\w+$/)) {
               // Detailed message for unknown filetype
               message = `Unsupported media type ${data.filename.split('.')[1].toUpperCase()}, please open an issue on Github`
             }
@@ -80,7 +80,7 @@ export default class API {
     const res = await this.post('/v1/file/create-note', {
       filename: template.filename,
       filetype: 'html',
-      hash: await sha256(template.content),
+      hash: await sha1(template.content),
       template
     }, 3)
     return res.url
