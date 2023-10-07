@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
 import Note, { YamlField } from './note'
 import API from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
-import { hash, sha256 } from './crypto'
+import { getShortHash, sha256 } from './crypto'
 
 export default class SharePlugin extends Plugin {
   settings: ShareSettings
@@ -11,7 +11,7 @@ export default class SharePlugin extends Plugin {
   settingsPage: ShareSettingsTab
 
   // Expose some tools in the plugin object
-  hash = hash
+  hash = getShortHash
   sha256 = sha256
 
   async onload () {
@@ -19,7 +19,7 @@ export default class SharePlugin extends Plugin {
     await this.loadSettings()
     if (!this.settings.uid) {
       // Set up a random UID if the user does not already have one
-      this.settings.uid = await hash('' + Date.now() + Math.random())
+      this.settings.uid = await getShortHash('' + Date.now() + Math.random())
       await this.saveSettings()
     }
     if (this.settings.server === 'https://api.obsidianshare.com') {

@@ -7,8 +7,9 @@ import NoteTemplate from './NoteTemplate'
 const pluginVersion = require('../manifest.json').version
 
 export interface UploadData {
-  filename: string
-  filetype?: string
+  filename?: string
+  filetype: string
+  hash: string
   content?: string
   template?: NoteTemplate
   encoding?: string
@@ -62,14 +63,14 @@ export default class API {
   }
 
   async upload (data: UploadData) {
-    // Test for existing file
-    if (data.filetype && !['html', 'css'].includes(data.filetype)) {
-      const exists = await this.post('/v1/file/check-file', {
-        filename: data.filename
-      })
-      if (exists?.success) {
-        return exists.url
-      }
+    // Test for existing file before uploading any data
+    const exists = await this.post('/v1/file/check-file', {
+      filename: data.filename,
+      filetype: data.filetype,
+      hash: data.hash
+    })
+    if (exists?.success) {
+      return exists.url
     }
     const res = await this.post('/v1/file/upload', data, 3)
     return res.url
@@ -78,6 +79,8 @@ export default class API {
   async createNote (template: NoteTemplate) {
     const res = await this.post('/v1/file/create-note', {
       filename: template.filename,
+      filetype: 'html',
+      hash: await sha256(template.content),
       template
     }, 3)
     return res.url

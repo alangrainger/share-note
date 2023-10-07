@@ -146,7 +146,7 @@ export function hexToBase62 (hex: string) {
   return convertBase(hex, 16, 62)
 }
 
-export async function hash (text: string) {
-  const hex = await sha256(text)
+export async function getShortHash (text: string, isSha256 = false) {
+  const hex = isSha256 ? text : (await sha256(text))
   return hexToBase62(hex).slice(0, 16)
 }

@@ -1,7 +1,6 @@
 import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { arrayBufferToBase64, encryptString, hash } from './crypto'
+import { arrayBufferToBase64, encryptString, getShortHash, sha256 } from './crypto'
 import SharePlugin from './main'
-import { UploadData } from './api'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
@@ -238,15 +237,6 @@ export default class Note {
     new StatusMessage(shareMessage, StatusType.Success)
   }
 
-  async upload (data: UploadData) {
-    // Track the uploaded files and don't both re-uploading any duplicates
-    if (!this.uploadedFiles.includes(data.filename)) {
-      const url = await this.plugin.api.upload(data)
-      this.uploadedFiles.push(data.filename)
-      return url
-    }
-  }
-
   /**
    * Upload images encoded as base64
    */
@@ -258,13 +248,15 @@ export default class Note {
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
       const contents = fs.readFileSync(localFile, { encoding: 'base64' })
-      const filehash = await hash(contents)
+      const fileHash = await sha256(contents)
+      const shortHash = await getShortHash(fileHash, true)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        const filename = filehash + '.' + filetype
-        const url = await this.upload({
+        const filename = shortHash + '.' + filetype
+        const url = await this.plugin.api.upload({
           filename,
           filetype,
+          hash: fileHash,
           content: contents,
           encoding: 'base64'
         })
@@ -318,10 +310,9 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const contents = arrayBufferToBase64(await res.arrayBuffer())
-              const filehash = await hash(contents)
-              const uploadUrl = await this.upload({
-                filename: filehash + '.' + filename[2],
+              const uploadUrl = await this.plugin.api.upload({
                 filetype: filename[2],
+                hash: await sha256(contents),
                 content: contents,
                 encoding: 'base64'
               })
@@ -339,9 +330,9 @@ export default class Note {
     }
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
-    await this.upload({
-      filename: this.plugin.settings.uid + '.css',
+    await this.plugin.api.upload({
       filetype: 'css',
+      hash: await sha256(this.css),
       content: this.css
     })
     cssNotice.hide()
@@ -384,6 +375,6 @@ export default class Note {
    * @param value
    */
   async saltedHash (value: string): Promise<string> {
-    return hash(this.plugin.settings.uid + value)
+    return getShortHash(this.plugin.settings.uid + value)
   }
 }
