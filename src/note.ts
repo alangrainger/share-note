@@ -1,7 +1,6 @@
 import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { arrayBufferToBase64, encryptString, hash } from './crypto'
+import { arrayBufferToBase64, encryptString, sha1, sha256 } from './crypto'
 import SharePlugin from './main'
-import { UploadData } from './api'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
@@ -156,7 +155,7 @@ export default class Note {
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
       const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
       if (match) {
-        this.template.filename = match[1] + '.html'
+        this.template.filename = match[1]
         decryptionKey = match[2].slice(1)
       }
     }
@@ -183,11 +182,6 @@ export default class Note {
         .map(x => x.innerText).filter(x => !!x)
         .join(' ')
       this.template.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
-    }
-
-    // Share the file
-    if (!this.template.filename) {
-      this.template.filename = await this.saltedHash(Date.now().toString()) + '.html'
     }
 
     // Make template value replacements
@@ -238,15 +232,6 @@ export default class Note {
     new StatusMessage(shareMessage, StatusType.Success)
   }
 
-  async upload (data: UploadData) {
-    // Track the uploaded files and don't both re-uploading any duplicates
-    if (!this.uploadedFiles.includes(data.filename)) {
-      const url = await this.plugin.api.upload(data)
-      this.uploadedFiles.push(data.filename)
-      return url
-    }
-  }
-
   /**
    * Upload images encoded as base64
    */
@@ -257,13 +242,18 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const filename = (await this.saltedHash(localFile)) + '.' + localFile.split('.').pop()
-      const url = await this.upload({
-        filename,
-        content: fs.readFileSync(localFile, { encoding: 'base64' }),
-        encoding: 'base64'
-      })
-      el.setAttribute('src', url)
+      const hash = await sha1(fs.readFileSync(localFile, null))
+      const content = fs.readFileSync(localFile, { encoding: 'base64' })
+      const filetype = localFile.split('.').pop()
+      if (filetype) {
+        const url = await this.plugin.api.upload({
+          filetype,
+          hash,
+          content,
+          encoding: 'base64'
+        })
+        el.setAttribute('src', url)
+      }
       el.removeAttribute('alt')
     }
   }
@@ -311,9 +301,11 @@ export default class Note {
               // Download the attachment content
               const res = await fetch(assetUrl)
               // Reupload to the server
-              const uploadUrl = await this.upload({
-                filename: (await this.saltedHash(assetUrl)) + '.' + filename[2],
-                content: arrayBufferToBase64(await res.arrayBuffer()),
+              const contents = await res.arrayBuffer()
+              const uploadUrl = await this.plugin.api.upload({
+                filetype: filename[2],
+                hash: await sha1(contents),
+                content: arrayBufferToBase64(contents),
                 encoding: 'base64'
               })
               this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
@@ -330,8 +322,9 @@ export default class Note {
     }
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
-    await this.upload({
-      filename: this.plugin.settings.uid + '.css',
+    await this.plugin.api.upload({
+      filetype: 'css',
+      hash: await sha1(this.css),
       content: this.css
     })
     cssNotice.hide()
@@ -367,13 +360,5 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
-  }
-
-  /**
-   * A wrapper for hash() which always adds the salt
-   * @param value
-   */
-  async saltedHash (value: string): Promise<string> {
-    return hash(this.plugin.settings.uid + value)
   }
 }

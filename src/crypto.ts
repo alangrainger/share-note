@@ -114,39 +114,26 @@ export async function decryptString (encryptedData: EncryptedString) {
   return plaintext.join('')
 }
 
-export async function sha256 (text: string) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(text)
-  const hash = await crypto.subtle.digest('SHA-256', data)
+async function sha (algorithm: string, data: string | ArrayBuffer) {
+  let uint8Array
+  if (typeof data === 'string') {
+    const encoder = new TextEncoder()
+    uint8Array = encoder.encode(data)
+  } else {
+    uint8Array = data
+  }
+  const hash = await crypto.subtle.digest(algorithm, uint8Array)
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-function convertBase (value: string, fromBase: number, toBase: number): string {
-  const range = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/'.split('')
-  const rangeFrom = range.slice(0, fromBase)
-  const rangeTo = range.slice(0, toBase)
-
-  let decValue = value
-    .split('')
-    .reverse()
-    .reduce((carry: number, digit: string, index: number) => {
-      carry += rangeFrom.indexOf(digit) * (Math.pow(fromBase, index))
-      return carry
-    }, 0)
-
-  let newValue = ''
-  while (decValue > 0) {
-    newValue = rangeTo[decValue % toBase] + newValue
-    decValue = (decValue - (decValue % toBase)) / toBase
-  }
-  return newValue || '0'
+export async function sha256 (data: string | ArrayBuffer) {
+  return sha('SHA-256', data)
 }
 
-export function hexToBase62 (hex: string) {
-  return convertBase(hex, 16, 62)
+export async function sha1 (data: string | ArrayBuffer) {
+  return sha('SHA-1', data)
 }
 
-export async function hash (text: string) {
-  const hex = await sha256(text)
-  return hexToBase62(hex).slice(0, 16)
+export async function shortHash (text: string) {
+  return (await sha256(text)).slice(0, 32)
 }
