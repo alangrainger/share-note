@@ -1,5 +1,5 @@
 import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { arrayBufferToBase64, encryptString, getShortHash, sha256 } from './crypto'
+import { arrayBufferToBase64, encryptString, sha256 } from './crypto'
 import SharePlugin from './main'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -155,7 +155,7 @@ export default class Note {
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
       const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
       if (match) {
-        this.template.filename = match[1] + '.html'
+        this.template.filename = match[1]
         decryptionKey = match[2].slice(1)
       }
     }
@@ -182,11 +182,6 @@ export default class Note {
         .map(x => x.innerText).filter(x => !!x)
         .join(' ')
       this.template.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
-    }
-
-    // Share the file
-    if (!this.template.filename) {
-      this.template.filename = await this.saltedHash(Date.now().toString()) + '.html'
     }
 
     // Make template value replacements
@@ -249,12 +244,9 @@ export default class Note {
       const localFile = window.decodeURIComponent(srcMatch[1])
       const contents = fs.readFileSync(localFile, { encoding: 'base64' })
       const fileHash = await sha256(contents)
-      const shortHash = await getShortHash(fileHash, true)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        const filename = shortHash + '.' + filetype
         const url = await this.plugin.api.upload({
-          filename,
           filetype,
           hash: fileHash,
           content: contents,
@@ -368,13 +360,5 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
-  }
-
-  /**
-   * A wrapper for hash() which always adds the salt
-   * @param value
-   */
-  async saltedHash (value: string): Promise<string> {
-    return getShortHash(this.plugin.settings.uid + value)
   }
 }

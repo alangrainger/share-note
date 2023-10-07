@@ -65,15 +65,15 @@ export default class API {
   async upload (data: UploadData) {
     // Test for existing file before uploading any data
     const exists = await this.post('/v1/file/check-file', {
-      filename: data.filename,
       filetype: data.filetype,
       hash: data.hash
     })
     if (exists?.success) {
       return exists.url
+    } else {
+      const res = await this.post('/v1/file/upload', data, 3)
+      return res.url
     }
-    const res = await this.post('/v1/file/upload', data, 3)
-    return res.url
   }
 
   async createNote (template: NoteTemplate) {
