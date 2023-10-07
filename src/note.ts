@@ -50,10 +50,13 @@ export default class Note {
   }
 
   async share () {
-    if (!this.plugin.settings.uid || !this.plugin.settings.apiKey) return
-
     // Create a semi-permanent status notice which we can update
     this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+
+    if (!this.plugin.settings.apiKey) {
+      window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
+      return
+    }
 
     this.uploadedFiles = []
     const startMode = this.leaf.getViewState()
