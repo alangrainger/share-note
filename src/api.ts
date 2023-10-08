@@ -10,7 +10,8 @@ export interface UploadData {
   filename?: string
   filetype: string
   hash: string
-  content?: string
+  content?: string,
+  byteLength?: number
   template?: NoteTemplate
   encoding?: string
   encrypted?: boolean
@@ -19,13 +20,8 @@ export interface UploadData {
 export interface RawUpload {
   filetype: string
   hash: string
-  content: ArrayBuffer
-}
-
-type ApiError = {
-  status: number,
-  message: string,
-  headers?: { [key: string]: string }
+  content: ArrayBuffer,
+  byteLength: number
 }
 
 export default class API {
@@ -46,21 +42,34 @@ export default class API {
   }
 
   async post (endpoint: string, data?: UploadData, retries = 1) {
+    const headers: HeadersInit = {
+      ...(await this.authHeaders()),
+      'Content-Type': 'application/json'
+    }
+    if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body = Object.assign({}, data)
     while (retries > 0) {
       try {
         const res = await requestUrl({
           url: this.plugin.settings.server + endpoint,
           method: 'POST',
-          headers: {
-            ...(await this.authHeaders()),
-            'Content-Type': 'application/json'
-          },
+          headers,
           body: JSON.stringify(body)
         })
         return res.json
       } catch (error) {
-        await this.handleError(error, retries)
+        if (error.status < 500 || retries <= 1) {
+          const message = error.headers?.message
+          if (message) {
+            new StatusMessage(message, StatusType.Error)
+            throw new Error('Known error')
+          }
+          console.log(error)
+          throw new Error('Unknown error')
+        } else {
+          // Delay before attempting to retry upload
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
       }
       console.log('Retrying ' + retries)
       retries--
@@ -68,38 +77,34 @@ export default class API {
   }
 
   async postRaw (endpoint: string, data: RawUpload, retries = 3) {
+    const headers: HeadersInit = {
+      ...(await this.authHeaders()),
+      'x-sharenote-filetype': data.filetype,
+      'x-sharenote-hash': data.hash
+    }
+    if (data.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     while (retries > 0) {
-      try {
-        const res = await fetch(this.plugin.settings.server + endpoint, {
-          method: 'POST',
-          headers: {
-            ...(await this.authHeaders()),
-            'x-sharenote-filetype': data.filetype,
-            'x-sharenote-hash': data.hash
-          },
-          body: data.content
-        })
+      const res = await fetch(this.plugin.settings.server + endpoint, {
+        method: 'POST',
+        headers,
+        body: data.content
+      })
+      if (res.status !== 200) {
+        if (res.status < 500 || retries <= 1) {
+          const message = await res.text()
+          if (message) {
+            new StatusMessage(message, StatusType.Error)
+            throw new Error('Known error')
+          }
+          throw new Error('Unknown error')
+        }
+        // Delay before attempting to retry upload
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } else {
         return res.json()
-      } catch (error) {
-        await this.handleError(error, retries)
       }
       console.log('Retrying ' + retries)
       retries--
-    }
-  }
-
-  async handleError (e: ApiError, retries: number) {
-    if (e.status < 500 || retries <= 1) {
-      const message = e.headers?.message
-      if (message) {
-        new StatusMessage(message, StatusType.Error)
-        throw new Error('Known error')
-      }
-      console.log(e)
-      throw new Error('Unknown error')
-    } else {
-      // Delay before attempting to retry upload
-      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
 
@@ -115,7 +120,8 @@ export default class API {
     // Test for existing file before uploading any data
     const exists = await this.post('/v1/file/check-file', {
       filetype: data.filetype,
-      hash: data.hash
+      hash: data.hash,
+      byteLength: data.byteLength
     })
     if (exists?.success) {
       return exists.url
