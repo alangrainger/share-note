@@ -1,5 +1,5 @@
 import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { arrayBufferToBase64, encryptString, sha1, sha256 } from './crypto'
+import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -50,10 +50,13 @@ export default class Note {
   }
 
   async share () {
-    if (!this.plugin.settings.uid || !this.plugin.settings.apiKey) return
-
     // Create a semi-permanent status notice which we can update
     this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+
+    if (!this.plugin.settings.apiKey) {
+      window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
+      return
+    }
 
     this.uploadedFiles = []
     const startMode = this.leaf.getViewState()
@@ -242,15 +245,13 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const hash = await sha1(fs.readFileSync(localFile, null))
-      const content = fs.readFileSync(localFile, { encoding: 'base64' })
+      const content = fs.readFileSync(localFile, null)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        const url = await this.plugin.api.upload({
+        const url = await this.plugin.api.uploadBinary({
           filetype,
-          hash,
-          content,
-          encoding: 'base64'
+          hash: await sha1(content),
+          content
         })
         el.setAttribute('src', url)
       }
@@ -302,11 +303,10 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const contents = await res.arrayBuffer()
-              const uploadUrl = await this.plugin.api.upload({
+              const uploadUrl = await this.plugin.api.uploadBinary({
                 filetype: filename[2],
                 hash: await sha1(contents),
-                content: arrayBufferToBase64(contents),
-                encoding: 'base64'
+                content: contents
               })
               this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
             }
