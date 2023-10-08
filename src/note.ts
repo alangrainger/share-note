@@ -251,7 +251,8 @@ export default class Note {
         const url = await this.plugin.api.uploadBinary({
           filetype,
           hash: await sha1(content),
-          content
+          content,
+          byteLength: content.byteLength
         })
         el.setAttribute('src', url)
       }
@@ -306,7 +307,8 @@ export default class Note {
               const uploadUrl = await this.plugin.api.uploadBinary({
                 filetype: filename[2],
                 hash: await sha1(contents),
-                content: contents
+                content: contents,
+                byteLength: contents.byteLength
               })
               this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
             }
@@ -325,7 +327,8 @@ export default class Note {
     await this.plugin.api.upload({
       filetype: 'css',
       hash: await sha1(this.css),
-      content: this.css
+      content: this.css,
+      byteLength: this.css.length
     })
     cssNotice.hide()
   }
