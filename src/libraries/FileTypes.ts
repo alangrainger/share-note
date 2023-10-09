@@ -1,51 +1,63 @@
 // https://en.wikipedia.org/wiki/List_of_file_signatures
 
-interface FileType {
-  extension: string;
-  mimetype: string;
-  mimetypes: string[];
+interface IFileType {
+  extension: string
+  mimetypes: string[]
   signature?: Uint8Array
 }
 
-const types: FileType[] = [
+class FileType implements IFileType {
+  extension: string
+  mimetypes: string[]
+  signature?: Uint8Array
+
+  constructor (fileType: IFileType) {
+    this.extension = fileType.extension
+    this.mimetypes = fileType.mimetypes
+    this.signature = fileType.signature
+  }
+
+  get mimetype () {
+    return this.mimetypes[0]
+  }
+}
+
+const types: IFileType[] = [
   {
     extension: 'ttf',
-    mimetype: 'font-ttf',
     mimetypes: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
     signature: Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00])
   },
   {
     extension: 'otf',
-    mimetype: 'font-otf',
     mimetypes: ['font/otf', 'application/x-font-opentype'],
     signature: Buffer.from([0x4F, 0x54, 0x54, 0x4F])
   },
   {
     extension: 'woff',
-    mimetype: 'font-woff',
     mimetypes: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
     signature: Buffer.from([0x77, 0x4F, 0x46, 0x46])
   },
   {
     extension: 'woff2',
-    mimetype: 'font-woff',
     mimetypes: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
     signature: Buffer.from([0x77, 0x4F, 0x46, 0x32])
   },
   {
     extension: 'svg',
-    mimetype: 'image/svg+xml',
     mimetypes: ['image/svg+xml']
   }
 ]
 
 class FileTypes {
   getFromMimetype (mimetype: string) {
-    return types.find(x => x.mimetypes.includes(mimetype))
+    const type = types.find(x => x.mimetypes.includes(mimetype))
+    return type ? new FileType(type) : undefined
   }
 
   getFromExtension (extension: string) {
-    return types.find(x => x.extension === extension.toLowerCase())
+    const type = types.find(x => x.extension === extension.toLowerCase())
+    return type ? new FileType(type) : undefined
   }
 
   getFromSignature (signature: Uint8Array | ArrayBuffer) {
@@ -53,7 +65,8 @@ class FileTypes {
       // Convert to Uint8Array
       signature = new Uint8Array(signature, 0, 10)
     }
-    return types.find(library => library.signature && this.bufferIsEqual(library.signature, signature as Uint8Array))
+    const type = types.find(library => library.signature && this.bufferIsEqual(library.signature, signature as Uint8Array))
+    return type ? new FileType(type) : undefined
   }
 
   bufferIsEqual (librarySignature: Uint8Array, userSignature: Uint8Array) {

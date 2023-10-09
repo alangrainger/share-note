@@ -301,7 +301,6 @@ export default class Note {
           if (parsed.type === 'application/octet-stream') {
             const decoded = FileTypes.getFromSignature(parsed.buffer)
             if (!decoded) continue
-            console.log(decoded.mimetype)
             parsed.type = decoded.mimetype
           }
           const filetype = this.extensionFromMime(parsed.type)
