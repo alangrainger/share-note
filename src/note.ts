@@ -11,6 +11,7 @@ import FileTypes from './libraries/FileTypes'
 export enum YamlField {
   link,
   updated,
+  encrypted,
   unencrypted
 }
 

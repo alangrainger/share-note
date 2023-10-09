@@ -119,10 +119,18 @@ export default class SharePlugin extends Plugin {
       const meta = this.app.metadataCache.getFileCache(file)
       const note = new Note(this)
 
-      // Check for a frontmatter property called 'share_unencrypted` = true
-      // otherwise the default is to share encrypted
-      if (meta?.frontmatter?.[note.field(YamlField.unencrypted)] === true) {
+      if (this.settings.shareUnencrypted) {
+        // The user has opted to share unencrypted by default
         note.shareAsPlainText(true)
+      }
+      if (meta?.frontmatter?.[note.field(YamlField.unencrypted)] === true) {
+        // User has set the frontmatter property 'share_unencrypted` = true
+        note.shareAsPlainText(true)
+      }
+      if (meta?.frontmatter?.[note.field(YamlField.encrypted)] === true) {
+        // User has set the frontmatter property `share_encrypted` = true
+        // This setting goes after the 'unencrypted' setting, just in case of conflicting checkboxes
+        note.shareAsPlainText(false)
       }
       if (forceUpload) {
         note.forceUpload()

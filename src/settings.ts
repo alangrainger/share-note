@@ -16,6 +16,7 @@ export interface ShareSettings {
   themeMode: ThemeMode;
   removeYaml: boolean;
   clipboard: boolean;
+  shareUnencrypted: boolean;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
@@ -26,7 +27,8 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   noteWidth: '',
   themeMode: ThemeMode['Same as theme'],
   removeYaml: true,
-  clipboard: true
+  clipboard: true,
+  shareUnencrypted: false
 }
 
 export class ShareSettingsTab extends PluginSettingTab {
@@ -129,6 +131,20 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.clipboard)
           .onChange(async (value) => {
             this.plugin.settings.clipboard = value
+            await this.plugin.saveSettings()
+            this.display()
+          })
+      })
+
+    // Share encrypted by default
+    new Setting(containerEl)
+      .setName('Share as encrypted by default')
+      .setDesc('If you turn this off, you can enable encryption for individual notes by adding a `share_encrypted` checkbox into a note and ticking it.')
+      .addToggle(toggle => {
+        toggle
+          .setValue(!this.plugin.settings.shareUnencrypted)
+          .onChange(async (value) => {
+            this.plugin.settings.shareUnencrypted = !value
             await this.plugin.saveSettings()
             this.display()
           })
