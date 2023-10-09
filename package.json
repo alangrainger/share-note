@@ -1,6 +1,6 @@
 {
 	"name": "share-note",
-	"version": "0.5.4",
+	"version": "0.5.5",
 	"description": "Instantly share a note, with full styling. Data is stored encrypted on the server and only you have the key.",
 	"main": "main.js",
 	"scripts": {
@@ -22,5 +22,8 @@
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
+	},
+	"dependencies": {
+		"data-uri-to-buffer": "^6.0.1"
 	}
 }
