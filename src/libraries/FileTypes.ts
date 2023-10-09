@@ -2,6 +2,7 @@
 
 interface FileType {
   extension: string;
+  mimetype: string;
   mimetypes: string[];
   signature?: Uint8Array
 }
@@ -9,26 +10,31 @@ interface FileType {
 const types: FileType[] = [
   {
     extension: 'ttf',
-    mimetypes: ['application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
+    mimetype: 'font-ttf',
+    mimetypes: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
     signature: Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00])
   },
   {
     extension: 'otf',
+    mimetype: 'font-otf',
     mimetypes: ['font/otf', 'application/x-font-opentype'],
     signature: Buffer.from([0x4F, 0x54, 0x54, 0x4F])
   },
   {
     extension: 'woff',
+    mimetype: 'font-woff',
     mimetypes: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
     signature: Buffer.from([0x77, 0x4F, 0x46, 0x46])
   },
   {
     extension: 'woff2',
+    mimetype: 'font-woff',
     mimetypes: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
     signature: Buffer.from([0x77, 0x4F, 0x46, 0x32])
   },
   {
     extension: 'svg',
+    mimetype: 'image/svg+xml',
     mimetypes: ['image/svg+xml']
   }
 ]
