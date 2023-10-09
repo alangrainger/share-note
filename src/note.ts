@@ -5,6 +5,8 @@ import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
 import { ThemeMode } from './settings'
+import { dataUriToBuffer } from 'data-uri-to-buffer'
+import fileSignature from './libraries/FileType'
 
 export enum YamlField {
   link,
@@ -289,12 +291,31 @@ export default class Note {
     let count = 0
     const total = attachments.length + 1 // add 1 for the CSS file itself
     for (const attachment of attachments) {
-      const assetMatch = attachment.match(/url\s*\(\s*["']*(.*?)\s*["']*\s*\)/)
+      const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
+      if (!assetMatch) continue
       const assetUrl = assetMatch?.[1] || ''
       if (assetUrl.startsWith('data:')) {
-        // Base64 encoded inline attachment, we will leave this inline for now
-        // const base64Match = /url\s*\(\W*data:([^;,]+)[^)]*?base64\s*,\s*([A-Za-z0-9/=+]+).?\)/
-      } else if (assetMatch && assetUrl && !assetUrl.startsWith('http')) {
+        // Attempt to parse the data URL
+        const parsed = dataUriToBuffer(assetUrl)
+        if (parsed?.type) {
+          if (parsed.type === 'application/octet-stream') {
+            const decoded = fileSignature(new Uint8Array(parsed.buffer, 0, 10))
+            if (!decoded) continue
+            parsed.type = decoded.mimeType
+          }
+          const filetype = this.extensionFromMime(parsed.type)
+          if (filetype) {
+            const uploadUrl = await this.plugin.api.uploadBinary({
+              filetype,
+              hash: await sha1(parsed.buffer),
+              content: parsed.buffer,
+              byteLength: parsed.buffer.byteLength
+            })
+            this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+          }
+        }
+        // console.log(parsed)
+      } else if (assetUrl && !assetUrl.startsWith('http')) {
         // Locally stored CSS attachment
         try {
           const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
@@ -339,10 +360,10 @@ export default class Note {
    * @return {string|undefined}
    */
 
-  /* extensionFromMime (mimeType: string) {
+  extensionFromMime (mimeType: string) {
     const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
-  } */
+  }
 
   /**
    * Force all related assets to upload again
