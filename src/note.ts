@@ -6,11 +6,12 @@ import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
 import { ThemeMode } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
-import fileSignature from './libraries/FileType'
+import FileTypes from './libraries/FileTypes'
 
 export enum YamlField {
   link,
   updated,
+  encrypted,
   unencrypted
 }
 
@@ -299,9 +300,9 @@ export default class Note {
         const parsed = dataUriToBuffer(assetUrl)
         if (parsed?.type) {
           if (parsed.type === 'application/octet-stream') {
-            const decoded = fileSignature(new Uint8Array(parsed.buffer, 0, 10))
+            const decoded = FileTypes.getFromSignature(parsed.buffer)
             if (!decoded) continue
-            parsed.type = decoded.mimeType
+            parsed.type = decoded.mimetype
           }
           const filetype = this.extensionFromMime(parsed.type)
           if (filetype) {
