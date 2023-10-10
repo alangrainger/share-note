@@ -26,22 +26,22 @@ const types: IFileType[] = [
   {
     extension: 'ttf',
     mimetypes: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
-    signature: Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00])
+    signature: new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x00])
   },
   {
     extension: 'otf',
     mimetypes: ['font/otf', 'application/x-font-opentype'],
-    signature: Buffer.from([0x4F, 0x54, 0x54, 0x4F])
+    signature: new Uint8Array([0x4F, 0x54, 0x54, 0x4F])
   },
   {
     extension: 'woff',
     mimetypes: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
-    signature: Buffer.from([0x77, 0x4F, 0x46, 0x46])
+    signature: new Uint8Array([0x77, 0x4F, 0x46, 0x46])
   },
   {
     extension: 'woff2',
     mimetypes: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
-    signature: Buffer.from([0x77, 0x4F, 0x46, 0x32])
+    signature: new Uint8Array([0x77, 0x4F, 0x46, 0x32])
   },
   {
     extension: 'svg',
@@ -66,6 +66,7 @@ class FileTypes {
       signature = new Uint8Array(signature, 0, 10)
     }
     const type = types.find(library => library.signature && this.bufferIsEqual(library.signature, signature as Uint8Array))
+    console.log(type)
     return type ? new FileType(type) : undefined
   }
 

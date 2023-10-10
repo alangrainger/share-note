@@ -7,6 +7,20 @@ export enum ThemeMode {
   Light
 }
 
+export enum TitleSource {
+  'Note title',
+  'First H1',
+  'Frontmatter property'
+}
+
+export enum YamlField {
+  link,
+  updated,
+  encrypted,
+  unencrypted,
+  title
+}
+
 export interface ShareSettings {
   server: string;
   uid: string;
@@ -14,6 +28,7 @@ export interface ShareSettings {
   yamlField: string;
   noteWidth: string;
   themeMode: ThemeMode;
+  titleSource: TitleSource;
   removeYaml: boolean;
   clipboard: boolean;
   shareUnencrypted: boolean;
@@ -26,6 +41,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   yamlField: 'share',
   noteWidth: '',
   themeMode: ThemeMode['Same as theme'],
+  titleSource: TitleSource['Note title'],
   removeYaml: true,
   clipboard: true,
   shareUnencrypted: false
@@ -94,6 +110,30 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(ThemeMode[this.plugin.settings.themeMode])
           .onChange(async value => {
             this.plugin.settings.themeMode = ThemeMode[value as keyof typeof ThemeMode]
+            await this.plugin.saveSettings()
+          })
+      })
+
+    // Title source
+    const defaultTitleDesc = 'Select the location to source the published note title.'
+    const titleSetting = new Setting(containerEl)
+      .setName('Note title source')
+      .setDesc(defaultTitleDesc)
+      .addDropdown(dropdown => {
+        for (const enumKey in TitleSource) {
+          if (isNaN(Number(enumKey))) {
+            dropdown.addOption(enumKey, enumKey)
+          }
+        }
+        dropdown
+          .setValue(TitleSource[this.plugin.settings.titleSource])
+          .onChange(async value => {
+            this.plugin.settings.titleSource = TitleSource[value as keyof typeof TitleSource]
+            if (this.plugin.settings.titleSource === TitleSource['Frontmatter property']) {
+              titleSetting.setDesc('Set the title you want to use in a frontmatter property called `' + this.plugin.field(YamlField.title) + '`')
+            } else {
+              titleSetting.setDesc(defaultTitleDesc)
+            }
             await this.plugin.saveSettings()
           })
       })

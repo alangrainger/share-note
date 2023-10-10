@@ -4,16 +4,9 @@ import SharePlugin from './main'
 import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
-import { ThemeMode } from './settings'
+import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
-
-export enum YamlField {
-  link,
-  updated,
-  encrypted,
-  unencrypted
-}
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -49,7 +42,7 @@ export default class Note {
    * @return {string} The name (key) of a frontmatter property
    */
   field (key: YamlField) {
-    return [this.plugin.settings.yamlField, YamlField[key]].join('_')
+    return this.plugin.field(key)
   }
 
   async share () {
@@ -166,10 +159,26 @@ export default class Note {
       }
     }
     this.template.encrypted = this.isEncrypted
+
+    // Select which source for the title
+    let title
+    switch (this.plugin.settings.titleSource) {
+      case TitleSource['First H1']:
+        title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
+        break
+      case TitleSource['Frontmatter property']:
+        title = this.meta?.frontmatter?.[this.field(YamlField.title)]
+        break
+    }
+    if (!title) {
+      // Fallback to basename if either of the above fail
+      title = file.basename
+    }
+
     if (this.isEncrypted) {
       const plaintext = JSON.stringify({
         content: this.contentDom.body.innerHTML,
-        basename: file.basename
+        basename: title
       })
       // Encrypt the note
       const encryptedData = await encryptString(plaintext, decryptionKey)
@@ -182,7 +191,7 @@ export default class Note {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
       this.template.content = this.contentDom.body.innerHTML
-      this.template.title = file.basename
+      this.template.title = title
       // Create a meta description preview based off the <p> elements
       const desc = Array.from(this.contentDom.querySelectorAll('p'))
         .map(x => x.innerText).filter(x => !!x)

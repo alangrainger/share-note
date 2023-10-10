@@ -1,6 +1,6 @@
 import { Plugin, TFile } from 'obsidian'
-import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
-import Note, { YamlField } from './note'
+import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab, YamlField } from './settings'
+import Note from './note'
 import API from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
@@ -167,5 +167,9 @@ export default class SharePlugin extends Plugin {
       await this.uploadNote(false, true)
     }
     return shareLink
+  }
+
+  field (key: YamlField) {
+    return [this.settings.yamlField, YamlField[key]].join('_')
   }
 }
