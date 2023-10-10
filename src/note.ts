@@ -164,7 +164,7 @@ export default class Note {
     let title
     switch (this.plugin.settings.titleSource) {
       case TitleSource['First H1']:
-        title = this.contentDom.getElementsByTagName('h1')[0].innerText
+        title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
         break
       case TitleSource['Frontmatter property']:
         title = this.meta?.frontmatter?.[this.field(YamlField.title)]
