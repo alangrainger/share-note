@@ -46,7 +46,7 @@ export default class Note {
 
   async share () {
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+    this.status = new StatusMessage('Processing note...', StatusType.Default, 30 * 1000)
 
     if (!this.plugin.settings.apiKey) {
       window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
@@ -142,7 +142,7 @@ export default class Note {
 
     // Process CSS and images
     await this.uploadCss()
-    await this.processImages()
+    await this.processMedia()
 
     /*
      * Encrypt the note contents
@@ -175,6 +175,7 @@ export default class Note {
     }
 
     if (this.isEncrypted) {
+      this.status.setStatus('Encrypting note...')
       const plaintext = JSON.stringify({
         content: this.contentDom.body.innerHTML,
         basename: title
@@ -215,6 +216,7 @@ export default class Note {
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
 
     // Share the file
+    this.status.setStatus('Uploading note...')
     let shareLink = await this.plugin.api.createNote(this.template)
     requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
 
@@ -249,12 +251,15 @@ export default class Note {
   /**
    * Upload images encoded as base64
    */
-  async processImages () {
-    for (const el of this.contentDom.querySelectorAll('img')) {
+  async processMedia () {
+    const elements = ['img', 'video']
+    let count = 1
+    for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
+      this.status.setStatus('Processing attachment ' + (count++) + '...')
       const localFile = window.decodeURIComponent(srcMatch[1])
       const content = await FileSystemAdapter.readLocalFile(localFile)
       const filetype = localFile.split('.').pop()
@@ -368,7 +373,6 @@ export default class Note {
    * @param {string} mimeType
    * @return {string|undefined}
    */
-
   extensionFromMime (mimeType: string) {
     const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))

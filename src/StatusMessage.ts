@@ -30,8 +30,12 @@ const statuses: { [key: number]: StatusAttributes } = {
 }
 
 export default class StatusMessage extends Notice {
+  messageEl: HTMLDivElement
+  icon: string
+
   constructor (text: string, type: StatusType = StatusType.Default, duration = 5000) {
     const messageDoc = new DocumentFragment()
+
     const icon = statuses[type]?.icon || ''
     const messageEl = messageDoc.createEl('div', {
       text: `${icon}${pluginName}: ${text}`
@@ -42,5 +46,11 @@ export default class StatusMessage extends Notice {
         messageEl.parentElement.classList.add(statuses[type].class)
       }
     }
+    this.icon = icon
+    this.messageEl = messageEl
+  }
+
+  setStatus (message: string) {
+    this.messageEl.innerText = `${this.icon}${pluginName}: ${message}`
   }
 }
