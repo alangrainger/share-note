@@ -1,4 +1,13 @@
-import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
+import {
+  CachedMetadata,
+  Component,
+  FileSystemAdapter,
+  MarkdownRenderer,
+  moment,
+  requestUrl,
+  TFile,
+  WorkspaceLeaf
+} from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -21,7 +30,7 @@ export default class Note {
   status: StatusMessage
   css: string
   domCopy: Document
-  contentDom: Document
+  noteDom: HTMLDivElement
   meta: CachedMetadata | null
   isEncrypted = true
   isForceUpload = false
@@ -63,13 +72,10 @@ export default class Note {
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise(resolve => setTimeout(resolve, 300))
     try {
       // Take a clone of the DOM
       this.domCopy = new DOMParser().parseFromString(document.documentElement.outerHTML, 'text/html')
-      // @ts-ignore // 'view.modes'
-      const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
-      this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
       this.css = [...Array.from(document.styleSheets)].map(x => {
         try {
           return [...Array.from(x.cssRules)].map(x => x.cssText).join('')
@@ -87,7 +93,7 @@ export default class Note {
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
+    setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
@@ -99,21 +105,31 @@ export default class Note {
     this.meta = this.plugin.app.metadataCache.getFileCache(file)
 
     // Generate the HTML file for uploading
+    // const content = this.plugin.app.workspace.activeEditor?.editor?.getValue() || ''
+
     if (this.plugin.settings.removeYaml) {
       // Remove frontmatter to avoid sharing unwanted data
-      this.contentDom.querySelector('div.metadata-container')?.remove()
-      this.contentDom.querySelector('pre.frontmatter')?.remove()
-      this.contentDom.querySelector('div.frontmatter-container')?.remove()
+      this.domCopy.querySelector('div.metadata-container')?.remove()
+      this.domCopy.querySelector('pre.frontmatter')?.remove()
+      this.domCopy.querySelector('div.frontmatter-container')?.remove()
     }
 
+    this.noteDom = document.createElement('div')
+    const contentEl = document.createElement('div')
+    const content = await this.plugin.app.vault.cachedRead(file)
+    await MarkdownRenderer.render(this.plugin.app, content, contentEl, file.path, new Component())
+    const headerEl = this.domCopy.querySelector('div.mod-header')
+    if (headerEl) this.noteDom.append(headerEl)
+    this.noteDom.append(contentEl)
+
     // Replace links
-    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link')) {
+    for (const el of this.noteDom.querySelectorAll<HTMLElement>('a.internal-link')) {
       const href = el.getAttribute('href')
       const match = href ? href.match(/^([^#]+)/) : null
       if (href?.match(/^#/)) {
         // Anchor link to a document heading, we need to add custom Javascript to jump to that heading
         const selector = `[data-heading="${href.slice(1)}"]`
-        if (this.contentDom.querySelectorAll(selector)?.[0]) {
+        if (this.noteDom.querySelectorAll(selector)?.[0]) {
           el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
         }
         el.removeAttribute('target')
@@ -135,7 +151,7 @@ export default class Note {
       // This file is not shared, so remove the link and replace with the non-link content
       el.replaceWith(el.innerHTML)
     }
-    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.external-link')) {
+    for (const el of this.noteDom.querySelectorAll<HTMLElement>('a.external-link')) {
       // Remove target=_blank from external links
       el.removeAttribute('target')
     }
@@ -163,7 +179,7 @@ export default class Note {
     let title
     switch (this.plugin.settings.titleSource) {
       case TitleSource['First H1']:
-        title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
+        title = this.noteDom.getElementsByTagName('h1')?.[0]?.innerText
         break
       case TitleSource['Frontmatter property']:
         title = this.meta?.frontmatter?.[this.field(YamlField.title)]
@@ -176,7 +192,7 @@ export default class Note {
 
     if (this.isEncrypted) {
       const plaintext = JSON.stringify({
-        content: this.contentDom.body.innerHTML,
+        content: this.noteDom.innerHTML,
         basename: title
       })
       // Encrypt the note
@@ -189,10 +205,10 @@ export default class Note {
     } else {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
-      this.template.content = this.contentDom.body.innerHTML
+      this.template.content = this.noteDom.innerHTML
       this.template.title = title
       // Create a meta description preview based off the <p> elements
-      const desc = Array.from(this.contentDom.querySelectorAll('p'))
+      const desc = Array.from(this.noteDom.querySelectorAll('p'))
         .map(x => x.innerText).filter(x => !!x)
         .join(' ')
       this.template.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
@@ -212,7 +228,7 @@ export default class Note {
     this.template.elements.push(getElementStyle('preview', this.domCopy.getElementsByClassName('markdown-preview-view markdown-rendered')[0] as HTMLElement))
     this.template.elements.push(getElementStyle('pusher', this.domCopy.getElementsByClassName('markdown-preview-pusher')[0] as HTMLElement))
     // Check for MathJax
-    this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
+    this.template.mathJax = !!this.noteDom.innerHTML.match(/<mjx-container/)
 
     // Share the file
     let shareLink = await this.plugin.api.createNote(this.template)
@@ -250,7 +266,7 @@ export default class Note {
    * Upload images encoded as base64
    */
   async processImages () {
-    for (const el of this.contentDom.querySelectorAll('img')) {
+    for (const el of this.noteDom.querySelectorAll('img')) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
