@@ -1,7 +1,6 @@
-import { CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
-import * as fs from 'fs'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NoteTemplate, { getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
@@ -257,7 +256,7 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const content = fs.readFileSync(localFile, null)
+      const content = await FileSystemAdapter.readLocalFile(localFile)
       const filetype = localFile.split('.').pop()
       if (filetype) {
         const url = await this.plugin.api.uploadBinary({
