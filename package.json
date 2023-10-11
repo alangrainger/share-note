@@ -1,6 +1,6 @@
 {
 	"name": "share-note",
-	"version": "0.5.9",
+	"version": "0.5.10",
 	"description": "Instantly share a note, with full styling. Data is stored encrypted on the server and only you have the key.",
 	"main": "main.js",
 	"scripts": {

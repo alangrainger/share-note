@@ -115,7 +115,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       })
 
     // Title source
-    const defaultTitleDesc = 'Select the location to source the published note title.'
+    const defaultTitleDesc = 'Select the location to source the published note title. It will default to the note title if nothing is found for the selected option.'
     const titleSetting = new Setting(containerEl)
       .setName('Note title source')
       .setDesc(defaultTitleDesc)
