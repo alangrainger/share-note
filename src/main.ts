@@ -44,7 +44,15 @@ export default class SharePlugin extends Plugin {
           // Live-update of the settings page input field
           this.settingsPage.apikeyEl.setValue(data.key)
         }
-        new StatusMessage('Plugin successfully connected. You can now start sharing notes!', StatusType.Success, 6000)
+
+        // Check for a redirect
+        if (this.settings.authRedirect === 'share') {
+          this.authRedirect(null).then()
+          this.uploadNote().then()
+        } else {
+          // Otherwise show a success message
+          new StatusMessage('Plugin successfully connected. You can now start sharing notes!', StatusType.Success, 6000)
+        }
       }
     })
 
@@ -52,18 +60,14 @@ export default class SharePlugin extends Plugin {
     this.addCommand({
       id: 'share-note',
       name: 'Share current note',
-      callback: async () => {
-        await this.uploadNote()
-      }
+      callback: () => this.uploadNote()
     })
 
     // Add command - Share note and force a re-upload of all assets
     this.addCommand({
       id: 'force-upload',
       name: 'Force re-upload of all data for this note',
-      callback: async () => {
-        await this.uploadNote(true)
-      }
+      callback: () => this.uploadNote(true)
     })
 
     // Add command - Copy shared link
@@ -167,6 +171,15 @@ export default class SharePlugin extends Plugin {
       await this.uploadNote(false, true)
     }
     return shareLink
+  }
+
+  /**
+   * Redirect a user back to their position in the flow after they finish the auth.
+   * NULL to clear the redirection.
+   */
+  async authRedirect (value: string | null) {
+    this.settings.authRedirect = value
+    await this.saveSettings()
   }
 
   field (key: YamlField) {
