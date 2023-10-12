@@ -279,7 +279,7 @@ export default class Note {
               this.status.setStatus('Processing attachment ' + (count++) + '...')
               resolve()
             })
-            .catch(() => resolve())
+            .catch(resolve)
         }))
       }
       el.removeAttribute('alt')
@@ -344,6 +344,7 @@ export default class Note {
                   cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
                   resolve()
                 })
+                .catch(resolve)
             }))
           }
         }
@@ -371,7 +372,7 @@ export default class Note {
                     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
                     resolve()
                   })
-                  .catch(() => resolve())
+                  .catch(resolve)
               }))
             }
           }
@@ -384,12 +385,14 @@ export default class Note {
     await Promise.all(promises)
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
-    await this.plugin.api.upload({
-      filetype: 'css',
-      hash: await sha1(this.css),
-      content: this.css,
-      byteLength: this.css.length
-    })
+    try {
+      await this.plugin.api.upload({
+        filetype: 'css',
+        hash: await sha1(this.css),
+        content: this.css,
+        byteLength: this.css.length
+      })
+    } catch (e) { }
     cssNotice.hide()
   }
 
