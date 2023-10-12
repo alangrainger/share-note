@@ -1,10 +1,8 @@
 # Share Note
 
-<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
+Instantly share an [Obsidian](https://obsidian.md) note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your vault.
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
-
-Instantly share an [Obsidian](https://obsidian.md) note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your vault.
 
 ---
 
@@ -77,3 +75,7 @@ If you want to force the theme CSS to update, use the command `Force re-upload o
 You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = true. This note you are currently reading is shared unencrypted.
 
 [Example encrypted note](https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY)
+
+---
+
+<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
