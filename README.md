@@ -1,6 +1,6 @@
 # Share Note
 
-Instantly share an [Obsidian](https://obsidian.md) note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your vault.
+Instantly share a note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your Obsidian vault.
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 
