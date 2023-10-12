@@ -1,5 +1,6 @@
 {
 	"name": "share-note",
+	"version": "0.5.11",
 	"description": "Instantly share a note, with all theme and content supported exactly like you see in Reading View. Data is shared encrypted by default and only you have the key.",
 	"main": "main.js",
 	"scripts": {
