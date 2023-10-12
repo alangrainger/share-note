@@ -250,7 +250,7 @@ export default class Note {
   }
 
   /**
-   * Upload images encoded as base64
+   * Upload media attachments
    */
   async processMedia () {
     const elements = ['img', 'video']
@@ -308,7 +308,7 @@ export default class Note {
       return
     }
     const cssNoticeText = 'Uploading theme, this may take some time, but will only happen once.'
-    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 120000)
+    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 30000)
 
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
@@ -318,15 +318,22 @@ export default class Note {
     const promises: Promise<void>[] = []
     for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
-      if (!assetMatch) continue
+      if (!assetMatch) {
+        count++
+        continue
+      }
       const assetUrl = assetMatch?.[1] || ''
       if (assetUrl.startsWith('data:')) {
         // Attempt to parse the data URL
         const parsed = dataUriToBuffer(assetUrl)
         if (parsed?.type) {
           if (parsed.type === 'application/octet-stream') {
+            // Attempt to get type from magic bytes
             const decoded = FileTypes.getFromSignature(parsed.buffer)
-            if (!decoded) continue
+            if (!decoded) {
+              count++
+              continue
+            }
             parsed.type = decoded.mimetype
           }
           const filetype = this.extensionFromMime(parsed.type)
@@ -346,39 +353,39 @@ export default class Note {
                 })
                 .catch(resolve)
             }))
+          } else {
+            count++
           }
         }
-        // console.log(parsed)
       } else if (assetUrl && !assetUrl.startsWith('http')) {
         // Locally stored CSS attachment
-        try {
-          const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
-          if (filename) {
-            if (cssAttachmentWhitelist[filename[2]]) {
-              // Download the attachment content
-              const res = await fetch(assetUrl)
-              // Reupload to the server
-              const contents = await res.arrayBuffer()
-              const hash = await sha1(contents)
-              promises.push(new Promise(resolve => {
-                this.plugin.api.uploadBinary({
-                  filetype: filename[2],
-                  hash,
-                  content: contents,
-                  byteLength: contents.byteLength
+        const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
+        if (filename) {
+          if (cssAttachmentWhitelist[filename[2]]) {
+            // Fetch the attachment content
+            const res = await fetch(assetUrl)
+            // Reupload to the server
+            const contents = await res.arrayBuffer()
+            const hash = await sha1(contents)
+            promises.push(new Promise(resolve => {
+              this.plugin.api.uploadBinary({
+                filetype: filename[2],
+                hash,
+                content: contents,
+                byteLength: contents.byteLength
+              })
+                .then(uploadUrl => {
+                  this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+                  cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
+                  resolve()
                 })
-                  .then(uploadUrl => {
-                    this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
-                    cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
-                    resolve()
-                  })
-                  .catch(resolve)
-              }))
-            }
+                .catch(resolve)
+            }))
+          } else {
+            count++
           }
-        } catch (e) {
-          // Unable to upload the attachment
-          console.log(e)
+        } else {
+          count++
         }
       }
     }
