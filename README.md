@@ -68,14 +68,32 @@ If you want to force the theme CSS to update, use the command `Force re-upload o
 
 ## Encryption
 
-- Your notes are encrypted on your device with a key that only you have.
-- Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
-- The key is never sent to the server, it only exists as part of the share link created inside your device.
+The content of your note is encrypted by default. What this means is that you can read the note, and the person you send it to can read the note, but nobody else can read the content - not even the hosting server.
 
-You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = true. This note you are currently reading is shared unencrypted.
+> 🛈 **Encryption is optional, and can be turned on/off for individual notes, or for all notes, whatever you prefer.**
 
-[Example encrypted note](https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY)
+### 🧑‍💻 How it works 
 
----
+When you share an encrypted note, you'll get a share link that looks like this:
 
-<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
+https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY
+
+This part is the link to the file:
+
+https://share.note.sx/4earajc8
+
+If you click on it, you'll see a message that says "*Encrypted note*", because you haven't provided the decryption key.
+
+The decryption key is the second part of the share link after the `#` symbol:
+
+`#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY`
+
+When you combine those two things together, the note is able to be decrypted and you can see the content:
+
+https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY
+
+The decryption key **only** exists inside your vault, and is only known to you and whoever you send the link to. Nobody else can read the content.
+
+You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = ✅. This note you are currently reading is shared unencrypted.
+
+If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
