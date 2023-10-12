@@ -4,6 +4,10 @@ Instantly share a note, with optional encryption. Notes are shared with your ful
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 
+To share a note, choose `Share Note` from the command palette, or click the `⋮` menu and choose `Copy shared link`
+
+<img width="260" src="https://github.com/alangrainger/obsidian-share/assets/16197738/69b270a7-c064-4915-9c81-698ae5b54b44">
+
 ---
 
 ## Full theme support
