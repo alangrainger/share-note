@@ -253,27 +253,37 @@ export default class Note {
    */
   async processMedia () {
     const elements = ['img', 'video']
+    this.status.setStatus('Processing attachments...')
+    const promises: Promise<void>[] = []
     let count = 1
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
-      this.status.setStatus('Processing attachment ' + (count++) + '...')
       const localFile = window.decodeURIComponent(srcMatch[1])
       const content = await FileSystemAdapter.readLocalFile(localFile)
+      const hash = await sha1(content)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        const url = await this.plugin.api.uploadBinary({
-          filetype,
-          hash: await sha1(content),
-          content,
-          byteLength: content.byteLength
-        })
-        el.setAttribute('src', url)
+        promises.push(new Promise(resolve => {
+          this.plugin.api.uploadBinary({
+            filetype,
+            hash,
+            content,
+            byteLength: content.byteLength
+          })
+            .then(url => {
+              el.setAttribute('src', url)
+              this.status.setStatus('Processing attachment ' + (count++) + '...')
+              resolve()
+            })
+            .catch(() => resolve())
+        }))
       }
       el.removeAttribute('alt')
     }
+    await Promise.all(promises)
   }
 
   /**
@@ -304,6 +314,7 @@ export default class Note {
     const attachments = this.css.match(/url\s*\(.*?\)/g) || []
     let count = 0
     const total = attachments.length + 1 // add 1 for the CSS file itself
+    const promises: Promise<void>[] = []
     for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
       if (!assetMatch) continue
@@ -319,13 +330,20 @@ export default class Note {
           }
           const filetype = this.extensionFromMime(parsed.type)
           if (filetype) {
-            const uploadUrl = await this.plugin.api.uploadBinary({
-              filetype,
-              hash: await sha1(parsed.buffer),
-              content: parsed.buffer,
-              byteLength: parsed.buffer.byteLength
-            })
-            this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+            const hash = await sha1(parsed.buffer)
+            promises.push(new Promise(resolve => {
+              this.plugin.api.uploadBinary({
+                filetype,
+                hash,
+                content: parsed.buffer,
+                byteLength: parsed.buffer.byteLength
+              })
+                .then(uploadUrl => {
+                  this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+                  cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
+                  resolve()
+                })
+            }))
           }
         }
         // console.log(parsed)
@@ -339,13 +357,21 @@ export default class Note {
               const res = await fetch(assetUrl)
               // Reupload to the server
               const contents = await res.arrayBuffer()
-              const uploadUrl = await this.plugin.api.uploadBinary({
-                filetype: filename[2],
-                hash: await sha1(contents),
-                content: contents,
-                byteLength: contents.byteLength
-              })
-              this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+              const hash = await sha1(contents)
+              promises.push(new Promise(resolve => {
+                this.plugin.api.uploadBinary({
+                  filetype: filename[2],
+                  hash,
+                  content: contents,
+                  byteLength: contents.byteLength
+                })
+                  .then(uploadUrl => {
+                    this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
+                    cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
+                    resolve()
+                  })
+                  .catch(() => resolve())
+              }))
             }
           }
         } catch (e) {
@@ -353,10 +379,8 @@ export default class Note {
           console.log(e)
         }
       }
-      count++
-      await new Promise(resolve => setTimeout(resolve, 60))
-      cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count} of ${total} theme files`)
     }
+    await Promise.all(promises)
     // Upload the main CSS file
     cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
     await this.plugin.api.upload({
