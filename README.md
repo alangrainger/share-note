@@ -4,16 +4,69 @@
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 
-Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
+Instantly share an [Obsidian](https://obsidian.md) note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your vault.
 
-## Features
+---
 
-- Uploads using your current theme.
-- Local and remote image support.
-- Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
-- Supports callouts with full styling.
-- If your shared note links to another note which is also shared, that link will also function on the public page.
-- Frontmatter is stripped on upload by default to avoid leaking unwanted data.
+## Full theme support
+
+Uploads using your current theme, along with all your options and custom CSS snippets.
+
+Supports all Obsidian content types:
+
+### Images!
+
+<img width="320" src="docs/wow5.png">
+
+### Dataview queries!
+
+Here's an example inline Dataview query. It will be correctly rendered when sharing:
+
+```
+The answer is `= 7 + 8`!
+```
+
+The answer is 15!
+
+### Callouts!
+
+<img width="600" src="docs/callouts.png">
+
+### Links between notes!
+
+If your shared note links to another note which is also shared, that link will also function on the shared webpage.
+
+### Code blocks!
+
+```javascript
+function doYouEven(haveToAsk) {
+  return 'Of course we can do it!'
+}
+```
+
+### Checkboxes! Tags!
+
+**Project Manhattan:** #in-progress #behind-schedule
+
+- [x] Start project
+- [x] Procrastinate
+- [ ] Finish project
+
+### Internal links
+
+Share a table of contents and jump around your document.
+
+---
+
+## Usage
+
+Use the `Share Note` command from the Command Palette. You can map it to a hotkey to make things faster.
+
+The first time a file is shared, the plugin will automatically upload all your theme styles. The next time you share a file, it will use the previously uploaded theme files.
+
+If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
+
+---
 
 ## Encryption
 
@@ -21,49 +74,6 @@ Free, encrypted public note sharing for Obsidian. Notes are encrypted on your de
 - Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
 - The key is never sent to the server, it only exists as part of the share link created inside your device.
 
-## Installation
+You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = true. This note you are currently reading is shared unencrypted.
 
-The plugin is awaiting review for the Community store. In the meantime you can install it using BRAT, [see the instructions here](docs/BRAT.md).
-
-Once you've installed the plugin, enable it by clicking the "Connect plugin" button on the Settings page.
-
-## Usage
-
-Use the `Share Note` command from the Command Palette. You can map it to a hotkey to make things faster.
-
-The first time a file is shared, the plugin will automatically upload all your theme styles. The next time you share a file, it will use the previously uploaded theme files. 
-
-If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
-
-### Sharing a note unencrypted
-
-If you want to share a note without any encryption, you can set a frontmatter checkbox property:
-
-`share_unencrypted` = true
-
-## Troubleshooting
-
-If your shared note isn't displaying correctly, before creating an Issue try these steps first:
-
-1. Change to Reading mode.
-2. Scroll to the top of the note.
-3. Use the command `Force re-upload of all data for this note`.
-4. Refresh the shared note a few times to make sure you're seeing the latest copy rather than a cached copy.
-
-And see if that gets the note to share correctly.
-
-### MathJax / LaTeX
-
-If your MathJax / LaTeX elements are not displaying correctly, `Force re-upload` the note which is having the issues to force your custom stylesheet to be rebuilt with the MathJax classes included.
-
-### Video files aren't uploading
-
-Local video files aren't supported due to how much hosting storage would be required. You can host a video file with any third-party provider and the embed it into your note.
-
-## Running your own server
-
-[See the docs here](docs/Running%20your%20own%20server.md).
-
-## Attributions
-
-Encryption code is based with thanks on code from https://github.com/mcndt/obsidian-quickshare
+[Example encrypted note](https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY)
