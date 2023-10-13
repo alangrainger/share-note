@@ -20,6 +20,7 @@ export default class Note {
   leaf: WorkspaceLeaf
   status: StatusMessage
   css: string
+  cssRules: CSSRule[]
   domCopy: Document
   contentDom: Document
   meta: CachedMetadata | null
@@ -71,14 +72,13 @@ export default class Note {
       // @ts-ignore // 'view.modes'
       const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
       this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
-      this.css = [...Array.from(document.styleSheets)].map(x => {
-        try {
-          return [...Array.from(x.cssRules)].map(x => x.cssText).join('')
-        } catch (e) {
-          console.log(e)
-          return ''
-        }
-      }).filter(Boolean).join('').replace(/\n/g, '')
+      this.cssRules = []
+      Array.from(document.styleSheets)
+        .forEach(x => Array.from(x.cssRules)
+          .forEach(rule => {
+            this.cssRules.push(rule)
+          }))
+      this.css = this.cssRules.map(rule => rule.cssText).join('').replace(/\n/g, '')
     } catch (e) {
       console.log(e)
       this.status.hide()
@@ -108,10 +108,19 @@ export default class Note {
     }
 
     // Fix callout icons
+    const defaultCalloutType = this.getCalloutIcon(selectorText => selectorText === '.callout') || 'pencil'
     for (const el of this.contentDom.getElementsByClassName('callout')) {
-      const iconName = el.getCssPropertyValue('--callout-icon').slice(7)
-      const iconEl = el.querySelector('div.callout-icon')
-      iconEl?.setAttribute('data-lucide', iconName)
+      // Get the callout icon from the CSS. I couldn't find any way to do this from the DOM,
+      // as the elements may be far down below the fold and are not populated.
+      const type = el.getAttribute('data-callout')
+      const icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
+      // Replace the existing icon so we:
+      // a) don't get double-ups, and
+      // b) have a consistent style
+      const svgEl = el.querySelector('svg.svg-icon')
+      if (svgEl) {
+        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon.slice(7)}"></svg>`
+      }
     }
 
     // Replace links
@@ -362,6 +371,15 @@ export default class Note {
         }
       }
     }
+  }
+
+  getCalloutIcon (test: (selectorText: string) => boolean) {
+    const rule = this.cssRules
+      .find((rule: CSSStyleRule) => rule.selectorText && test(rule.selectorText) && rule.style.getPropertyValue('--callout-icon')) as CSSStyleRule
+    if (rule) {
+      return rule.style.getPropertyValue('--callout-icon')
+    }
+    return ''
   }
 
   /**
