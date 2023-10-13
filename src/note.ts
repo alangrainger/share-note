@@ -117,7 +117,8 @@ export default class Note {
       // Replace the existing icon so we:
       // a) don't get double-ups, and
       // b) have a consistent style
-      const svgEl = el.querySelector('svg.svg-icon')
+      const iconEl = el.querySelector('div.callout-icon')
+      const svgEl = iconEl?.querySelector('svg')
       if (svgEl) {
         svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon.slice(7)}"></svg>`
       }
