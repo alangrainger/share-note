@@ -107,6 +107,13 @@ export default class Note {
       this.contentDom.querySelector('div.frontmatter-container')?.remove()
     }
 
+    // Fix callout icons
+    for (const el of this.contentDom.getElementsByClassName('callout')) {
+      const iconName = el.getCssPropertyValue('--callout-icon').slice(7)
+      const iconEl = el.querySelector('div.callout-icon')
+      iconEl?.setAttribute('data-lucide', iconName)
+    }
+
     // Replace links
     for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link')) {
       const href = el.getAttribute('href')
