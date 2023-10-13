@@ -66,7 +66,6 @@ class FileTypes {
       signature = new Uint8Array(signature, 0, 10)
     }
     const type = types.find(library => library.signature && this.bufferIsEqual(library.signature, signature as Uint8Array))
-    console.log(type)
     return type ? new FileType(type) : undefined
   }
 

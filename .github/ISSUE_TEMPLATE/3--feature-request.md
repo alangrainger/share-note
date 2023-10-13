@@ -1,18 +1,14 @@
 ---
 name: 3. Feature request
-about: Suggest an idea for this project
+about: Vote for new features on the Discussions page
 title: ''
 labels: feature request
 assignees: ''
 
 ---
 
-👇 **READ THIS** 👇
+👇 Please add and vote for new features here: 👇 
 
-Have you read the documentation first to check if the feature already exists?
+https://github.com/alangrainger/obsidian-share/discussions/categories/vote-for-upcoming-features
 
-https://github.com/alangrainger/obsidian-share
-
-Have you checked to make sure there's not already an existing request for this?
-
-https://github.com/alangrainger/obsidian-share/labels/feature%20request
+Thank you!

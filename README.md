@@ -1,69 +1,103 @@
 # Share Note
 
-<a href="https://ko-fi.com/alan_" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" style="width:190px"></a>
+Instantly share a note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your Obsidian vault.
 
 [📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 
-Free, encrypted public note sharing for Obsidian. Notes are encrypted on your device before being sent to the server, and the decryption key is never sent to the server - it only exists inside the note in your vault.
+To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Copy shared link`
 
-## Features
+<img width="260" src="https://github.com/alangrainger/obsidian-share/assets/16197738/69b270a7-c064-4915-9c81-698ae5b54b44">
 
-- Uploads using your current theme.
-- Local and remote image support.
-- Supports anything that Obsidian Preview mode does, like rendered Dataview queries and any custom CSS you might have enabled.
-- Supports callouts with full styling.
-- If your shared note links to another note which is also shared, that link will also function on the public page.
-- Frontmatter is stripped on upload by default to avoid leaking unwanted data.
+---
 
-## Encryption
+## Full theme support
 
-- Your notes are encrypted on your device with a key that only you have.
-- Each note is encrypted with its own random key. A key from one of your notes cannot be used to decrypt another of your notes.
-- The key is never sent to the server, it only exists as part of the share link created inside your device.
+Uploads using your current theme, along with all your options and custom CSS snippets.
 
-## Installation
+Supports all Obsidian content types:
 
-The plugin is awaiting review for the Community store. In the meantime you can install it using BRAT, [see the instructions here](docs/BRAT.md).
+### Images!
 
-Once you've installed the plugin, enable it by clicking the "Connect plugin" button on the Settings page.
+<img width="320" src="docs/wow5.png">
+
+### Dataview queries!
+
+Here's an example inline Dataview query. It will be correctly rendered when sharing:
+
+```
+The answer is `= 7 + 8`!
+```
+
+The answer is 15!
+
+### Callouts!
+
+<img width="600" src="docs/callouts.png">
+
+### Links between notes!
+
+If your shared note links to another note which is also shared, that link will also function on the shared webpage.
+
+### Code blocks!
+
+```javascript
+function doYouEven(haveToAsk) {
+  return 'Of course we can do it!'
+}
+```
+
+### Checkboxes! Tags!
+
+**Project Manhattan:** #in-progress #behind-schedule
+
+- [x] Start project
+- [x] Procrastinate
+- [ ] Finish project
+
+### Internal links
+
+Share a table of contents and jump around your document.
+
+---
 
 ## Usage
 
 Use the `Share Note` command from the Command Palette. You can map it to a hotkey to make things faster.
 
-The first time a file is shared, the plugin will automatically upload all your theme styles. The next time you share a file, it will use the previously uploaded theme files. 
+The first time a file is shared, the plugin will automatically upload all your theme styles. The next time you share a file, it will use the previously uploaded theme files.
 
 If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
 
-### Sharing a note unencrypted
+---
 
-If you want to share a note without any encryption, you can set a frontmatter checkbox property:
+## Encryption
 
-`share_unencrypted` = true
+The content of your note is encrypted by default. What this means is that you can read the note, and the person you send it to can read the note, but nobody else can read the content - not even the hosting server.
 
-## Troubleshooting
+> 🛈 **Encryption is optional, and can be turned on/off for individual notes, or for all notes, whatever you prefer.**
 
-If your shared note isn't displaying correctly, before creating an Issue try these steps first:
+### 🧑‍💻 How it works 
 
-1. Change to Reading mode.
-2. Scroll to the top of the note.
-3. Use the command `Force re-upload of all data for this note`.
-4. Refresh the shared note a few times to make sure you're seeing the latest copy rather than a cached copy.
+When you share an encrypted note, you'll get a share link that looks like this:
 
-And see if that gets the note to share correctly.
+https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY
 
-### MathJax / LaTeX
+This part is the link to the file:
 
-If your MathJax / LaTeX elements are not displaying correctly, `Force re-upload` the note which is having the issues to force your custom stylesheet to be rebuilt with the MathJax classes included.
+https://share.note.sx/4earajc8
 
-### Video files aren't uploading
+If you click on it, you'll see a message that says "*Encrypted note*", because you haven't provided the decryption key.
 
-Local video files aren't supported due to how much hosting storage would be required. You can host a video file with any third-party provider and the embed it into your note.
+The decryption key is the second part of the share link after the `#` symbol:
 
-## Running your own server
+`#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY`
 
-[See the docs here](docs/Running%20your%20own%20server.md).
+When you combine those two things together, the note is able to be decrypted and you can see the content:
 
-## Attributions
+https://share.note.sx/4earajc8#PtC3oQDjDQK9VP7fljmQkLBA/rIMb2tbFsGoG44VdFY
 
-Encryption code is based with thanks on code from https://github.com/mcndt/obsidian-quickshare
+The decryption key **only** exists inside your vault, and is only known to you and whoever you send the link to. Nobody else can read the content.
+
+You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = ✅. This note you are currently reading is shared unencrypted.
+
+If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.

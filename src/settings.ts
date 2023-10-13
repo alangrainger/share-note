@@ -32,6 +32,7 @@ export interface ShareSettings {
   removeYaml: boolean;
   clipboard: boolean;
   shareUnencrypted: boolean;
+  authRedirect: string | null;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
@@ -44,7 +45,8 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   titleSource: TitleSource['Note title'],
   removeYaml: true,
   clipboard: true,
-  shareUnencrypted: false
+  shareUnencrypted: false,
+  authRedirect: null
 }
 
 export class ShareSettingsTab extends PluginSettingTab {
