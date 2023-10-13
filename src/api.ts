@@ -6,29 +6,46 @@ import NoteTemplate from './NoteTemplate'
 
 const pluginVersion = require('../manifest.json').version
 
-export interface UploadData {
+export type UploadData = {
   filename?: string
   filetype: string
   hash: string
-  content?: string,
+  content?: string
   byteLength?: number
   template?: NoteTemplate
   encoding?: string
   encrypted?: boolean
 }
 
-export interface RawUpload {
+export interface FileUpload {
   filetype: string
   hash: string
-  content: ArrayBuffer,
+  content: ArrayBuffer
   byteLength: number
+  url?: string | null
+}
+
+export type PostData = {
+  files?: FileUpload[]
+  filename?: string
+  filetype?: string
+  hash?: string
+  byteLength?: number
+  template?: NoteTemplate
+}
+
+export interface UploadQueueItem {
+  data: FileUpload
+  callback: (url: string) => void
 }
 
 export default class API {
   plugin: SharePlugin
+  uploadQueue: UploadQueueItem[]
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
+    this.uploadQueue = []
   }
 
   async authHeaders () {
@@ -41,7 +58,7 @@ export default class API {
     }
   }
 
-  async post (endpoint: string, data?: UploadData, retries = 1) {
+  async post (endpoint: string, data?: PostData, retries = 1) {
     const headers: HeadersInit = {
       ...(await this.authHeaders()),
       'Content-Type': 'application/json'
@@ -64,7 +81,6 @@ export default class API {
             new StatusMessage(message, StatusType.Error)
             throw new Error('Known error')
           }
-          console.log(error)
           throw new Error('Unknown error')
         } else {
           // Delay before attempting to retry upload
@@ -76,7 +92,7 @@ export default class API {
     }
   }
 
-  async postRaw (endpoint: string, data: RawUpload, retries = 3) {
+  async postRaw (endpoint: string, data: FileUpload, retries = 4) {
     const headers: HeadersInit = {
       ...(await this.authHeaders()),
       'x-sharenote-filetype': data.filetype,
@@ -108,15 +124,46 @@ export default class API {
     }
   }
 
+  queueUpload (item: UploadQueueItem) {
+    this.uploadQueue.push(item)
+  }
+
+  async processQueue () {
+    // Check with the server to find which files need to be updated
+    const res = await this.post('/v1/file/check-files', {
+      files: this.uploadQueue.map(x => x.data)
+    })
+
+    const promises: Promise<void>[] = []
+    for (const queueItem of this.uploadQueue) {
+      // Get the result from check-files (if exists)
+      const checkFile = res?.files.find((item: FileUpload) => item.hash === queueItem.data.hash && item.filetype === queueItem.data.filetype)
+      if (checkFile?.url) {
+        // File is already uploaded, just process the callback
+        queueItem.callback(checkFile.url)
+      } else {
+        // File needs to be uploaded
+        promises.push(new Promise(resolve => {
+          this.postRaw('/v1/file/upload', queueItem.data)
+            .then((res) => {
+              // Process the callback
+              queueItem.callback(res.url)
+              resolve()
+            })
+            .catch(resolve)
+        }))
+      }
+    }
+    await Promise.all(promises)
+
+    return res
+  }
+
   async upload (data: UploadData) {
     return this._upload(data)
   }
 
-  async uploadBinary (data: RawUpload) {
-    return this._upload(data)
-  }
-
-  private async _upload (data: UploadData | RawUpload) {
+  private async _upload (data: UploadData | FileUpload) {
     // Test for existing file before uploading any data
     const exists = await this.post('/v1/file/check-file', {
       filetype: data.filetype,
@@ -126,7 +173,7 @@ export default class API {
     if (exists?.success) {
       return exists.url
     } else {
-      const res = await this.postRaw('/v1/file/upload', data as RawUpload)
+      const res = await this.postRaw('/v1/file/upload', data as FileUpload)
       return res.url
     }
   }

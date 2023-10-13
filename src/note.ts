@@ -142,8 +142,25 @@ export default class Note {
     }
 
     // Process CSS and images
-    await this.uploadCss()
+    await this.processCss()
     await this.processMedia()
+    const uploadResult = await this.plugin.api.processQueue()
+
+    // Upload the main CSS file only if the user has asked for it.
+    // We do it this way to ensure that the CSS the user wants on the server
+    // stays that way, until they ASK to overwrite it.
+    if (this.isForceUpload || !uploadResult?.css?.url) {
+      const cssHash = await sha1(this.css)
+      this.status.setStatus('Uploading CSS...')
+      try {
+        await this.plugin.api.upload({
+          filetype: 'css',
+          hash: cssHash,
+          content: this.css,
+          byteLength: this.css.length
+        })
+      } catch (e) { }
+    }
 
     /*
      * Encrypt the note contents
@@ -255,8 +272,6 @@ export default class Note {
   async processMedia () {
     const elements = ['img', 'video']
     this.status.setStatus('Processing attachments...')
-    const promises: Promise<void>[] = []
-    let count = 1
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src || !src.startsWith('app://')) continue
@@ -267,61 +282,31 @@ export default class Note {
       const hash = await sha1(content)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        promises.push(new Promise(resolve => {
-          this.plugin.api.uploadBinary({
+        this.plugin.api.queueUpload({
+          data: {
             filetype,
             hash,
             content,
             byteLength: content.byteLength
-          })
-            .then(url => {
-              el.setAttribute('src', url)
-              this.status.setStatus('Processing attachment ' + (count++) + '...')
-              resolve()
-            })
-            .catch(resolve)
-        }))
+          },
+          callback: (url) => el.setAttribute('src', url)
+        })
       }
       el.removeAttribute('alt')
     }
-    await Promise.all(promises)
   }
 
   /**
    * Upload theme CSS, unless this file has previously been shared,
    * or the user has requested a force re-upload
    */
-  async uploadCss () {
-    let uploadNeeded = false
-    if (this.isForceUpload) {
-      uploadNeeded = true
-    } else {
-      // Check with the server to see if we have an existing CSS file
-      const res = await this.plugin.api.post('/v1/file/check-css')
-      if (res?.success) {
-        // There is an existing CSS file, so use that rather than uploading/replacing
-        return
-      }
-      uploadNeeded = true
-    }
-    if (!uploadNeeded) {
-      return
-    }
-    const cssNoticeText = 'Uploading theme, this may take some time, but will only happen once.'
-    const cssNotice = new StatusMessage(cssNoticeText, StatusType.Info, 30000)
-
+  async processCss () {
     // Extract any attachments from the CSS.
     // Will use the mime-type whitelist to determine which attachments to extract.
     const attachments = this.css.match(/url\s*\(.*?\)/g) || []
-    let count = 0
-    const total = attachments.length + 1 // add 1 for the CSS file itself
-    const promises: Promise<void>[] = []
     for (const attachment of attachments) {
       const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
-      if (!assetMatch) {
-        count++
-        continue
-      }
+      if (!assetMatch) continue
       const assetUrl = assetMatch?.[1] || ''
       if (assetUrl.startsWith('data:')) {
         // Attempt to parse the data URL
@@ -330,31 +315,21 @@ export default class Note {
           if (parsed.type === 'application/octet-stream') {
             // Attempt to get type from magic bytes
             const decoded = FileTypes.getFromSignature(parsed.buffer)
-            if (!decoded) {
-              count++
-              continue
-            }
+            if (!decoded) continue
             parsed.type = decoded.mimetype
           }
           const filetype = this.extensionFromMime(parsed.type)
           if (filetype) {
             const hash = await sha1(parsed.buffer)
-            promises.push(new Promise(resolve => {
-              this.plugin.api.uploadBinary({
+            this.plugin.api.queueUpload({
+              data: {
                 filetype,
                 hash,
                 content: parsed.buffer,
                 byteLength: parsed.buffer.byteLength
-              })
-                .then(uploadUrl => {
-                  this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
-                  cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
-                  resolve()
-                })
-                .catch(resolve)
-            }))
-          } else {
-            count++
+              },
+              callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+            })
           }
         }
       } else if (assetUrl && !assetUrl.startsWith('http')) {
@@ -367,40 +342,19 @@ export default class Note {
             // Reupload to the server
             const contents = await res.arrayBuffer()
             const hash = await sha1(contents)
-            promises.push(new Promise(resolve => {
-              this.plugin.api.uploadBinary({
+            this.plugin.api.queueUpload({
+              data: {
                 filetype: filename[2],
                 hash,
                 content: contents,
                 byteLength: contents.byteLength
-              })
-                .then(uploadUrl => {
-                  this.css = this.css.replace(assetMatch[0], `url("${uploadUrl}")`)
-                  cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${count++} of ${total} theme files`)
-                  resolve()
-                })
-                .catch(resolve)
-            }))
-          } else {
-            count++
+              },
+              callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+            })
           }
-        } else {
-          count++
         }
       }
     }
-    await Promise.all(promises)
-    // Upload the main CSS file
-    cssNotice.setMessage(cssNoticeText + `\n\nUploaded ${total - 1} of ${total} theme files`)
-    try {
-      await this.plugin.api.upload({
-        filetype: 'css',
-        hash: await sha1(this.css),
-        content: this.css,
-        byteLength: this.css.length
-      })
-    } catch (e) { }
-    cssNotice.hide()
   }
 
   /**
