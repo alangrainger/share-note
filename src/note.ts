@@ -46,7 +46,7 @@ export default class Note {
 
   async share () {
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Processing note...', StatusType.Default, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
 
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
