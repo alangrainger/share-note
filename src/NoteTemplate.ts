@@ -1,7 +1,7 @@
 export interface ElementStyle {
   element: string
-  classes?: string[] | DOMTokenList
-  style?: string
+  classes: string[]
+  style: string
 }
 
 export function getElementStyle (key: string, element: HTMLElement) {
