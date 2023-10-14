@@ -2,7 +2,7 @@ import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, Workspace
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
-import NoteTemplate, { getElementStyle } from './NoteTemplate'
+import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
@@ -30,11 +30,13 @@ export default class Note {
   isUploadCss = false
   uploadedFiles: string[]
   template: NoteTemplate
+  elements: ElementStyle[]
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
     this.template = new NoteTemplate()
+    this.elements = []
   }
 
   /**
@@ -70,6 +72,12 @@ export default class Note {
     try {
       // Take a clone of the DOM
       this.domCopy = new DOMParser().parseFromString(document.documentElement.outerHTML, 'text/html')
+      // Copy classes and styles
+      this.elements.push(getElementStyle('body', this.domCopy.body))
+      const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
+      if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
+      const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
+      if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
       // @ts-ignore // 'view.modes'
       const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
       this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
@@ -231,10 +239,7 @@ export default class Note {
       // Add the preferred class
       this.domCopy.body.addClasses(['theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase()])
     }
-    // Copy classes and styles
-    this.template.elements.push(getElementStyle('body', this.domCopy.body))
-    this.template.elements.push(getElementStyle('preview', this.domCopy.getElementsByClassName('markdown-preview-view markdown-rendered')[0] as HTMLElement))
-    this.template.elements.push(getElementStyle('pusher', this.domCopy.getElementsByClassName('markdown-preview-pusher')[0] as HTMLElement))
+    this.template.elements = this.elements
     // Check for MathJax
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
 

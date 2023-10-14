@@ -1,4 +1,4 @@
-interface ElementStyle {
+export interface ElementStyle {
   element: string
   classes?: string[] | DOMTokenList
   style?: string
