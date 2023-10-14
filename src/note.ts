@@ -27,6 +27,7 @@ export default class Note {
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
+  isUploadCss = false
   uploadedFiles: string[]
   template: NoteTemplate
 
@@ -159,30 +160,17 @@ export default class Note {
     }
 
     // Process CSS and images
-    await this.processCss()
-    await this.processMedia()
-    const uploadResult = await this.plugin.api.processQueue(this.status)
-
-    // Upload the main CSS file only if the user has asked for it.
-    // We do it this way to ensure that the CSS the user wants on the server
-    // stays that way, until they ASK to overwrite it.
-    if (this.isForceUpload || !uploadResult?.css?.url) {
-      const cssHash = await sha1(this.css)
-      this.status.setStatus('Uploading CSS...')
-      try {
-        await this.plugin.api.upload({
-          filetype: 'css',
-          hash: cssHash,
-          content: this.css,
-          byteLength: this.css.length
-        })
-      } catch (e) { }
+    const uploadResult = await this.processMedia()
+    if (!uploadResult?.css?.url) {
+      this.isUploadCss = true
     }
+    await this.processCss()
 
     /*
      * Encrypt the note contents
      */
 
+    this.status.setMessage('Processing note...')
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
@@ -311,6 +299,7 @@ export default class Note {
       }
       el.removeAttribute('alt')
     }
+    return this.plugin.api.processQueue(this.status)
   }
 
   /**
@@ -318,59 +307,76 @@ export default class Note {
    * or the user has requested a force re-upload
    */
   async processCss () {
-    // Extract any attachments from the CSS.
-    // Will use the mime-type whitelist to determine which attachments to extract.
-    const attachments = this.css.match(/url\s*\(.*?\)/g) || []
-    for (const attachment of attachments) {
-      const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
-      if (!assetMatch) continue
-      const assetUrl = assetMatch?.[1] || ''
-      if (assetUrl.startsWith('data:')) {
-        // Attempt to parse the data URL
-        const parsed = dataUriToBuffer(assetUrl)
-        if (parsed?.type) {
-          if (parsed.type === 'application/octet-stream') {
-            // Attempt to get type from magic bytes
-            const decoded = FileTypes.getFromSignature(parsed.buffer)
-            if (!decoded) continue
-            parsed.type = decoded.mimetype
+    // Upload the main CSS file only if the user has asked for it.
+    // We do it this way to ensure that the CSS the user wants on the server
+    // stays that way, until they ASK to overwrite it.
+    if (this.isForceUpload || this.isUploadCss) {
+      // Extract any attachments from the CSS.
+      // Will use the mime-type whitelist to determine which attachments to extract.
+      this.status.setMessage('Processing CSS...')
+      const attachments = this.css.match(/url\s*\(.*?\)/g) || []
+      for (const attachment of attachments) {
+        const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
+        if (!assetMatch) continue
+        const assetUrl = assetMatch?.[1] || ''
+        if (assetUrl.startsWith('data:')) {
+          // Attempt to parse the data URL
+          const parsed = dataUriToBuffer(assetUrl)
+          if (parsed?.type) {
+            if (parsed.type === 'application/octet-stream') {
+              // Attempt to get type from magic bytes
+              const decoded = FileTypes.getFromSignature(parsed.buffer)
+              if (!decoded) continue
+              parsed.type = decoded.mimetype
+            }
+            const filetype = this.extensionFromMime(parsed.type)
+            if (filetype) {
+              const hash = await sha1(parsed.buffer)
+              this.plugin.api.queueUpload({
+                data: {
+                  filetype,
+                  hash,
+                  content: parsed.buffer,
+                  byteLength: parsed.buffer.byteLength
+                },
+                callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+              })
+            }
           }
-          const filetype = this.extensionFromMime(parsed.type)
-          if (filetype) {
-            const hash = await sha1(parsed.buffer)
-            this.plugin.api.queueUpload({
-              data: {
-                filetype,
-                hash,
-                content: parsed.buffer,
-                byteLength: parsed.buffer.byteLength
-              },
-              callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
-            })
-          }
-        }
-      } else if (assetUrl && !assetUrl.startsWith('http')) {
-        // Locally stored CSS attachment
-        const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
-        if (filename) {
-          if (cssAttachmentWhitelist[filename[2]]) {
-            // Fetch the attachment content
-            const res = await fetch(assetUrl)
-            // Reupload to the server
-            const contents = await res.arrayBuffer()
-            const hash = await sha1(contents)
-            this.plugin.api.queueUpload({
-              data: {
-                filetype: filename[2],
-                hash,
-                content: contents,
-                byteLength: contents.byteLength
-              },
-              callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
-            })
+        } else if (assetUrl && !assetUrl.startsWith('http')) {
+          // Locally stored CSS attachment
+          const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
+          if (filename) {
+            if (cssAttachmentWhitelist[filename[2]]) {
+              // Fetch the attachment content
+              const res = await fetch(assetUrl)
+              // Reupload to the server
+              const contents = await res.arrayBuffer()
+              const hash = await sha1(contents)
+              this.plugin.api.queueUpload({
+                data: {
+                  filetype: filename[2],
+                  hash,
+                  content: contents,
+                  byteLength: contents.byteLength
+                },
+                callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+              })
+            }
           }
         }
       }
+      await this.plugin.api.processQueue(this.status, 'CSS attachment')
+      const cssHash = await sha1(this.css)
+      this.status.setStatus('Uploading CSS...')
+      try {
+        await this.plugin.api.upload({
+          filetype: 'css',
+          hash: cssHash,
+          content: this.css,
+          byteLength: this.css.length
+        })
+      } catch (e) { }
     }
   }
 
