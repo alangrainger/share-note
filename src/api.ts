@@ -140,14 +140,14 @@ export default class API {
       })
     })
 
-    let count = 1
+    // let count = 1
     const promises: Promise<void>[] = []
     for (const queueItem of this.uploadQueue) {
       // Get the result from check-files (if exists)
       const checkFile = res?.files.find((item: FileUpload) => item.hash === queueItem.data.hash && item.filetype === queueItem.data.filetype)
       if (checkFile?.url) {
         // File is already uploaded, just process the callback
-        status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
+        // status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
         queueItem.callback(checkFile.url)
       } else {
         // File needs to be uploaded
@@ -155,7 +155,7 @@ export default class API {
           this.postRaw('/v1/file/upload', queueItem.data)
             .then((res) => {
               // Process the callback
-              status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
+              // status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
               queueItem.callback(res.url)
               resolve()
             })
