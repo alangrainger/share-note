@@ -20,7 +20,7 @@ export type UploadData = {
 export interface FileUpload {
   filetype: string
   hash: string
-  content: ArrayBuffer
+  content?: ArrayBuffer
   byteLength: number
   url?: string | null
 }
@@ -128,18 +128,26 @@ export default class API {
     this.uploadQueue.push(item)
   }
 
-  async processQueue () {
+  async processQueue (status: StatusMessage) {
     // Check with the server to find which files need to be updated
     const res = await this.post('/v1/file/check-files', {
-      files: this.uploadQueue.map(x => x.data)
+      files: this.uploadQueue.map(x => {
+        return {
+          hash: x.data.hash,
+          filetype: x.data.filetype,
+          byteLength: x.data.byteLength
+        }
+      })
     })
 
+    let count = 1
     const promises: Promise<void>[] = []
     for (const queueItem of this.uploadQueue) {
       // Get the result from check-files (if exists)
       const checkFile = res?.files.find((item: FileUpload) => item.hash === queueItem.data.hash && item.filetype === queueItem.data.filetype)
       if (checkFile?.url) {
         // File is already uploaded, just process the callback
+        status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
         queueItem.callback(checkFile.url)
       } else {
         // File needs to be uploaded
@@ -147,10 +155,14 @@ export default class API {
           this.postRaw('/v1/file/upload', queueItem.data)
             .then((res) => {
               // Process the callback
+              status.setMessage(`Uploading attachment ${count++} of ${this.uploadQueue.length}...`)
               queueItem.callback(res.url)
               resolve()
             })
-            .catch(resolve)
+            .catch((e) => {
+              console.log(e)
+              resolve()
+            })
         }))
       }
     }

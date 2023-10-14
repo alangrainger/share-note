@@ -161,7 +161,7 @@ export default class Note {
     // Process CSS and images
     await this.processCss()
     await this.processMedia()
-    const uploadResult = await this.plugin.api.processQueue()
+    const uploadResult = await this.plugin.api.processQueue(this.status)
 
     // Upload the main CSS file only if the user has asked for it.
     // We do it this way to ensure that the CSS the user wants on the server
