@@ -147,7 +147,7 @@ export default class API {
       const checkFile = res?.files.find((item: FileUpload) => item.hash === queueItem.data.hash && item.filetype === queueItem.data.filetype)
       if (checkFile?.url) {
         // File is already uploaded, just process the callback
-        status.setMessage(`Uploading ${type} ${count++} of ${this.uploadQueue.length}...`)
+        status.setStatus(`Uploading ${type} ${count++} of ${this.uploadQueue.length}...`)
         queueItem.callback(checkFile.url)
       } else {
         // File needs to be uploaded
@@ -155,7 +155,7 @@ export default class API {
           this.postRaw('/v1/file/upload', queueItem.data)
             .then((res) => {
               // Process the callback
-              status.setMessage(`Uploading ${type} ${count++} of ${this.uploadQueue.length}...`)
+              status.setStatus(`Uploading ${type} ${count++} of ${this.uploadQueue.length}...`)
               queueItem.callback(res.url)
               resolve()
             })

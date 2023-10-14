@@ -170,7 +170,7 @@ export default class Note {
      * Encrypt the note contents
      */
 
-    this.status.setMessage('Processing note...')
+    this.status.setStatus('Processing note...')
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
@@ -313,7 +313,7 @@ export default class Note {
     if (this.isForceUpload || this.isUploadCss) {
       // Extract any attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
-      this.status.setMessage('Processing CSS...')
+      this.status.setStatus('Processing CSS...')
       const attachments = this.css.match(/url\s*\(.*?\)/g) || []
       for (const attachment of attachments) {
         const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
@@ -367,8 +367,8 @@ export default class Note {
         }
       }
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
-      const cssHash = await sha1(this.css)
       this.status.setStatus('Uploading CSS...')
+      const cssHash = await sha1(this.css)
       try {
         await this.plugin.api.upload({
           filetype: 'css',
