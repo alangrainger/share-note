@@ -49,7 +49,7 @@ export default class Note {
 
   async share () {
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
 
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
@@ -372,6 +372,7 @@ export default class Note {
           }
         }
       }
+      this.status.setStatus('Uploading CSS attachments...')
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
       const cssHash = await sha1(this.css)
