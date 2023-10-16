@@ -119,14 +119,15 @@ export default class Note {
       // Get the callout icon from the CSS. I couldn't find any way to do this from the DOM,
       // as the elements may be far down below the fold and are not populated.
       const type = el.getAttribute('data-callout')
-      const icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
+      let icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
+      icon = icon.replace('lucide-', '')
       // Replace the existing icon so we:
       // a) don't get double-ups, and
       // b) have a consistent style
       const iconEl = el.querySelector('div.callout-icon')
       const svgEl = iconEl?.querySelector('svg')
       if (svgEl) {
-        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon.slice(7)}"></svg>`
+        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon}"></svg>`
       }
     }
 
