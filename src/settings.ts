@@ -27,6 +27,7 @@ export interface ShareSettings {
   apiKey: string;
   yamlField: string;
   noteWidth: string;
+  theme: string; // The name of the theme stored on the server
   themeMode: ThemeMode;
   titleSource: TitleSource;
   removeYaml: boolean;
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   apiKey: '',
   yamlField: 'share',
   noteWidth: '',
+  theme: '',
   themeMode: ThemeMode['Same as theme'],
   titleSource: TitleSource['Note title'],
   removeYaml: true,
