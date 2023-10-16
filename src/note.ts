@@ -21,7 +21,6 @@ export default class Note {
   status: StatusMessage
   css: string
   cssRules: CSSRule[]
-  domCopy: Document
   contentDom: Document
   meta: CachedMetadata | null
   isEncrypted = true
@@ -50,7 +49,7 @@ export default class Note {
 
   async share () {
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
 
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
@@ -68,12 +67,10 @@ export default class Note {
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise(resolve => setTimeout(resolve, 500))
     try {
-      // Take a clone of the DOM
-      this.domCopy = new DOMParser().parseFromString(document.documentElement.outerHTML, 'text/html')
       // Copy classes and styles
-      this.elements.push(getElementStyle('body', this.domCopy.body))
+      this.elements.push(getElementStyle('body', document.body))
       const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
       if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
       const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
@@ -234,10 +231,14 @@ export default class Note {
     this.template.width = this.plugin.settings.noteWidth
     // Set theme light/dark
     if (this.plugin.settings.themeMode !== ThemeMode['Same as theme']) {
-      // Remove the existing theme
-      this.domCopy.body.removeClasses(['theme-dark', 'theme-light'])
-      // Add the preferred class
-      this.domCopy.body.addClasses(['theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase()])
+      this.elements
+        .filter(x => x.element === 'body')
+        .forEach(item => {
+          // Remove the existing theme setting
+          item.classes = item.classes.filter(cls => cls !== 'theme-dark' && cls !== 'theme-light')
+          // Add the preferred theme setting (dark/light)
+          item.classes.push('theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase())
+        })
     }
     this.template.elements = this.elements
     // Check for MathJax
@@ -371,6 +372,7 @@ export default class Note {
           }
         }
       }
+      this.status.setStatus('Uploading CSS attachments...')
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
       const cssHash = await sha1(this.css)
@@ -381,6 +383,11 @@ export default class Note {
           content: this.css,
           byteLength: this.css.length
         })
+
+        // Store the CSS theme in the settings
+        // @ts-ignore - customCss is not exposed
+        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || ''
+        await this.plugin.saveSettings()
       } catch (e) { }
     }
   }
