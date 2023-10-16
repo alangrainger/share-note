@@ -386,11 +386,8 @@ export default class Note {
 
         // Store the CSS theme in the settings
         // @ts-ignore - customCss is not exposed
-        const theme = this.plugin.app?.customCss?.theme
-        if (theme) {
-          this.plugin.settings.theme = theme
-          await this.plugin.saveSettings()
-        }
+        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || ''
+        await this.plugin.saveSettings()
       } catch (e) { }
     }
   }
