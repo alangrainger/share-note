@@ -102,3 +102,7 @@ The decryption key **only** exists inside your vault, and is only known to you a
 You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = ✅. This note you are currently reading is shared unencrypted.
 
 If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
+
+## Troubleshooting
+
+See here: [Troubleshooting](./docs/Troubleshooting.md)
