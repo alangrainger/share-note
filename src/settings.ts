@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
+import Component2 from "./svelte/Component.svelte";
 
 export enum ThemeMode {
   'Same as theme',
@@ -62,6 +63,13 @@ export class ShareSettingsTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+
+    const component = new Component2({
+      target: containerEl,
+      props: {
+        variable: 1
+      }
+    });
 
     // API key
     new Setting(containerEl)

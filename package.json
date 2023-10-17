@@ -12,14 +12,18 @@
 	"author": "Alan Grainger",
 	"license": "MIT",
 	"devDependencies": {
+		"@tsconfig/svelte": "^5.0.2",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.3",
+		"esbuild-svelte": "^0.8.0",
 		"eslint": "^8.49.0",
 		"eslint-config-standard": "^17.1.0",
 		"obsidian": "latest",
+		"svelte": "^4.2.1",
+		"svelte-preprocess": "^5.0.4",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
 	},
