@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
+import UI, { CalloutType } from './UI'
 
 export enum ThemeMode {
   'Same as theme',
@@ -64,6 +65,11 @@ export class ShareSettingsTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+
+    // Testing the UX elements
+    // const table = new UI.Table()
+    const callout = new UI.Callout(undefined, CalloutType.expanded)
+    containerEl.append(callout.containerEl)
 
     // API key
     new Setting(containerEl)
