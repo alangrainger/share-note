@@ -1,4 +1,4 @@
-import { Plugin, TFile } from 'obsidian'
+import { Plugin, setIcon, TFile } from 'obsidian'
 import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab, YamlField } from './settings'
 import Note from './note'
 import API from './api'
@@ -55,6 +55,39 @@ export default class SharePlugin extends Plugin {
         }
       }
     })
+
+    // Add share icons to properties panel
+    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
+      // I tried using onLayoutReady() here rather than a timeout, but it did not work.
+      // It seems that the layout is still updating even after it is "ready".
+      setTimeout(() => {
+        document.querySelectorAll(`div.metadata-property[data-property-key="${this.field(YamlField.link)}"]`)
+          .forEach(propertyEl => {
+            const valueEl = propertyEl.querySelector('div.metadata-property-value')
+            if (valueEl && !valueEl.querySelector('div.share-note-icons')) {
+              const iconsEl = document.createElement('div')
+              iconsEl.classList.add('share-note-icons')
+              // Re-share note icon
+              const shareIcon = iconsEl.createEl('span')
+              shareIcon.title = 'Re-share note'
+              setIcon(shareIcon, 'upload-cloud')
+              shareIcon.onclick = () => this.uploadNote()
+              // Copy to clipboard icon
+              const copyIcon = iconsEl.createEl('span')
+              copyIcon.title = 'Copy link to clipboard'
+              setIcon(copyIcon, 'copy')
+              copyIcon.onclick = async () => {
+                const link = propertyEl.querySelector('div.metadata-link-inner.external-link') as HTMLElement
+                if (link) {
+                  await navigator.clipboard.writeText(link.innerText)
+                  new StatusMessage('📋 Shared link copied to clipboard')
+                }
+              }
+              valueEl.prepend(iconsEl)
+            }
+          })
+      }, 200)
+    }))
 
     // Add command - Share note
     this.addCommand({

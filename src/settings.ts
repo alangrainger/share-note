@@ -27,6 +27,7 @@ export interface ShareSettings {
   apiKey: string;
   yamlField: string;
   noteWidth: string;
+  theme: string; // The name of the theme stored on the server
   themeMode: ThemeMode;
   titleSource: TitleSource;
   removeYaml: boolean;
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   apiKey: '',
   yamlField: 'share',
   noteWidth: '',
+  theme: '',
   themeMode: ThemeMode['Same as theme'],
   titleSource: TitleSource['Note title'],
   removeYaml: true,
@@ -99,6 +101,10 @@ export class ShareSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Upload options')
       .setHeading()
+
+    new Setting(containerEl)
+      .setName(`⭐ Your shared note theme is "${this.plugin.settings.theme || 'Default theme'}"`)
+      .setDesc('To set a new theme, change the theme in Obsidian to your desired theme and then use the `Force re-upload all data` command. You can change your Obsidian theme after that without affecting the theme for your shared notes.')
 
     // Choose light/dark theme mode
     new Setting(containerEl)
