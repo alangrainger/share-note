@@ -34,6 +34,7 @@ export interface ShareSettings {
   clipboard: boolean;
   shareUnencrypted: boolean;
   authRedirect: string | null;
+  debug: number;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
@@ -48,7 +49,8 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   removeYaml: true,
   clipboard: true,
   shareUnencrypted: false,
-  authRedirect: null
+  authRedirect: null,
+  debug: 0
 }
 
 export class ShareSettingsTab extends PluginSettingTab {

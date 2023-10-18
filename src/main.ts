@@ -58,7 +58,6 @@ export default class SharePlugin extends Plugin {
 
     // Add share icons to properties panel
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      console.log('icons')
       // I tried using onLayoutReady() here rather than a timeout, but it did not work.
       // It seems that the layout is still updating even after it is "ready".
       setTimeout(() => {
