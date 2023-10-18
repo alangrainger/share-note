@@ -32,6 +32,7 @@ export type PostData = {
   hash?: string
   byteLength?: number
   template?: NoteTemplate
+  debug?: number
 }
 
 export interface UploadQueueItem {
@@ -65,6 +66,9 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body = Object.assign({}, data)
+    if (this.plugin.settings.debug) body.debug = this.plugin.settings.debug
+
+    // Upload the data
     while (retries > 0) {
       try {
         const res = await requestUrl({
@@ -73,6 +77,10 @@ export default class API {
           headers,
           body: JSON.stringify(body)
         })
+        if (this.plugin.settings.debug === 1 && data?.filetype === 'html') {
+          // Debugging option
+          console.log(res.json.html)
+        }
         return res.json
       } catch (error) {
         if (error.status < 500 || retries <= 1) {
