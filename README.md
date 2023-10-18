@@ -2,7 +2,8 @@
 
 Instantly share a note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your Obsidian vault.
 
-[📝💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
+- [💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
+- [🚀 Request new features / see the roadmap](https://note.sx/roadmap)
 
 To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Copy shared link`
 
@@ -101,3 +102,7 @@ The decryption key **only** exists inside your vault, and is only known to you a
 You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = ✅. This note you are currently reading is shared unencrypted.
 
 If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
+
+## Troubleshooting
+
+See here: [Troubleshooting](./docs/Troubleshooting.md)

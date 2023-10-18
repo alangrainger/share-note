@@ -103,11 +103,8 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setHeading()
 
     new Setting(containerEl)
-      .setName('Theme')
-      .setDesc('This is the theme used for your shared notes. To set a new theme, change the theme in Obsidian to your desired theme, then use the `Force re-upload all data` command. You can change your Obsidian theme after that without affecting the theme for your shared notes.')
-      .addText(text => text
-        .setValue(this.plugin.settings.theme || 'Default theme')
-        .setDisabled(true))
+      .setName(`⭐ Your shared note theme is "${this.plugin.settings.theme || 'Default theme'}"`)
+      .setDesc('To set a new theme, change the theme in Obsidian to your desired theme and then use the `Force re-upload all data` command. You can change your Obsidian theme after that without affecting the theme for your shared notes.')
 
     // Choose light/dark theme mode
     new Setting(containerEl)

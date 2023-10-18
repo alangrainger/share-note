@@ -1,4 +1,4 @@
-import { Plugin, setIcon, TFile, Workspace } from 'obsidian'
+import { Plugin, setIcon, TFile } from 'obsidian'
 import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab, YamlField } from './settings'
 import Note from './note'
 import API from './api'
@@ -58,7 +58,6 @@ export default class SharePlugin extends Plugin {
 
     // Add share icons to properties panel
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      console.log('icons')
       // I tried using onLayoutReady() here rather than a timeout, but it did not work.
       // It seems that the layout is still updating even after it is "ready".
       setTimeout(() => {
@@ -71,7 +70,7 @@ export default class SharePlugin extends Plugin {
               // Re-share note icon
               const shareIcon = iconsEl.createEl('span')
               shareIcon.title = 'Re-share note'
-              setIcon(shareIcon, 'upload')
+              setIcon(shareIcon, 'upload-cloud')
               shareIcon.onclick = () => this.uploadNote()
               // Copy to clipboard icon
               const copyIcon = iconsEl.createEl('span')

@@ -9,6 +9,6 @@ assignees: ''
 
 👇 Please add and vote for new features here: 👇 
 
-https://github.com/alangrainger/obsidian-share/discussions/categories/vote-for-upcoming-features
+https://note.sx/roadmap
 
 Thank you!
