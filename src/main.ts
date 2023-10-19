@@ -78,6 +78,20 @@ export default class SharePlugin extends Plugin {
       callback: () => this.uploadNote(true)
     })
 
+    // Add command - Delete shared note
+    this.addCommand({
+      id: 'delete-note',
+      name: 'Delete the shared note',
+      checkCallback: (checking: boolean) => {
+        const sharedFile = this.hasSharedFile()
+        if (checking) {
+          return !!sharedFile
+        } else if (sharedFile) {
+          this.deleteSharedNote(sharedFile.file)
+        }
+      }
+    })
+
     // Add command - Copy shared link
     this.addCommand({
       id: 'copy-link',
@@ -182,6 +196,19 @@ export default class SharePlugin extends Plugin {
     return shareLink
   }
 
+  async deleteSharedNote (file: TFile) {
+    const sharedFile = this.hasSharedFile(file)
+    if (sharedFile) {
+      new StatusMessage('Deleting note...')
+      await this.api.deleteSharedNote(sharedFile.url)
+      await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter) => {
+        // Remove the shared link
+        delete frontmatter[this.field(YamlField.link)]
+        delete frontmatter[this.field(YamlField.updated)]
+      })
+    }
+  }
+
   addShareIcons () {
     // I tried using onLayoutReady() here rather than a timeout, but it did not work.
     // It seems that the layout is still updating even after it is "ready".
@@ -220,13 +247,7 @@ export default class SharePlugin extends Plugin {
                   'Delete shared note?',
                   'Are you sure you want to delete this shared note and the shared link? This will not delete your local note.',
                   async () => {
-                    new StatusMessage('Deleting note...')
-                    await this.api.deleteSharedNote(sharedFile.url)
-                    await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter) => {
-                      // Remove the shared link
-                      delete frontmatter[this.field(YamlField.link)]
-                      delete frontmatter[this.field(YamlField.updated)]
-                    })
+                    await this.deleteSharedNote(sharedFile.file)
                   })
               }
             }
@@ -245,8 +266,10 @@ export default class SharePlugin extends Plugin {
     await this.saveSettings()
   }
 
-  hasSharedFile () {
-    const file = this.app.workspace.getActiveFile()
+  hasSharedFile (file?: TFile) {
+    if (!file) {
+      file = this.app.workspace.getActiveFile() || undefined
+    }
     if (file) {
       const meta = this.app.metadataCache.getFileCache(file)
       const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
