@@ -81,7 +81,7 @@ export default class SharePlugin extends Plugin {
     // Add command - Delete shared note
     this.addCommand({
       id: 'delete-note',
-      name: 'Delete the shared note',
+      name: 'Delete this shared note',
       checkCallback: (checking: boolean) => {
         const sharedFile = this.hasSharedFile()
         if (checking) {
@@ -199,13 +199,18 @@ export default class SharePlugin extends Plugin {
   async deleteSharedNote (file: TFile) {
     const sharedFile = this.hasSharedFile(file)
     if (sharedFile) {
-      new StatusMessage('Deleting note...')
-      await this.api.deleteSharedNote(sharedFile.url)
-      await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter) => {
-        // Remove the shared link
-        delete frontmatter[this.field(YamlField.link)]
-        delete frontmatter[this.field(YamlField.updated)]
-      })
+      this.ui.confirmDialog(
+        'Delete shared note?',
+        'Are you sure you want to delete this shared note and the shared link? This will not delete your local note.',
+        async () => {
+          new StatusMessage('Deleting note...')
+          await this.api.deleteSharedNote(sharedFile.url)
+          await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter) => {
+            // Remove the shared link
+            delete frontmatter[this.field(YamlField.link)]
+            delete frontmatter[this.field(YamlField.updated)]
+          })
+        })
     }
   }
 
@@ -242,14 +247,7 @@ export default class SharePlugin extends Plugin {
               const deleteIcon = iconsEl.createEl('span')
               deleteIcon.title = 'Delete shared note'
               setIcon(deleteIcon, 'trash-2')
-              deleteIcon.onclick = () => {
-                this.ui.confirmDialog(
-                  'Delete shared note?',
-                  'Are you sure you want to delete this shared note and the shared link? This will not delete your local note.',
-                  async () => {
-                    await this.deleteSharedNote(sharedFile.file)
-                  })
-              }
+              deleteIcon.onclick = () => this.deleteSharedNote(sharedFile.file)
             }
             valueEl.prepend(iconsEl)
           }
