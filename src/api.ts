@@ -3,6 +3,7 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NoteTemplate from './NoteTemplate'
+import { SharedUrl } from './note'
 
 const pluginVersion = require('../manifest.json').version
 
@@ -208,4 +209,27 @@ export default class API {
     }, 3)
     return res.url
   }
+
+  async deleteSharedNote (shareUrl: string) {
+    const url = parseExistingShareUrl(shareUrl)
+    if (url) {
+      await this.post('/v1/file/delete', {
+        filename: url.filename,
+        filetype: 'html'
+      })
+      new StatusMessage('The note has been deleted 🗑️', StatusType.Info)
+    }
+  }
+}
+
+export function parseExistingShareUrl (url: string): SharedUrl | false {
+  const match = url.match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+  if (match) {
+    return {
+      filename: match[1],
+      decryptionKey: match[2].slice(1) || '',
+      url
+    }
+  }
+  return false
 }

@@ -6,6 +6,7 @@ import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
+import { parseExistingShareUrl } from './api'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -13,6 +14,16 @@ const cssAttachmentWhitelist: { [key: string]: string[] } = {
   woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
   woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
   svg: ['image/svg+xml']
+}
+
+export interface SharedUrl {
+  filename: string
+  decryptionKey: string
+  url: string
+}
+
+export interface SharedNote extends SharedUrl {
+  file: TFile
 }
 
 export default class Note {
@@ -180,10 +191,10 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+      const match = parseExistingShareUrl(this.meta.frontmatter[this.field(YamlField.link)])
       if (match) {
-        this.template.filename = match[1]
-        decryptionKey = match[2].slice(1)
+        this.template.filename = match.filename
+        decryptionKey = match.decryptionKey
       }
     }
     this.template.encrypted = this.isEncrypted
