@@ -105,10 +105,11 @@ export default class Note {
       // @ts-ignore - view.modes
       this.previewDom.innerHTML = this.leaf.view.modes.preview.containerEl.innerHTML
       // Copy classes and styles
+      this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
-      const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
+      const previewEl = this.previewDom.querySelector('.markdown-preview-view.markdown-rendered')
       if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
-      const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
+      const pusherEl = this.previewDom.querySelector('.markdown-preview-pusher')
       if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
       this.cssRules = []
       Array.from(document.styleSheets)
