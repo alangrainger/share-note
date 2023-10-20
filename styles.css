@@ -12,3 +12,13 @@
     background: #629762;
     color: white
 }
+
+.share-note-icons {
+    display: flex;
+}
+
+.share-note-icons > span {
+    display: flex;
+    margin-left: 6px;
+    cursor: pointer;
+}

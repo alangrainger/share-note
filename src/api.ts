@@ -3,6 +3,7 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NoteTemplate from './NoteTemplate'
+import { SharedUrl } from './note'
 
 const pluginVersion = require('../manifest.json').version
 
@@ -32,6 +33,7 @@ export type PostData = {
   hash?: string
   byteLength?: number
   template?: NoteTemplate
+  debug?: number
 }
 
 export interface UploadQueueItem {
@@ -65,6 +67,9 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body = Object.assign({}, data)
+    if (this.plugin.settings.debug) body.debug = this.plugin.settings.debug
+
+    // Upload the data
     while (retries > 0) {
       try {
         const res = await requestUrl({
@@ -73,6 +78,10 @@ export default class API {
           headers,
           body: JSON.stringify(body)
         })
+        if (this.plugin.settings.debug === 1 && data?.filetype === 'html') {
+          // Debugging option
+          console.log(res.json.html)
+        }
         return res.json
       } catch (error) {
         if (error.status < 500 || retries <= 1) {
@@ -200,4 +209,27 @@ export default class API {
     }, 3)
     return res.url
   }
+
+  async deleteSharedNote (shareUrl: string) {
+    const url = parseExistingShareUrl(shareUrl)
+    if (url) {
+      await this.post('/v1/file/delete', {
+        filename: url.filename,
+        filetype: 'html'
+      })
+      new StatusMessage('The note has been deleted 🗑️', StatusType.Info)
+    }
+  }
+}
+
+export function parseExistingShareUrl (url: string): SharedUrl | false {
+  const match = url.match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+  if (match) {
+    return {
+      filename: match[1],
+      decryptionKey: match[2].slice(1) || '',
+      url
+    }
+  }
+  return false
 }

@@ -15,6 +15,7 @@ import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
+import { parseExistingShareUrl } from './api'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -22,6 +23,16 @@ const cssAttachmentWhitelist: { [key: string]: string[] } = {
   woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
   woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
   svg: ['image/svg+xml']
+}
+
+export interface SharedUrl {
+  filename: string
+  decryptionKey: string
+  url: string
+}
+
+export interface SharedNote extends SharedUrl {
+  file: TFile
 }
 
 export default class Note {
@@ -58,7 +69,7 @@ export default class Note {
 
   async share () {
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 30 * 1000)
+    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
 
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
@@ -134,14 +145,15 @@ export default class Note {
       // Get the callout icon from the CSS. I couldn't find any way to do this from the DOM,
       // as the elements may be far down below the fold and are not populated.
       const type = el.getAttribute('data-callout')
-      const icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
+      let icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
+      icon = icon.replace('lucide-', '')
       // Replace the existing icon so we:
       // a) don't get double-ups, and
       // b) have a consistent style
       const iconEl = el.querySelector('div.callout-icon')
       const svgEl = iconEl?.querySelector('svg')
       if (svgEl) {
-        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon.slice(7)}"></svg>`
+        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon}"></svg>`
       }
     }
 
@@ -194,10 +206,10 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+      const match = parseExistingShareUrl(this.meta.frontmatter[this.field(YamlField.link)])
       if (match) {
-        this.template.filename = match[1]
-        decryptionKey = match[2].slice(1)
+        this.template.filename = match.filename
+        decryptionKey = match.decryptionKey
       }
     }
     this.template.encrypted = this.isEncrypted
@@ -387,6 +399,7 @@ export default class Note {
           }
         }
       }
+      this.status.setStatus('Uploading CSS attachments...')
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
       const cssHash = await sha1(this.css)
@@ -397,6 +410,11 @@ export default class Note {
           content: this.css,
           byteLength: this.css.length
         })
+
+        // Store the CSS theme in the settings
+        // @ts-ignore - customCss is not exposed
+        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || ''
+        await this.plugin.saveSettings()
       } catch (e) { }
     }
   }
