@@ -38,7 +38,6 @@ export default class Note {
   isForceUpload = false
   isForceClipboard = false
   isUploadCss = false
-  uploadedFiles: string[]
   template: NoteTemplate
   elements: ElementStyle[]
 
@@ -59,16 +58,15 @@ export default class Note {
   }
 
   async share () {
-    // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
-
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
       window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
       return
     }
 
-    this.uploadedFiles = []
+    // Create a semi-permanent status notice which we can update
+    this.status = new StatusMessage('Parsing note content, please do not change to another note while this message is displayed.', StatusType.Default, 60 * 1000)
+
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
@@ -112,6 +110,7 @@ export default class Note {
         resolve()
       }
     })
+    this.status.setStatus('Sharing note...')
     try {
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
