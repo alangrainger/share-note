@@ -110,7 +110,8 @@ export default class Note {
         resolve()
       }
     })
-    this.status.setStatus('Sharing note...')
+
+    this.status.setStatus('Processing note...')
     try {
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
@@ -219,7 +220,6 @@ export default class Note {
      * Encrypt the note contents
      */
 
-    this.status.setStatus('Processing note...')
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
