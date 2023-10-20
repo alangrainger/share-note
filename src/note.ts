@@ -42,6 +42,7 @@ export default class Note {
   css: string
   cssRules: CSSRule[]
   contentDom: HTMLDivElement
+  previewDom: HTMLDivElement
   meta: CachedMetadata | null
   isEncrypted = true
   isForceUpload = false
@@ -99,6 +100,10 @@ export default class Note {
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
     await new Promise(resolve => setTimeout(resolve, 400))
     try {
+      // Take a copy of the Preview view DOM
+      this.previewDom = document.createElement('div')
+      // @ts-ignore - view.modes
+      this.previewDom.innerHTML = this.leaf.view.modes.preview.containerEl.innerHTML
       // Copy classes and styles
       this.elements.push(getElementStyle('body', document.body))
       const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
@@ -127,16 +132,17 @@ export default class Note {
     const contentEl = document.createElement('div')
     const content = await this.plugin.app.vault.cachedRead(activeNote)
     await MarkdownRenderer.render(this.plugin.app, content, contentEl, activeNote.path, new Component())
-    const headerEl = this.leaf.view.containerEl.querySelector('div.mod-header')
-    if (headerEl) this.contentDom.append(headerEl)
+    this.addPluginElement('div.mod-header')
+    this.addPluginElement('div.obsidian-banner-wrapper')
     this.contentDom.append(contentEl)
 
     // Generate the HTML file for uploading
     if (this.plugin.settings.removeYaml) {
       // Remove frontmatter to avoid sharing unwanted data
-      this.contentDom.querySelector('div.metadata-container')?.remove()
-      this.contentDom.querySelector('pre.frontmatter')?.remove()
-      this.contentDom.querySelector('div.frontmatter-container')?.remove()
+      ['div.metadata-container', 'pre.frontmatter', 'div.frontmatter-container']
+        .forEach(selector => {
+          this.contentDom.querySelectorAll(selector).forEach(el => el.remove())
+        })
     }
 
     // Fix callout icons
@@ -426,6 +432,14 @@ export default class Note {
       return rule.style.getPropertyValue('--callout-icon')
     }
     return ''
+  }
+
+  /**
+   * Fetch a custom element which is added to the DOM by a plugin, and add it to our DOM
+   */
+  addPluginElement (selector: string) {
+    const pluginElement = this.previewDom.querySelector(selector)
+    if (pluginElement) this.contentDom.append(pluginElement)
   }
 
   /**
