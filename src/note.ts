@@ -126,7 +126,7 @@ export default class Note {
     // @ts-ignore - previewMode
     const renderer = this.leaf.view.previewMode.renderer
     this.contentDom = document.createElement('div')
-    this.contentDom.append(renderer.header.el)
+    this.contentDom.append(this.cloneElement(renderer.header.el))
     // Add plugin custom elements
     // Banner plugin
     this.addPluginElement('div.obsidian-banner-wrapper')
@@ -134,7 +134,7 @@ export default class Note {
     const content = await this.plugin.app.vault.cachedRead(activeNote)
     await MarkdownRenderer.render(this.plugin.app, content, contentEl, activeNote.path, new Component())
     this.contentDom.append(contentEl)
-    this.contentDom.append(renderer.footer.el)
+    this.contentDom.append(this.cloneElement(renderer.footer.el))
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
@@ -444,6 +444,12 @@ export default class Note {
   addPluginElement (selector: string) {
     const pluginElement = this.previewDom.querySelector(selector)
     if (pluginElement) this.contentDom.append(pluginElement)
+  }
+
+  cloneElement (el: HTMLElement) {
+    const div = document.createElement('div')
+    div.innerHTML = el.outerHTML
+    return div.firstChild
   }
 
   /**
