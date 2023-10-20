@@ -73,21 +73,54 @@ export default class Note {
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
-    await new Promise(resolve => setTimeout(resolve, 200))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
-    // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 500))
+    let noteHtml = ''
+    await new Promise<void>(resolve => {
+      let count = 0
+      let parsing = 0
+      try {
+        const timer = setInterval(() => {
+          let complete = false
+          // @ts-ignore // 'view.modes'
+          const renderer = this.leaf.view.modes.preview.renderer
+          const sections = renderer.sections
+          count++
+          if (renderer.parsing) parsing++
+          if (count > parsing) {
+            // Check the final sections to see if they have rendered
+            let rendered = 0
+            if (sections.length > 10) {
+              sections.slice(sections.length - 6, sections.length - 1).forEach((section: { el: HTMLElement }) => {
+                if (section.el.innerText) rendered++
+              })
+              if (rendered > 2) complete = true
+            } else {
+              complete = true
+            }
+          }
+          if (complete || count > 30) {
+            noteHtml = this.reduceSections(renderer.sections)
+            clearTimeout(timer)
+            resolve()
+          }
+        }, 100)
+      } catch (e) {
+        // @ts-ignore // 'view.modes'
+        noteHtml = this.reduceSections(this.leaf.view.modes.preview.renderer.sections)
+        resolve()
+      }
+    })
     try {
       // Copy classes and styles
+      this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
       const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
       if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
       const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
       if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
       // @ts-ignore // 'view.modes'
-      const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
       this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
@@ -411,6 +444,10 @@ export default class Note {
       return rule.style.getPropertyValue('--callout-icon')
     }
     return ''
+  }
+
+  reduceSections (sections: { el: HTMLElement }[]) {
+    return sections.reduce((p: string, c) => p + c.el.outerHTML, '')
   }
 
   /**
