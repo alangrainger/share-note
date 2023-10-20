@@ -91,16 +91,16 @@ export default class Note {
           if (count > parsing) {
             // Check the final sections to see if they have rendered
             let rendered = 0
-            if (sections.length > 10) {
-              sections.slice(sections.length - 6, sections.length - 1).forEach((section: { el: HTMLElement }) => {
-                if (section.el.innerText) rendered++
+            if (sections.length > 12) {
+              sections.slice(sections.length - 7, sections.length - 1).forEach((section: { el: HTMLElement }) => {
+                if (section.el.innerHTML) rendered++
               })
-              if (rendered > 2) complete = true
+              if (rendered > 3) complete = true
             } else {
               complete = true
             }
           }
-          if (complete || count > 30) {
+          if (complete || count > 40) {
             noteHtml = this.reduceSections(renderer.sections)
             clearTimeout(timer)
             resolve()
