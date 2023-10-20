@@ -1,4 +1,13 @@
-import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
+import {
+  CachedMetadata,
+  Component,
+  FileSystemAdapter,
+  MarkdownRenderer,
+  moment,
+  requestUrl,
+  TFile,
+  WorkspaceLeaf
+} from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -32,13 +41,13 @@ export default class Note {
   status: StatusMessage
   css: string
   cssRules: CSSRule[]
-  contentDom: Document
+  contentDom: HTMLDivElement
+  previewDom: HTMLDivElement
   meta: CachedMetadata | null
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
   isUploadCss = false
-  uploadedFiles: string[]
   template: NoteTemplate
   elements: ElementStyle[]
 
@@ -68,27 +77,38 @@ export default class Note {
       return
     }
 
-    this.uploadedFiles = []
+    // Get the active file
+    const activeNote = this.plugin.app.workspace.getActiveFile()
+    if (!(activeNote instanceof TFile)) {
+      // No active file
+      this.status.hide()
+      new StatusMessage('There is no active note to share')
+      return
+    }
+    this.meta = this.plugin.app.metadataCache.getFileCache(activeNote)
+
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 300))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 200))
     try {
+      // Take a copy of the Preview view DOM
+      this.previewDom = document.createElement('div')
+      // @ts-ignore - view.modes
+      this.previewDom.innerHTML = this.leaf.view.modes.preview.containerEl.innerHTML
       // Copy classes and styles
+      this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
-      const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
+      const previewEl = this.previewDom.querySelector('.markdown-preview-view.markdown-rendered')
       if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
-      const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
+      const pusherEl = this.previewDom.querySelector('.markdown-preview-pusher')
       if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
-      // @ts-ignore // 'view.modes'
-      const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
-      this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
         .forEach(x => Array.from(x.cssRules)
@@ -103,25 +123,30 @@ export default class Note {
       return
     }
 
+    // @ts-ignore - previewMode
+    const renderer = this.leaf.view.previewMode.renderer
+    this.contentDom = document.createElement('div')
+    this.contentDom.append(renderer.header.el)
+    // Add plugin custom elements
+    // Banner plugin
+    this.addPluginElement('div.obsidian-banner-wrapper')
+    const contentEl = document.createElement('div')
+    const content = await this.plugin.app.vault.cachedRead(activeNote)
+    await MarkdownRenderer.render(this.plugin.app, content, contentEl, activeNote.path, new Component())
+    this.contentDom.append(contentEl)
+    this.contentDom.append(renderer.footer.el)
+
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
     setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
 
-    const file = this.plugin.app.workspace.getActiveFile()
-    if (!(file instanceof TFile)) {
-      // No active file
-      this.status.hide()
-      new StatusMessage('There is no active file to share')
-      return
-    }
-    this.meta = this.plugin.app.metadataCache.getFileCache(file)
-
     // Generate the HTML file for uploading
     if (this.plugin.settings.removeYaml) {
       // Remove frontmatter to avoid sharing unwanted data
-      this.contentDom.querySelector('div.metadata-container')?.remove()
-      this.contentDom.querySelector('pre.frontmatter')?.remove()
-      this.contentDom.querySelector('div.frontmatter-container')?.remove()
+      ['div.metadata-container', 'pre.frontmatter', 'div.frontmatter-container']
+        .forEach(selector => {
+          this.contentDom.querySelectorAll(selector).forEach(el => el.remove())
+        })
     }
 
     // Fix callout icons
@@ -211,13 +236,13 @@ export default class Note {
     }
     if (!title) {
       // Fallback to basename if either of the above fail
-      title = file.basename
+      title = activeNote.basename
     }
 
     if (this.isEncrypted) {
       this.status.setStatus('Encrypting note...')
       const plaintext = JSON.stringify({
-        content: this.contentDom.body.innerHTML,
+        content: this.contentDom.innerHTML,
         basename: title
       })
       // Encrypt the note
@@ -230,7 +255,7 @@ export default class Note {
     } else {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
-      this.template.content = this.contentDom.body.innerHTML
+      this.template.content = this.contentDom.innerHTML
       this.template.title = title
       // Create a meta description preview based off the <p> elements
       const desc = Array.from(this.contentDom.querySelectorAll('p'))
@@ -254,7 +279,7 @@ export default class Note {
     }
     this.template.elements = this.elements
     // Check for MathJax
-    this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
+    this.template.mathJax = !!this.contentDom.innerHTML.match(/<mjx-container/)
 
     // Share the file
     this.status.setStatus('Uploading note...')
@@ -268,7 +293,7 @@ export default class Note {
 
     let shareMessage = 'The note has been shared'
     if (shareLink) {
-      await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      await this.plugin.app.fileManager.processFrontMatter(activeNote, (frontmatter) => {
         // Update the frontmatter with the share link
         frontmatter[this.field(YamlField.link)] = shareLink
         frontmatter[this.field(YamlField.updated)] = moment().format()
@@ -411,6 +436,14 @@ export default class Note {
       return rule.style.getPropertyValue('--callout-icon')
     }
     return ''
+  }
+
+  /**
+   * Fetch a custom element which is added to the DOM by a plugin, and add it to our DOM
+   */
+  addPluginElement (selector: string) {
+    const pluginElement = this.previewDom.querySelector(selector)
+    if (pluginElement) this.contentDom.append(pluginElement)
   }
 
   /**
