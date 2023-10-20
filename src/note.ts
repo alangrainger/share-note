@@ -48,7 +48,6 @@ export default class Note {
   isForceUpload = false
   isForceClipboard = false
   isUploadCss = false
-  uploadedFiles: string[]
   template: NoteTemplate
   elements: ElementStyle[]
 
@@ -88,17 +87,16 @@ export default class Note {
     }
     this.meta = this.plugin.app.metadataCache.getFileCache(activeNote)
 
-    this.uploadedFiles = []
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 300))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
     // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 400))
+    await new Promise(resolve => setTimeout(resolve, 200))
     try {
       // Take a copy of the Preview view DOM
       this.previewDom = document.createElement('div')
@@ -125,17 +123,21 @@ export default class Note {
       return
     }
 
-    // Reset the view to the original mode
-    // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
-
+    // @ts-ignore - previewMode
+    const renderer = this.leaf.view.previewMode.renderer
     this.contentDom = document.createElement('div')
+    this.contentDom.append(renderer.header.el)
+    // Add plugin custom elements
+    this.addPluginElement('div.obsidian-banner-wrapper')
     const contentEl = document.createElement('div')
     const content = await this.plugin.app.vault.cachedRead(activeNote)
     await MarkdownRenderer.render(this.plugin.app, content, contentEl, activeNote.path, new Component())
-    this.addPluginElement('div.mod-header')
-    this.addPluginElement('div.obsidian-banner-wrapper')
     this.contentDom.append(contentEl)
+    this.contentDom.append(renderer.footer.el)
+
+    // Reset the view to the original mode
+    // The timeout is required, even though we 'await' the preview mode setting earlier
+    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
 
     // Generate the HTML file for uploading
     if (this.plugin.settings.removeYaml) {
