@@ -1,4 +1,4 @@
-import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -38,7 +38,6 @@ export default class Note {
   isForceUpload = false
   isForceClipboard = false
   isUploadCss = false
-  uploadedFiles: string[]
   template: NoteTemplate
   elements: ElementStyle[]
 
@@ -59,16 +58,15 @@ export default class Note {
   }
 
   async share () {
-    // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
-
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
       window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
       return
     }
 
-    this.uploadedFiles = []
+    // Create a semi-permanent status notice which we can update
+    this.status = new StatusMessage('Parsing note content, please do not change to another note while this message is displayed.', StatusType.Default, 60 * 1000)
+
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
@@ -76,42 +74,7 @@ export default class Note {
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
-    let noteHtml = ''
-    await new Promise<void>(resolve => {
-      let count = 0
-      let parsing = 0
-      try {
-        const timer = setInterval(() => {
-          let complete = false
-          // @ts-ignore // 'view.modes'
-          const renderer = this.leaf.view.modes.preview.renderer
-          const sections = renderer.sections
-          count++
-          if (renderer.parsing) parsing++
-          if (count > parsing) {
-            // Check the final sections to see if they have rendered
-            let rendered = 0
-            if (sections.length > 12) {
-              sections.slice(sections.length - 7, sections.length - 1).forEach((section: { el: HTMLElement }) => {
-                if (section.el.innerHTML) rendered++
-              })
-              if (rendered > 3) complete = true
-            } else {
-              complete = true
-            }
-          }
-          if (complete || count > 40) {
-            noteHtml = this.reduceSections(renderer.sections)
-            clearTimeout(timer)
-            resolve()
-          }
-        }, 100)
-      } catch (e) {
-        // @ts-ignore // 'view.modes'
-        noteHtml = this.reduceSections(this.leaf.view.modes.preview.renderer.sections)
-        resolve()
-      }
-    })
+    this.status.setStatus('Processing note...')
     try {
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
@@ -120,8 +83,7 @@ export default class Note {
       if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
       const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
       if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
-      // @ts-ignore // 'view.modes'
-      this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
+      this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view), 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
         .forEach(x => Array.from(x.cssRules)
@@ -220,7 +182,6 @@ export default class Note {
      * Encrypt the note contents
      */
 
-    this.status.setStatus('Processing note...')
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
@@ -435,6 +396,43 @@ export default class Note {
         await this.plugin.saveSettings()
       } catch (e) { }
     }
+  }
+
+  async querySelectorAll (view: View) {
+    // @ts-ignore // 'view.modes'
+    const renderer = view.modes.preview.renderer
+    let html = ''
+    await new Promise<void>(resolve => {
+      let count = 0
+      let parsing = 0
+      const timer = setInterval(() => {
+        try {
+          const sections = renderer.sections
+          count++
+          if (renderer.parsing) parsing++
+          if (count > parsing) {
+            // Check the final sections to see if they have rendered
+            let rendered = 0
+            if (sections.length > 12) {
+              sections.slice(sections.length - 7, sections.length - 1).forEach((section: { el: HTMLElement }) => {
+                if (section.el.innerHTML) rendered++
+              })
+              if (rendered > 3) count = 100
+            } else {
+              count = 100
+            }
+          }
+          if (count > 40) {
+            html = this.reduceSections(renderer.sections)
+            resolve()
+          }
+        } catch (e) {
+          clearInterval(timer)
+          resolve()
+        }
+      }, 100)
+    })
+    return html
   }
 
   getCalloutIcon (test: (selectorText: string) => boolean) {
