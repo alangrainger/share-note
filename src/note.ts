@@ -7,6 +7,7 @@ import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
 import { parseExistingShareUrl } from './api'
+import { minify } from 'csso'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -381,13 +382,14 @@ export default class Note {
       this.status.setStatus('Uploading CSS attachments...')
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
-      const cssHash = await sha1(this.css)
+      const minified = minify(this.css).css
+      const cssHash = await sha1(minified)
       try {
         await this.plugin.api.upload({
           filetype: 'css',
           hash: cssHash,
-          content: this.css,
-          byteLength: this.css.length
+          content: minified,
+          byteLength: minified.length
         })
 
         // Store the CSS theme in the settings
