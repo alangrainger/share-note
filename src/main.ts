@@ -215,12 +215,25 @@ export default class SharePlugin extends Plugin {
   }
 
   addShareIcons () {
-    // I tried using onLayoutReady() here rather than a timeout, but it did not work.
+    // I tried using onLayoutReady() here rather than a timeout/interval, but it did not work.
     // It seems that the layout is still updating even after it is "ready".
-    setTimeout(() => {
+    let count = 0
+    const timer = setInterval(() => {
+      count++
+      if (count > 5) {
+        clearInterval(timer)
+        return
+      }
+      const activeFile = this.app.workspace.getActiveFile()
+      if (!activeFile) return
+      const shareLink = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[this.field(YamlField.link)]
+      if (!shareLink) return
       document.querySelectorAll(`div.metadata-property[data-property-key="${this.field(YamlField.link)}"]`)
         .forEach(propertyEl => {
           const valueEl = propertyEl.querySelector('div.metadata-property-value')
+          const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
+          if (linkEl?.innerText !== shareLink) return
+          // Remove existing elements
           // valueEl?.querySelectorAll('div.share-note-icons').forEach(el => el.remove())
           if (valueEl && !valueEl.querySelector('div.share-note-icons')) {
             const iconsEl = document.createElement('div')
@@ -235,24 +248,18 @@ export default class SharePlugin extends Plugin {
             copyIcon.title = 'Copy link to clipboard'
             setIcon(copyIcon, 'copy')
             copyIcon.onclick = async () => {
-              const link = propertyEl.querySelector('div.metadata-link-inner.external-link') as HTMLElement
-              if (link) {
-                await navigator.clipboard.writeText(link.innerText)
-                new StatusMessage('📋 Shared link copied to clipboard')
-              }
+              await navigator.clipboard.writeText(shareLink)
+              new StatusMessage('📋 Shared link copied to clipboard')
             }
-            const sharedFile = this.hasSharedFile()
-            if (sharedFile) {
-              // Delete shared note icon
-              const deleteIcon = iconsEl.createEl('span')
-              deleteIcon.title = 'Delete shared note'
-              setIcon(deleteIcon, 'trash-2')
-              deleteIcon.onclick = () => this.deleteSharedNote(sharedFile.file)
-            }
+            // Delete shared note icon
+            const deleteIcon = iconsEl.createEl('span')
+            deleteIcon.title = 'Delete shared note'
+            setIcon(deleteIcon, 'trash-2')
+            deleteIcon.onclick = () => this.deleteSharedNote(activeFile)
             valueEl.prepend(iconsEl)
           }
         })
-    }, 200)
+    }, 100)
   }
 
   /**
