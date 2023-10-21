@@ -220,7 +220,7 @@ export default class SharePlugin extends Plugin {
     let count = 0
     const timer = setInterval(() => {
       count++
-      if (count > 5) {
+      if (count > 8) {
         clearInterval(timer)
         return
       }
@@ -259,7 +259,7 @@ export default class SharePlugin extends Plugin {
             valueEl.prepend(iconsEl)
           }
         })
-    }, 100)
+    }, 50)
   }
 
   /**
