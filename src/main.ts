@@ -59,11 +59,6 @@ export default class SharePlugin extends Plugin {
       }
     })
 
-    // Add share icons to properties panel
-    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      this.addShareIcons()
-    }))
-
     // Add command - Share note
     this.addCommand({
       id: 'share-note',
@@ -120,6 +115,11 @@ export default class SharePlugin extends Plugin {
         }
       })
     )
+
+    // Add share icons to properties panel
+    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
+      this.addShareIcons()
+    }))
   }
 
   onunload () {
@@ -220,7 +220,7 @@ export default class SharePlugin extends Plugin {
     let count = 0
     const timer = setInterval(() => {
       count++
-      if (count > 5) {
+      if (count > 8) {
         clearInterval(timer)
         return
       }
@@ -259,7 +259,7 @@ export default class SharePlugin extends Plugin {
             valueEl.prepend(iconsEl)
           }
         })
-    }, 100)
+    }, 50)
   }
 
   /**

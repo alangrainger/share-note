@@ -1,6 +1,6 @@
 {
 	"name": "share-note",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"description": "Instantly share a note, with the full theme and content exactly like you see in Reading View. Data is shared encrypted by default, and only you and the person you send it to have the key.",
 	"main": "main.js",
 	"scripts": {
@@ -12,6 +12,7 @@
 	"author": "Alan Grainger",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/csso": "^5.0.2",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
@@ -24,6 +25,7 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"csso": "^5.0.5",
 		"data-uri-to-buffer": "^6.0.1"
 	}
 }
