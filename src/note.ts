@@ -72,18 +72,19 @@ export default class Note {
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
+    await new Promise(resolve => setTimeout(resolve, 40))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
-    this.status.setStatus('Processing note...')
+    await new Promise(resolve => setTimeout(resolve, 40))
     try {
+      // @ts-ignore - view.modes
+      const renderer = this.leaf.view.modes.preview.renderer
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
-      const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
-      if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
-      const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
-      if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
+      this.elements.push(getElementStyle('preview', renderer.previewEl))
+      this.elements.push(getElementStyle('pusher', renderer.pusherEl))
       this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view), 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
@@ -101,8 +102,9 @@ export default class Note {
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
+    setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
+    this.status.setStatus('Processing note...')
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
       // No active file

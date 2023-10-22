@@ -59,11 +59,6 @@ export default class SharePlugin extends Plugin {
       }
     })
 
-    // Add share icons to properties panel
-    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      this.addShareIcons()
-    }))
-
     // Add command - Share note
     this.addCommand({
       id: 'share-note',
@@ -120,6 +115,11 @@ export default class SharePlugin extends Plugin {
         }
       })
     )
+
+    // Add share icons to properties panel
+    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
+      this.addShareIcons()
+    }))
   }
 
   onunload () {
