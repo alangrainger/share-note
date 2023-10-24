@@ -87,7 +87,12 @@ export default class API {
         if (error.status < 500 || retries <= 1) {
           const message = error.headers?.message
           if (message) {
-            new StatusMessage(message, StatusType.Error)
+            if (error.status === 462) {
+              // Invalid API key, request a new one
+              this.plugin.authRedirect('share').then()
+            } else {
+              new StatusMessage(message, StatusType.Error)
+            }
             throw new Error('Known error')
           }
           throw new Error('Unknown error')

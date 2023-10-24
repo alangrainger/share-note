@@ -206,7 +206,7 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('User ID')
-      .setDesc('If you need it for debugging purposes, this is your user ID')
+      .setDesc('If you need it for debugging purposes, this is your user ID. Do not post this publicly on the forums or Github.')
       .addText(text => text
         .setValue(this.plugin.settings.uid)
         .setDisabled(true))
