@@ -61,7 +61,6 @@ export default class Note {
   async share () {
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
-      window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
       return
     }
 

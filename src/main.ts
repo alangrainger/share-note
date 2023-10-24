@@ -269,6 +269,7 @@ export default class SharePlugin extends Plugin {
   async authRedirect (value: string | null) {
     this.settings.authRedirect = value
     await this.saveSettings()
+    if (value) window.open(this.settings.server + '/v1/account/get-key?id=' + this.settings.uid)
   }
 
   hasSharedFile (file?: TFile) {
