@@ -5,7 +5,7 @@ If your shared note isn't displaying correctly, before creating an Issue try the
 1. Change to Reading mode.
 2. Scroll to the top of the note.
 3. Use the command `Force re-upload of all data for this note`.
-4. Refresh the shared note a few times to make sure you're seeing the latest copy rather than a cached copy.
+4. **Open the shared note in a "Private Browsing" or "Incognito" window** to ensure that it's not a caching issue in your local browser.
 
 And see if that gets the note to share correctly.
 
