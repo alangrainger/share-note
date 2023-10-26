@@ -8,6 +8,7 @@ import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
 import { parseExistingShareUrl } from './api'
 import { minify } from 'csso'
+import DurationConstructor = moment.unitOfTime.DurationConstructor
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -27,6 +28,25 @@ export interface SharedNote extends SharedUrl {
   file: TFile
 }
 
+export interface PreviewSection {
+  el: HTMLElement
+}
+
+export interface Renderer {
+  parsing: boolean,
+  pusherEl: HTMLElement,
+  previewEl: HTMLElement,
+  sections: PreviewSection[]
+}
+
+export interface ViewModes extends View {
+  modes: {
+    preview: {
+      renderer: Renderer
+    }
+  }
+}
+
 export default class Note {
   plugin: SharePlugin
   leaf: WorkspaceLeaf
@@ -41,12 +61,15 @@ export default class Note {
   isUploadCss = false
   template: NoteTemplate
   elements: ElementStyle[]
+  expiration?: string
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
-    this.template = new NoteTemplate()
+    this.expiration = this.getExpiration()
     this.elements = []
+    this.template = new NoteTemplate()
+    this.template.expiration = this.expiration
   }
 
   /**
@@ -54,7 +77,7 @@ export default class Note {
    * @param key
    * @return {string} The name (key) of a frontmatter property
    */
-  field (key: YamlField) {
+  field (key: YamlField): string {
     return this.plugin.field(key)
   }
 
@@ -77,14 +100,14 @@ export default class Note {
     this.leaf.view.previewMode.applyScroll(0)
     await new Promise(resolve => setTimeout(resolve, 40))
     try {
-      // @ts-ignore - view.modes
-      const renderer = this.leaf.view.modes.preview.renderer
+      const view = this.leaf.view as ViewModes
+      const renderer = view.modes.preview.renderer
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
       this.elements.push(getElementStyle('preview', renderer.previewEl))
       this.elements.push(getElementStyle('pusher', renderer.pusherEl))
-      this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view), 'text/html')
+      this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view as ViewModes), 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
         .forEach(x => Array.from(x.cssRules)
@@ -306,7 +329,8 @@ export default class Note {
             filetype,
             hash,
             content,
-            byteLength: content.byteLength
+            byteLength: content.byteLength,
+            expiration: this.expiration
           },
           callback: (url) => el.setAttribute('src', url)
         })
@@ -351,7 +375,8 @@ export default class Note {
                   filetype,
                   hash,
                   content: parsed.buffer,
-                  byteLength: parsed.buffer.byteLength
+                  byteLength: parsed.buffer.byteLength,
+                  expiration: this.expiration
                 },
                 callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
               })
@@ -372,7 +397,8 @@ export default class Note {
                   filetype: filename[2],
                   hash,
                   content: contents,
-                  byteLength: contents.byteLength
+                  byteLength: contents.byteLength,
+                  expiration: this.expiration
                 },
                 callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
               })
@@ -390,7 +416,8 @@ export default class Note {
           filetype: 'css',
           hash: cssHash,
           content: minified,
-          byteLength: minified.length
+          byteLength: minified.length,
+          expiration: this.expiration
         })
 
         // Store the CSS theme in the settings
@@ -401,8 +428,7 @@ export default class Note {
     }
   }
 
-  async querySelectorAll (view: View) {
-    // @ts-ignore // 'view.modes'
+  async querySelectorAll (view: ViewModes) {
     const renderer = view.modes.preview.renderer
     let html = ''
     await new Promise<void>(resolve => {
@@ -417,7 +443,7 @@ export default class Note {
             // Check the final sections to see if they have rendered
             let rendered = 0
             if (sections.length > 12) {
-              sections.slice(sections.length - 7, sections.length - 1).forEach((section: { el: HTMLElement }) => {
+              sections.slice(sections.length - 7, sections.length - 1).forEach((section: PreviewSection) => {
                 if (section.el.innerHTML) rendered++
               })
               if (rendered > 3) count = 100
@@ -456,9 +482,16 @@ export default class Note {
    * @param {string} mimeType
    * @return {string|undefined}
    */
-  extensionFromMime (mimeType: string) {
+  extensionFromMime (mimeType: string): string | undefined {
     const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
+  }
+
+  /**
+   * Get the value of a frontmatter property
+   */
+  getProperty (field: YamlField) {
+    return this.meta?.frontmatter?.[this.plugin.field(field)]
   }
 
   /**
@@ -480,5 +513,20 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
+  }
+
+  /**
+   * Calculate an expiry datetime from the provided expiry duration
+   */
+  getExpiration () {
+    const whitelist = ['minute', 'hour', 'day', 'month']
+    const expiration = this.getProperty(YamlField.expires) || this.plugin.settings.expiry
+    if (expiration) {
+      // Check for sanity against expected format
+      const match = expiration.match(/^(\d+) ([a-z]+?)s?$/)
+      if (match && whitelist.includes(match[2])) {
+        return moment().add(+match[1], (match[2] + 's') as DurationConstructor).format()
+      }
+    }
   }
 }

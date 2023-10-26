@@ -16,6 +16,7 @@ export type UploadData = {
   template?: NoteTemplate
   encoding?: string
   encrypted?: boolean
+  expiration?: string
 }
 
 export interface FileUpload {
@@ -23,6 +24,7 @@ export interface FileUpload {
   hash: string
   content?: ArrayBuffer
   byteLength: number
+  expiration?: string
   url?: string | null
 }
 
