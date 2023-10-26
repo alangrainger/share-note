@@ -35,5 +35,4 @@ export default class NoteTemplate {
   encrypted: boolean
   content: string
   mathJax: boolean
-  expiration?: string
 }

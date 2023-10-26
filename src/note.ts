@@ -61,15 +61,13 @@ export default class Note {
   isUploadCss = false
   template: NoteTemplate
   elements: ElementStyle[]
-  expiration?: string
+  expiration?: number
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
-    this.expiration = this.getExpiration()
     this.elements = []
     this.template = new NoteTemplate()
-    this.template.expiration = this.expiration
   }
 
   /**
@@ -196,6 +194,9 @@ export default class Note {
       el.removeAttribute('target')
     }
 
+    // Note options
+    this.expiration = this.getExpiration()
+
     // Process CSS and images
     const uploadResult = await this.processMedia()
     if (!uploadResult?.css?.url) {
@@ -277,7 +278,7 @@ export default class Note {
 
     // Share the file
     this.status.setStatus('Uploading note...')
-    let shareLink = await this.plugin.api.createNote(this.template)
+    let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
     requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
 
     // Add the decryption key to the share link
@@ -525,7 +526,7 @@ export default class Note {
       // Check for sanity against expected format
       const match = expiration.match(/^(\d+) ([a-z]+?)s?$/)
       if (match && whitelist.includes(match[2])) {
-        return moment().add(+match[1], (match[2] + 's') as DurationConstructor).format()
+        return parseInt(moment().add(+match[1], (match[2] + 's') as DurationConstructor).format('x'), 10)
       }
     }
   }
