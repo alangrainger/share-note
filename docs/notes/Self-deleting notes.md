@@ -1,7 +1,7 @@
 ---
 title: Self-deleting / expiring notes
 category: notes
-permalink: /:path/:slug
+permalink: /notes/self-deleting-notes
 ---
 You can specify an expiry time if you want your note to automatically disappear / delete after the time has expired.
 
