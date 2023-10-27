@@ -1,3 +1,6 @@
+---
+title: Self-deleting / expiring notes
+---
 # Self-deleting / expiring notes
 
 You can specify an expiry time if you want your note to automatically disappear / delete after the time has expired.
