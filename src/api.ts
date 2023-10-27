@@ -16,6 +16,7 @@ export type UploadData = {
   template?: NoteTemplate
   encoding?: string
   encrypted?: boolean
+  expiration?: number
 }
 
 export interface FileUpload {
@@ -23,6 +24,7 @@ export interface FileUpload {
   hash: string
   content?: ArrayBuffer
   byteLength: number
+  expiration?: number
   url?: string | null
 }
 
@@ -32,6 +34,7 @@ export type PostData = {
   filetype?: string
   hash?: string
   byteLength?: number
+  expiration?: number
   template?: NoteTemplate
   debug?: number
 }
@@ -205,11 +208,12 @@ export default class API {
     }
   }
 
-  async createNote (template: NoteTemplate) {
+  async createNote (template: NoteTemplate, expiration?: number) {
     const res = await this.post('/v1/file/create-note', {
       filename: template.filename,
       filetype: 'html',
       hash: await sha1(template.content),
+      expiration,
       template
     }, 3)
     return res.url

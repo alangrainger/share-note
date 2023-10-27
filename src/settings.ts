@@ -18,7 +18,8 @@ export enum YamlField {
   updated,
   encrypted,
   unencrypted,
-  title
+  title,
+  expires
 }
 
 export interface ShareSettings {
@@ -31,6 +32,7 @@ export interface ShareSettings {
   themeMode: ThemeMode;
   titleSource: TitleSource;
   removeYaml: boolean;
+  expiry: string;
   clipboard: boolean;
   shareUnencrypted: boolean;
   authRedirect: string | null;
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   themeMode: ThemeMode['Same as theme'],
   titleSource: TitleSource['Note title'],
   removeYaml: true,
+  expiry: '',
   clipboard: true,
   shareUnencrypted: false,
   authRedirect: null,
@@ -105,7 +108,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setHeading()
 
     new Setting(containerEl)
-      .setName(`⭐ Your shared note theme is "${this.plugin.settings.theme || 'Default theme'}"`)
+      .setName(`⭐ Your shared note theme is "${this.plugin.settings.theme || 'Obsidian default theme'}"`)
       .setDesc('To set a new theme, change the theme in Obsidian to your desired theme and then use the `Force re-upload all data` command. You can change your Obsidian theme after that without affecting the theme for your shared notes.')
 
     // Choose light/dark theme mode
@@ -123,6 +126,23 @@ export class ShareSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           })
       })
+
+    // Copy to clipboard
+    new Setting(containerEl)
+      .setName('Copy the link to clipboard after sharing')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.clipboard)
+          .onChange(async (value) => {
+            this.plugin.settings.clipboard = value
+            await this.plugin.saveSettings()
+            this.display()
+          })
+      })
+
+    new Setting(containerEl)
+      .setName('Note options')
+      .setHeading()
 
     // Title source
     const defaultTitleDesc = 'Select the location to source the published note title. It will default to the note title if nothing is found for the selected option.'
@@ -173,19 +193,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           })
       })
 
-    // Copy to clipboard
-    new Setting(containerEl)
-      .setName('Copy the link to clipboard after sharing')
-      .addToggle(toggle => {
-        toggle
-          .setValue(this.plugin.settings.clipboard)
-          .onChange(async (value) => {
-            this.plugin.settings.clipboard = value
-            await this.plugin.saveSettings()
-            this.display()
-          })
-      })
-
     // Share encrypted by default
     new Setting(containerEl)
       .setName('Share as encrypted by default')
@@ -200,15 +207,24 @@ export class ShareSettingsTab extends PluginSettingTab {
           })
       })
 
+    // Default note expiry
     new Setting(containerEl)
-      .setName('Debug info')
-      .setHeading()
-
-    new Setting(containerEl)
-      .setName('User ID')
-      .setDesc('If you need it for debugging purposes, this is your user ID')
+      .setName('Default note expiry')
+      .setDesc('If you want, your notes can auto-delete themselves after a period of time. You can set this as a default for all notes here, or you can set it on a per-note basis.')
       .addText(text => text
-        .setValue(this.plugin.settings.uid)
-        .setDisabled(true))
+        .setValue(this.plugin.settings.expiry)
+        .onChange(async (value) => {
+          this.plugin.settings.expiry = value
+          await this.plugin.saveSettings()
+        }))
+      .then(setting => addDocs(setting, 'https://docs.note.sx/notes/self-deleting-notes'))
   }
+}
+
+function addDocs (setting: Setting, url: string) {
+  setting.descEl.createEl('br')
+  setting.descEl.createEl('a', {
+    text: 'View the documentation',
+    href: url
+  })
 }
