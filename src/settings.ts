@@ -217,7 +217,7 @@ export class ShareSettingsTab extends PluginSettingTab {
           this.plugin.settings.expiry = value
           await this.plugin.saveSettings()
         }))
-      .then(setting => addDocs(setting, 'https://github.com/alangrainger/obsidian-share/blob/main/docs/Self-deleting%20notes.md'))
+      .then(setting => addDocs(setting, 'https://docs.note.sx/notes/self-deleting-notes'))
   }
 }
 
