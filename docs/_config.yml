@@ -1,5 +1,4 @@
-remote_theme: pages-themes/cayman@v0.2.0
+remote_theme: pages-themes/midnight@v0.2.0
 plugins:
 - jekyll-remote-theme # add this line to the plugins list if you already have one
 title: Share Note for Obsidian
-description: Instantly share an Obsidian note with the full theme exactly like you see in your vault. Data is shared encrypted by default, and only you and the person you send it to have the key.
