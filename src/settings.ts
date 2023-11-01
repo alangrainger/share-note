@@ -206,6 +206,7 @@ export class ShareSettingsTab extends PluginSettingTab {
             this.display()
           })
       })
+      .then(setting => addDocs(setting, 'https://docs.note.sx/notes/encryption'))
 
     // Default note expiry
     new Setting(containerEl)
