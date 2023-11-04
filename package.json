@@ -22,7 +22,8 @@
 		"eslint-config-standard": "^17.1.0",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
-		"typescript": "4.7.4"
+		"typescript": "4.7.4",
+		"browser-image-compression": "^2.0.2"
 	},
 	"dependencies": {
 		"csso": "^5.0.5",
