@@ -9,7 +9,6 @@ import FileTypes from './libraries/FileTypes'
 import { parseExistingShareUrl } from './api'
 import { minify } from 'csso'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
-import { compressImage } from './Compressor'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
