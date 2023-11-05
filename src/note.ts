@@ -9,6 +9,7 @@ import FileTypes from './libraries/FileTypes'
 import { parseExistingShareUrl } from './api'
 import { minify } from 'csso'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
+import { compressImage } from './Compressor'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -321,11 +322,11 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const content = await FileSystemAdapter.readLocalFile(localFile)
-      const hash = await sha1(content)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        this.plugin.api.queueUpload({
+        const content = await FileSystemAdapter.readLocalFile(localFile)
+        const hash = await sha1(content)
+        await this.plugin.api.queueUpload({
           data: {
             filetype,
             hash,
@@ -371,7 +372,7 @@ export default class Note {
             const filetype = this.extensionFromMime(parsed.type)
             if (filetype) {
               const hash = await sha1(parsed.buffer)
-              this.plugin.api.queueUpload({
+              await this.plugin.api.queueUpload({
                 data: {
                   filetype,
                   hash,
@@ -393,7 +394,7 @@ export default class Note {
               // Reupload to the server
               const contents = await res.arrayBuffer()
               const hash = await sha1(contents)
-              this.plugin.api.queueUpload({
+              await this.plugin.api.queueUpload({
                 data: {
                   filetype: filename[2],
                   hash,
