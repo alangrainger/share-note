@@ -15,8 +15,8 @@ async function compressArrayBuffer (data: ArrayBuffer, mimeType: string, options
 }
 
 export async function compressImage (data: ArrayBuffer, filetype: string) {
-  const originalData = data
   const type = types[filetype]
+  let changed = false
 
   // Only compress supported images, and only if above 100Kb
   if (type && data.byteLength > 100 * 1024) {
@@ -29,6 +29,7 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
         fileType: type
       }
 
+      const originalData = data
       data = await compressArrayBuffer(data, type, defaultOptions)
 
       // If size is >200Kb, test compressing the file as JPG and see how the size compares
@@ -46,6 +47,7 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
         // New file is bigger, return the original file
         data = originalData
       }
+      changed = data.byteLength !== originalData.byteLength
     } catch (e) {
       console.log(e)
     }
@@ -54,6 +56,6 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
   return {
     data,
     filetype,
-    changed: data.byteLength !== originalData.byteLength
+    changed
   }
 }
