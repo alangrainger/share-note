@@ -22,3 +22,5 @@ data.json
 .DS_Store
 
 test
+docs/.sass-cache/
+docs/_site/

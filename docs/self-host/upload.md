@@ -1,3 +1,7 @@
+---
+title: Upload
+parent: Running your own server
+---
 # Upload file
 
 Upload a file to the server. Binary files are encoded in base64 and sent as a string.

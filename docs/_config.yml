@@ -1,2 +1,15 @@
-title: Share Note for Obsidian
+theme: just-the-docs
+title: Share Note
 description: 
+enable_copy_code_button: true
+color_scheme: light
+callouts:
+  note:
+    title: Note
+    color: blue
+  warning:
+    title: Warning
+    color: red
+  info:
+    title: Info
+    color: yellow
