@@ -1,5 +1,5 @@
 /*
-In this file I am creating various UI components. I'm choosing to do this _from Markdown_,
+In this file I am creating various UI components. I'm choosing to do this from Markdown
 rather than creating the components myself as HTML elements.
 
 Two main reasons:

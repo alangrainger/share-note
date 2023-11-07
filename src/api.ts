@@ -64,6 +64,15 @@ export default class API {
     }
   }
 
+  async get (endpoint: string) {
+    const res = await requestUrl({
+      url: this.plugin.settings.server + endpoint,
+      method: 'GET',
+      headers: await this.authHeaders()
+    })
+    return res.json
+  }
+
   async post (endpoint: string, data?: PostData, retries = 1) {
     const headers: HeadersInit = {
       ...(await this.authHeaders()),

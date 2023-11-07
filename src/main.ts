@@ -5,6 +5,7 @@ import API, { parseExistingShareUrl } from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import UI from './UI'
+import NoteManagement from './NoteManagement'
 
 export default class SharePlugin extends Plugin {
   settings: ShareSettings
@@ -35,6 +36,9 @@ export default class SharePlugin extends Plugin {
     // Initialise the backend API
     this.api = new API(this)
     this.ui = new UI(this.app)
+
+    const manage = new NoteManagement(this)
+    console.log(await manage.getNotes())
 
     // To get an API key, we send the user to a Cloudflare Turnstile page to verify they are a human,
     // as a way to prevent abuse. The key is then sent back to Obsidian via this URI handler.
