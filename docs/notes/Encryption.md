@@ -1,4 +1,5 @@
 ---
+parent: Notes
 title: Encryption
 category: notes
 permalink: /notes/encryption

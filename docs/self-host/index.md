@@ -1,3 +1,7 @@
+---
+title: Running your own server
+has_children: true
+---
 # Running your own server
 
 The system itself is very simple - to run your own server you'll just need something which can accept a POST request and save a file.

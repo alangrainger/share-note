@@ -1,4 +1,8 @@
-## Example server implementation
+---
+parent: Running your own server
+title: Example server implementation
+---
+# {{ page.title }}
 
 > ⚠️ **WARNING!** This code should not be used as-is to implement a service for the public. It is fine for private use.
 

@@ -1,4 +1,5 @@
 ---
+parent: Notes
 title: Theme
 category: notes
 permalink: /notes/theme

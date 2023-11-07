@@ -1,4 +1,5 @@
 ---
+parent: Notes
 title: Self-deleting / expiring notes
 category: notes
 permalink: /notes/self-deleting-notes
