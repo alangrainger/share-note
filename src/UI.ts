@@ -17,11 +17,45 @@ I realise this is an unusual approach to the UI problem and that it adds a perfo
 overhead. Time will tell if it's a good idea!
 */
 
-import { Component, MarkdownRenderer } from 'obsidian'
+import { App, Modal, Setting, Component, MarkdownRenderer } from 'obsidian'
 
-async function renderElement (containerEl: HTMLElement, markdown: string) {
-  // @ts-ignore - I haven't imported `app`, but it doesn't seem to have any ill effects
-  await MarkdownRenderer.render(null, markdown, containerEl, '', new Component()).then()
+class ConfirmDialog extends Modal {
+  app: App
+  onConfirm: () => void
+  title?: string
+  body?: string
+
+  constructor (app: App, onConfirm: () => void) {
+    super(app)
+    this.onConfirm = onConfirm
+  }
+
+  onOpen () {
+    const { contentEl } = this
+
+    if (this.title) {
+      contentEl.createEl('h2', { text: this.title })
+    }
+    if (this.body) {
+      contentEl.createEl('p', { text: this.body })
+    }
+
+    new Setting(contentEl)
+      .addButton(btn =>
+        btn
+          .setButtonText('🗑️ Yes, delete')
+          .setCta()
+          .onClick(() => {
+            this.close()
+            this.onConfirm()
+          }))
+      .addButton(btn =>
+        btn
+          .setButtonText('No, cancel')
+          .onClick(() => {
+            this.close()
+          }))
+  }
 }
 
 export enum CalloutType {
@@ -30,13 +64,25 @@ export enum CalloutType {
   collapsed
 }
 
-class Callout {
+class UIElement {
+  app: App
   containerEl: HTMLDivElement
 
-  constructor (contents?: HTMLDivElement, type: CalloutType = CalloutType.expanded) {
+  constructor (app: App) {
+    this.app = app
+  }
+
+  async renderElement (containerEl: HTMLElement, markdown: string) {
+    await MarkdownRenderer.render(this.app, markdown, containerEl, '', new Component())
+  }
+}
+
+class Callout extends UIElement {
+  constructor (app: App, contents?: HTMLDivElement, type: CalloutType = CalloutType.expanded) {
+    super(app)
     this.containerEl = document.createElement('div')
     const typeChar = type === CalloutType.expanded ? '+' : type === CalloutType.collapsed ? '-' : ''
-    renderElement(this.containerEl, `> [!info]${typeChar} Title\n> Content`)
+    this.renderElement(this.containerEl, `> [!info]${typeChar} Title\n> Content`)
       .then(() => {
         if (contents) this.setContents(contents)
       })
@@ -51,22 +97,40 @@ class Callout {
   }
 }
 
-class Table {
-  containerEl: HTMLDivElement
-
-  constructor () {
+class Table extends UIElement {
+  constructor (app: App) {
+    super(app)
     this.containerEl = document.createElement('div')
     this.render().then()
   }
 
   async render () {
     this.containerEl.empty()
-    // renderElement(this.containerEl, '| Col1 | Col2 |\n|---|---|\n| Some data | More data |')
-    await renderElement(this.containerEl, 'sdfg sdfg ')
+    await this.renderElement(this.containerEl, '| Col1 | Col2 |\n|---|---|\n| Some data | More data |')
   }
 }
 
-export default {
-  Callout,
-  Table
+export default class UI {
+  app: App
+  Callout: Callout
+
+  constructor (app: App) {
+    this.app = app
+  }
+
+  confirmDialog (title = '', body = '', onConfirm: () => void) {
+    const dialog = new ConfirmDialog(this.app, onConfirm)
+    dialog.title = title
+    dialog.body = body
+    dialog.open()
+    return dialog
+  }
+
+  createTable () {
+    return new Table(this.app)
+  }
+
+  createCallout () {
+    return new Callout(this.app)
+  }
 }

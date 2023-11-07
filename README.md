@@ -1,6 +1,6 @@
 # Share Note
 
-Instantly share a note, with optional encryption. Notes are shared with your full theme and should look identical to how they do in your Obsidian vault.
+Instantly share / publish a note. Notes are shared with your full theme and should look identical to how they look in your Obsidian vault.
 
 - [💬 Obsidian forum link for this plugin](https://forum.obsidian.md/t/42788)
 - [🚀 Request new features / see the roadmap](https://note.sx/roadmap)

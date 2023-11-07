@@ -3,6 +3,8 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NoteTemplate from './NoteTemplate'
+import { SharedUrl } from './note'
+import { compressImage } from './Compressor'
 
 const pluginVersion = require('../manifest.json').version
 
@@ -15,6 +17,7 @@ export type UploadData = {
   template?: NoteTemplate
   encoding?: string
   encrypted?: boolean
+  expiration?: number
 }
 
 export interface FileUpload {
@@ -22,6 +25,7 @@ export interface FileUpload {
   hash: string
   content?: ArrayBuffer
   byteLength: number
+  expiration?: number
   url?: string | null
 }
 
@@ -31,7 +35,9 @@ export type PostData = {
   filetype?: string
   hash?: string
   byteLength?: number
+  expiration?: number
   template?: NoteTemplate
+  debug?: number
 }
 
 export interface UploadQueueItem {
@@ -65,6 +71,9 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body = Object.assign({}, data)
+    if (this.plugin.settings.debug) body.debug = this.plugin.settings.debug
+
+    // Upload the data
     while (retries > 0) {
       try {
         const res = await requestUrl({
@@ -73,12 +82,21 @@ export default class API {
           headers,
           body: JSON.stringify(body)
         })
+        if (this.plugin.settings.debug === 1 && data?.filetype === 'html') {
+          // Debugging option
+          console.log(res.json.html)
+        }
         return res.json
       } catch (error) {
         if (error.status < 500 || retries <= 1) {
           const message = error.headers?.message
           if (message) {
-            new StatusMessage(message, StatusType.Error)
+            if (error.status === 462) {
+              // Invalid API key, request a new one
+              this.plugin.authRedirect('share').then()
+            } else {
+              new StatusMessage(message, StatusType.Error)
+            }
             throw new Error('Known error')
           }
           throw new Error('Unknown error')
@@ -124,7 +142,16 @@ export default class API {
     }
   }
 
-  queueUpload (item: UploadQueueItem) {
+  async queueUpload (item: UploadQueueItem) {
+    // Compress the data if possible
+    if (item.data.content) {
+      const compressed = await compressImage(item.data.content, item.data.filetype)
+      if (compressed.changed) {
+        item.data.content = compressed.data
+        item.data.filetype = compressed.filetype
+        item.data.hash = await sha1(compressed.data)
+      }
+    }
     this.uploadQueue.push(item)
   }
 
@@ -191,13 +218,37 @@ export default class API {
     }
   }
 
-  async createNote (template: NoteTemplate) {
+  async createNote (template: NoteTemplate, expiration?: number) {
     const res = await this.post('/v1/file/create-note', {
       filename: template.filename,
       filetype: 'html',
       hash: await sha1(template.content),
+      expiration,
       template
     }, 3)
     return res.url
   }
+
+  async deleteSharedNote (shareUrl: string) {
+    const url = parseExistingShareUrl(shareUrl)
+    if (url) {
+      await this.post('/v1/file/delete', {
+        filename: url.filename,
+        filetype: 'html'
+      })
+      new StatusMessage('The note has been deleted 🗑️', StatusType.Info)
+    }
+  }
+}
+
+export function parseExistingShareUrl (url: string): SharedUrl | false {
+  const match = url.match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+  if (match) {
+    return {
+      filename: match[1],
+      decryptionKey: match[2].slice(1) || '',
+      url
+    }
+  }
+  return false
 }

@@ -1,4 +1,4 @@
-import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -6,6 +6,9 @@ import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
+import { parseExistingShareUrl } from './api'
+import { minify } from 'csso'
+import DurationConstructor = moment.unitOfTime.DurationConstructor
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -13,6 +16,35 @@ const cssAttachmentWhitelist: { [key: string]: string[] } = {
   woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
   woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
   svg: ['image/svg+xml']
+}
+
+export interface SharedUrl {
+  filename: string
+  decryptionKey: string
+  url: string
+}
+
+export interface SharedNote extends SharedUrl {
+  file: TFile
+}
+
+export interface PreviewSection {
+  el: HTMLElement
+}
+
+export interface Renderer {
+  parsing: boolean,
+  pusherEl: HTMLElement,
+  previewEl: HTMLElement,
+  sections: PreviewSection[]
+}
+
+export interface ViewModes extends View {
+  modes: {
+    preview: {
+      renderer: Renderer
+    }
+  }
 }
 
 export default class Note {
@@ -27,15 +59,15 @@ export default class Note {
   isForceUpload = false
   isForceClipboard = false
   isUploadCss = false
-  uploadedFiles: string[]
   template: NoteTemplate
   elements: ElementStyle[]
+  expiration?: number
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     this.leaf = this.plugin.app.workspace.getLeaf()
-    this.template = new NoteTemplate()
     this.elements = []
+    this.template = new NoteTemplate()
   }
 
   /**
@@ -43,41 +75,37 @@ export default class Note {
    * @param key
    * @return {string} The name (key) of a frontmatter property
    */
-  field (key: YamlField) {
+  field (key: YamlField): string {
     return this.plugin.field(key)
   }
 
   async share () {
-    // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Sharing note...', StatusType.Default, 60 * 1000)
-
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect('share').then()
-      window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
       return
     }
 
-    this.uploadedFiles = []
+    // Create a semi-permanent status notice which we can update
+    this.status = new StatusMessage('Parsing note content, please do not change to another note while this message is displayed.', StatusType.Default, 60 * 1000)
+
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
     previewMode.state.mode = 'preview'
     await this.leaf.setViewState(previewMode)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 40))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore // 'view.previewMode'
     this.leaf.view.previewMode.applyScroll(0)
-    // Even though we 'await', sometimes the view isn't ready. This helps reduce no-content errors
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 40))
     try {
+      const view = this.leaf.view as ViewModes
+      const renderer = view.modes.preview.renderer
       // Copy classes and styles
+      this.elements.push(getElementStyle('html', document.documentElement))
       this.elements.push(getElementStyle('body', document.body))
-      const previewEl = this.leaf.view.containerEl.querySelector('.markdown-preview-view.markdown-rendered')
-      if (previewEl) this.elements.push(getElementStyle('preview', previewEl as HTMLElement))
-      const pusherEl = this.leaf.view.containerEl.querySelector('.markdown-preview-pusher')
-      if (pusherEl) this.elements.push(getElementStyle('pusher', pusherEl as HTMLElement))
-      // @ts-ignore // 'view.modes'
-      const noteHtml = this.leaf.view.modes.preview.renderer.sections.reduce((p, c) => p + c.el.outerHTML, '')
-      this.contentDom = new DOMParser().parseFromString(noteHtml, 'text/html')
+      this.elements.push(getElementStyle('preview', renderer.previewEl))
+      this.elements.push(getElementStyle('pusher', renderer.pusherEl))
+      this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view as ViewModes), 'text/html')
       this.cssRules = []
       Array.from(document.styleSheets)
         .forEach(x => Array.from(x.cssRules)
@@ -94,8 +122,9 @@ export default class Note {
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 400)
+    setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
 
+    this.status.setStatus('Processing note...')
     const file = this.plugin.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
       // No active file
@@ -165,6 +194,9 @@ export default class Note {
       el.removeAttribute('target')
     }
 
+    // Note options
+    this.expiration = this.getExpiration()
+
     // Process CSS and images
     const uploadResult = await this.processMedia()
     if (!uploadResult?.css?.url) {
@@ -176,14 +208,13 @@ export default class Note {
      * Encrypt the note contents
      */
 
-    this.status.setStatus('Processing note...')
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = this.meta.frontmatter[this.field(YamlField.link)].match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+      const match = parseExistingShareUrl(this.meta.frontmatter[this.field(YamlField.link)])
       if (match) {
-        this.template.filename = match[1]
-        decryptionKey = match[2].slice(1)
+        this.template.filename = match.filename
+        decryptionKey = match.decryptionKey
       }
     }
     this.template.encrypted = this.isEncrypted
@@ -247,7 +278,7 @@ export default class Note {
 
     // Share the file
     this.status.setStatus('Uploading note...')
-    let shareLink = await this.plugin.api.createNote(this.template)
+    let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
     requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
 
     // Add the decryption key to the share link
@@ -290,16 +321,17 @@ export default class Note {
       const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
       if (!srcMatch) continue
       const localFile = window.decodeURIComponent(srcMatch[1])
-      const content = await FileSystemAdapter.readLocalFile(localFile)
-      const hash = await sha1(content)
       const filetype = localFile.split('.').pop()
       if (filetype) {
-        this.plugin.api.queueUpload({
+        const content = await FileSystemAdapter.readLocalFile(localFile)
+        const hash = await sha1(content)
+        await this.plugin.api.queueUpload({
           data: {
             filetype,
             hash,
             content,
-            byteLength: content.byteLength
+            byteLength: content.byteLength,
+            expiration: this.expiration
           },
           callback: (url) => el.setAttribute('src', url)
         })
@@ -339,12 +371,13 @@ export default class Note {
             const filetype = this.extensionFromMime(parsed.type)
             if (filetype) {
               const hash = await sha1(parsed.buffer)
-              this.plugin.api.queueUpload({
+              await this.plugin.api.queueUpload({
                 data: {
                   filetype,
                   hash,
                   content: parsed.buffer,
-                  byteLength: parsed.buffer.byteLength
+                  byteLength: parsed.buffer.byteLength,
+                  expiration: this.expiration
                 },
                 callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
               })
@@ -360,12 +393,13 @@ export default class Note {
               // Reupload to the server
               const contents = await res.arrayBuffer()
               const hash = await sha1(contents)
-              this.plugin.api.queueUpload({
+              await this.plugin.api.queueUpload({
                 data: {
                   filetype: filename[2],
                   hash,
                   content: contents,
-                  byteLength: contents.byteLength
+                  byteLength: contents.byteLength,
+                  expiration: this.expiration
                 },
                 callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
               })
@@ -376,13 +410,15 @@ export default class Note {
       this.status.setStatus('Uploading CSS attachments...')
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
-      const cssHash = await sha1(this.css)
+      const minified = minify(this.css).css
+      const cssHash = await sha1(minified)
       try {
         await this.plugin.api.upload({
           filetype: 'css',
           hash: cssHash,
-          content: this.css,
-          byteLength: this.css.length
+          content: minified,
+          byteLength: minified.length,
+          expiration: this.expiration
         })
 
         // Store the CSS theme in the settings
@@ -391,6 +427,42 @@ export default class Note {
         await this.plugin.saveSettings()
       } catch (e) { }
     }
+  }
+
+  async querySelectorAll (view: ViewModes) {
+    const renderer = view.modes.preview.renderer
+    let html = ''
+    await new Promise<void>(resolve => {
+      let count = 0
+      let parsing = 0
+      const timer = setInterval(() => {
+        try {
+          const sections = renderer.sections
+          count++
+          if (renderer.parsing) parsing++
+          if (count > parsing) {
+            // Check the final sections to see if they have rendered
+            let rendered = 0
+            if (sections.length > 12) {
+              sections.slice(sections.length - 7, sections.length - 1).forEach((section: PreviewSection) => {
+                if (section.el.innerHTML) rendered++
+              })
+              if (rendered > 3) count = 100
+            } else {
+              count = 100
+            }
+          }
+          if (count > 40) {
+            html = this.reduceSections(renderer.sections)
+            resolve()
+          }
+        } catch (e) {
+          clearInterval(timer)
+          resolve()
+        }
+      }, 100)
+    })
+    return html
   }
 
   getCalloutIcon (test: (selectorText: string) => boolean) {
@@ -402,14 +474,25 @@ export default class Note {
     return ''
   }
 
+  reduceSections (sections: { el: HTMLElement }[]) {
+    return sections.reduce((p: string, c) => p + c.el.outerHTML, '')
+  }
+
   /**
    * Turn the font mime-type into an extension.
    * @param {string} mimeType
    * @return {string|undefined}
    */
-  extensionFromMime (mimeType: string) {
+  extensionFromMime (mimeType: string): string | undefined {
     const mimes = cssAttachmentWhitelist
     return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
+  }
+
+  /**
+   * Get the value of a frontmatter property
+   */
+  getProperty (field: YamlField) {
+    return this.meta?.frontmatter?.[this.plugin.field(field)]
   }
 
   /**
@@ -431,5 +514,20 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
+  }
+
+  /**
+   * Calculate an expiry datetime from the provided expiry duration
+   */
+  getExpiration () {
+    const whitelist = ['minute', 'hour', 'day', 'month']
+    const expiration = this.getProperty(YamlField.expires) || this.plugin.settings.expiry
+    if (expiration) {
+      // Check for sanity against expected format
+      const match = expiration.match(/^(\d+) ([a-z]+?)s?$/)
+      if (match && whitelist.includes(match[2])) {
+        return parseInt(moment().add(+match[1], (match[2] + 's') as DurationConstructor).format('x'), 10)
+      }
+    }
   }
 }
