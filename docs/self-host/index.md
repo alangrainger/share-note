@@ -1,6 +1,7 @@
 ---
 title: Running your own server
 has_children: true
+nav_order: 90
 ---
 # Running your own server
 

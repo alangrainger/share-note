@@ -1,4 +1,8 @@
-# Troubleshooting
+---
+title: Troubleshooting
+nav_order: 5
+---
+# {{ page.title }}
 
 If your shared note isn't displaying correctly, before creating an Issue try these steps first:
 

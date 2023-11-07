@@ -1,4 +1,8 @@
-# Check for existing CSS
+---
+parent: Running your own server
+title: Check for existing CSS
+---
+# {{ page.title }}
 
 Rather than upload large CSS files each time, this will check for existing CSS so that it can be skipped.
 
