@@ -37,8 +37,11 @@ layout: table_wrappers
   {% if site.mermaid %}
     {% include components/mermaid.html %}
   {% endif %}
+
   <script>
-    document.querySelectorAll('li.nav-list-item > button.nav-list-expander')
+    /* Expand the sidebar tree by default */
+    document
+      .querySelectorAll('li.nav-list-item > button.nav-list-expander:not([aria-label="toggle items in Running your own server category"])')
       .forEach(el => el.parentElement.classList.add('active'))
   </script>
 </body>
