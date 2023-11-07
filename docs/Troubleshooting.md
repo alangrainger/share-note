@@ -1,6 +1,7 @@
 ---
 title: Troubleshooting
 nav_order: 5
+permalink: /troubleshooting
 ---
 # {{ page.title }}
 
