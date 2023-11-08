@@ -15,4 +15,4 @@ When the system shares a note it goes through these steps, with the correspondin
     1. [`/v1/file/check-files`](/self-hosting/api/file/check-files) - check which CSS assets do not exist and need to be uploaded
     2. [`/v1/file/upload`](/self-hosting/api/file/upload) - upload any missing CSS assets as well as the `.css` file
 3. Upload the note HTML content:
-    1. [`/v1/file/create-note`]()
+    1. [`/v1/file/create-note`](/self-hosting/api/file/create-note)
