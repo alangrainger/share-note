@@ -105,4 +105,4 @@ If you decide you want to share most notes unencrypted by default, then you can 
 
 ## Troubleshooting
 
-See here: [Troubleshooting](./docs/Troubleshooting.md)
+See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
