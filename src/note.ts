@@ -315,13 +315,24 @@ export default class Note {
     this.status.setStatus('Processing attachments...')
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
-      if (!src || !src.startsWith('app://')) continue
-      const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
-      if (!srcMatch) continue
-      const localFile = window.decodeURIComponent(srcMatch[1])
-      const filetype = localFile.split('.').pop()
-      if (filetype) {
-        const content = await FileSystemAdapter.readLocalFile(localFile)
+      if (!src) continue
+      let content
+      let filepath = ''
+      if (src.startsWith('app://')) {
+        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
+        if (srcMatch) {
+          filepath = window.decodeURIComponent(srcMatch[1])
+          content = await FileSystemAdapter.readLocalFile(filepath)
+        }
+      } else if (src.match(/^https?:\/\/localhost/)) {
+        filepath = src
+        const res = await fetch(filepath)
+        if (res && res.status === 200) {
+          content = await res.arrayBuffer()
+        }
+      }
+      const filetype = filepath.split('.').pop()
+      if (filetype && content) {
         const hash = await sha1(content)
         await this.plugin.api.queueUpload({
           data: {
