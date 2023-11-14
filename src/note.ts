@@ -6,7 +6,7 @@ import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
-import { parseExistingShareUrl } from './api'
+import { CheckFilesResult, parseExistingShareUrl } from './api'
 import { minify } from 'csso'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
 
@@ -53,12 +53,12 @@ export default class Note {
   status: StatusMessage
   css: string
   cssRules: CSSRule[]
+  cssResult: CheckFilesResult['css']
   contentDom: Document
   meta: CachedMetadata | null
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
-  isUploadCss = false
   template: NoteTemplate
   elements: ElementStyle[]
   expiration?: number
@@ -199,9 +199,7 @@ export default class Note {
 
     // Process CSS and images
     const uploadResult = await this.processMedia()
-    if (!uploadResult?.css?.url) {
-      this.isUploadCss = true
-    }
+    this.cssResult = uploadResult.css
     await this.processCss()
 
     /*
@@ -317,13 +315,24 @@ export default class Note {
     this.status.setStatus('Processing attachments...')
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
-      if (!src || !src.startsWith('app://')) continue
-      const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
-      if (!srcMatch) continue
-      const localFile = window.decodeURIComponent(srcMatch[1])
-      const filetype = localFile.split('.').pop()
-      if (filetype) {
-        const content = await FileSystemAdapter.readLocalFile(localFile)
+      if (!src) continue
+      let content
+      let filepath = ''
+      if (src.startsWith('app://')) {
+        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
+        if (srcMatch) {
+          filepath = window.decodeURIComponent(srcMatch[1])
+          content = await FileSystemAdapter.readLocalFile(filepath)
+        }
+      } else if (src.match(/^https?:\/\/localhost/)) {
+        filepath = src
+        const res = await fetch(filepath)
+        if (res && res.status === 200) {
+          content = await res.arrayBuffer()
+        }
+      }
+      const filetype = filepath.split('.').pop()
+      if (filetype && content) {
         const hash = await sha1(content)
         await this.plugin.api.queueUpload({
           data: {
@@ -349,7 +358,7 @@ export default class Note {
     // Upload the main CSS file only if the user has asked for it.
     // We do it this way to ensure that the CSS the user wants on the server
     // stays that way, until they ASK to overwrite it.
-    if (this.isForceUpload || this.isUploadCss) {
+    if (this.isForceUpload || !this.cssResult) {
       // Extract any attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
       this.status.setStatus('Processing CSS...')
@@ -413,13 +422,15 @@ export default class Note {
       const minified = minify(this.css).css
       const cssHash = await sha1(minified)
       try {
-        await this.plugin.api.upload({
-          filetype: 'css',
-          hash: cssHash,
-          content: minified,
-          byteLength: minified.length,
-          expiration: this.expiration
-        })
+        if (cssHash !== this.cssResult?.hash) {
+          await this.plugin.api.upload({
+            filetype: 'css',
+            hash: cssHash,
+            content: minified,
+            byteLength: minified.length,
+            expiration: this.expiration
+          })
+        }
 
         // Store the CSS theme in the settings
         // @ts-ignore - customCss is not exposed

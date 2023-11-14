@@ -8,22 +8,10 @@ import { compressImage } from './Compressor'
 
 const pluginVersion = require('../manifest.json').version
 
-export type UploadData = {
-  filename?: string
-  filetype: string
-  hash: string
-  content?: string
-  byteLength?: number
-  template?: NoteTemplate
-  encoding?: string
-  encrypted?: boolean
-  expiration?: number
-}
-
 export interface FileUpload {
   filetype: string
   hash: string
-  content?: ArrayBuffer
+  content?: ArrayBuffer | string
   byteLength: number
   expiration?: number
   url?: string | null
@@ -43,6 +31,15 @@ export type PostData = {
 export interface UploadQueueItem {
   data: FileUpload
   callback: (url: string) => void
+}
+
+export interface CheckFilesResult {
+  success: boolean
+  files: FileUpload[]
+  css?: {
+    url: string
+    hash: string
+  }
 }
 
 export default class API {
@@ -154,7 +151,7 @@ export default class API {
   async queueUpload (item: UploadQueueItem) {
     // Compress the data if possible
     if (item.data.content) {
-      const compressed = await compressImage(item.data.content, item.data.filetype)
+      const compressed = await compressImage(item.data.content as ArrayBuffer, item.data.filetype)
       if (compressed.changed) {
         item.data.content = compressed.data
         item.data.filetype = compressed.filetype
@@ -174,7 +171,7 @@ export default class API {
           byteLength: x.data.byteLength
         }
       })
-    })
+    }) as CheckFilesResult
 
     let count = 1
     const promises: Promise<void>[] = []
@@ -208,23 +205,9 @@ export default class API {
     return res
   }
 
-  async upload (data: UploadData) {
-    return this._upload(data)
-  }
-
-  private async _upload (data: UploadData | FileUpload) {
-    // Test for existing file before uploading any data
-    const exists = await this.post('/v1/file/check-file', {
-      filetype: data.filetype,
-      hash: data.hash,
-      byteLength: data.byteLength
-    })
-    if (exists?.success) {
-      return exists.url
-    } else {
-      const res = await this.postRaw('/v1/file/upload', data as FileUpload)
-      return res.url
-    }
+  async upload (data: FileUpload) {
+    const res = await this.postRaw('/v1/file/upload', data)
+    return res.url
   }
 
   async createNote (template: NoteTemplate, expiration?: number) {
