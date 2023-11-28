@@ -324,11 +324,16 @@ export default class Note {
           filepath = window.decodeURIComponent(srcMatch[1])
           content = await FileSystemAdapter.readLocalFile(filepath)
         }
-      } else if (src.match(/^https?:\/\/localhost/)) {
+      } else if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
         filepath = src
-        const res = await fetch(filepath)
-        if (res && res.status === 200) {
-          content = await res.arrayBuffer()
+        try {
+          const res = await fetch(filepath)
+          if (res && res.status === 200) {
+            content = await res.arrayBuffer()
+          }
+        } catch (e) {
+          // Unable to process this file
+          continue
         }
       }
       const filetype = filepath.split('.').pop()
