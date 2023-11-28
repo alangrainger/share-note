@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
+import NoteManagement from './NoteManagement'
 
 export enum ThemeMode {
   'Same as theme',
@@ -71,10 +72,8 @@ export class ShareSettingsTab extends PluginSettingTab {
     containerEl.empty()
 
     // Testing the UX elements
-    const table = this.plugin.ui.createTable()
-    const callout = this.plugin.ui.createCallout()
-    callout.setContents(table.containerEl)
-    containerEl.append(callout.containerEl)
+    const management = new NoteManagement(this.plugin)
+    containerEl.append(management.containerEl)
 
     // API key
     new Setting(containerEl)

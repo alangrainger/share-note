@@ -17,19 +17,13 @@ export default class NoteManagement {
     this.plugin = plugin
     this.containerEl = document.createElement('div')
 
-    new Setting(this.containerEl)
-      .setName('Test')
-      .setDesc('Test description')
+    // const el = new Setting(this.containerEl)
+    //   .setName('Test')
+    //   .setDesc('Test description')
 
-    const calloutEl = document.createElement('div')
-    calloutEl.classList.add('callout', 'is-collapsible')
-    const titleEl = document.createElement('div')
-    titleEl.classList.add('callout-title')
-    titleEl.innerText = 'Test title'
-    calloutEl.append(titleEl)
-
-    const contents = document.createElement('div')
-    contents.innerHTML = '<p>asdf asdf asdf</p>'
+    // this.containerEl.append(el.settingEl)
+    const callout = this.plugin.ui.createCallout()
+    this.containerEl.append(callout.containerEl)
   }
 
   async getNotes () {

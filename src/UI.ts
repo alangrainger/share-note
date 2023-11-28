@@ -78,14 +78,11 @@ class UIElement {
 }
 
 class Callout extends UIElement {
-  constructor (app: App, contents?: HTMLDivElement, type: CalloutType = CalloutType.expanded) {
+  constructor (app: App, type: CalloutType = CalloutType.expanded) {
     super(app)
     this.containerEl = document.createElement('div')
     const typeChar = type === CalloutType.expanded ? '+' : type === CalloutType.collapsed ? '-' : ''
-    this.renderElement(this.containerEl, `> [!info]${typeChar} Title\n> Content`)
-      .then(() => {
-        if (contents) this.setContents(contents)
-      })
+    this.renderElement(this.containerEl, `> [!info]${typeChar} Title\n> Content`).then()
   }
 
   setContents (contents: HTMLDivElement) {
