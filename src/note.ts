@@ -106,6 +106,7 @@ export default class Note {
       const body = document.body.cloneNode(true) as HTMLElement
       // add class to body
       body.classList.add('share-note-plugin')
+      body.classList.remove('is-mobile', 'is-tablet', 'is-phone') // remove mobile classes
       this.elements.push(getElementStyle('body', body))
       this.elements.push(getElementStyle('preview', renderer.previewEl))
       this.elements.push(getElementStyle('pusher', renderer.pusherEl))
