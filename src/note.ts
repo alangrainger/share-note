@@ -102,7 +102,8 @@ export default class Note {
       const renderer = view.modes.preview.renderer
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
-      const body = document.body
+      // create a copy of the body objet
+      const body = document.body.cloneNode(true) as HTMLElement
       // add class to body
       body.classList.add('share-note-plugin')
       this.elements.push(getElementStyle('body', body))
