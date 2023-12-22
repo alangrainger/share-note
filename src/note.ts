@@ -67,6 +67,7 @@ export default class Note {
     this.plugin = plugin
     // .getLeaf() doesn't return a `previewMode` property when a note is pinned,
     // so use the activeEditor.leaf
+    // @ts-ignore
     this.leaf = this.plugin.app.workspace.activeEditor?.leaf
     this.elements = []
     this.template = new NoteTemplate()
