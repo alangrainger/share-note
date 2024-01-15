@@ -105,7 +105,9 @@ export default class Note {
       const renderer = view.modes.preview.renderer
       // Copy classes and styles
       this.elements.push(getElementStyle('html', document.documentElement))
-      this.elements.push(getElementStyle('body', document.body))
+      const bodyStyle = getElementStyle('body', document.body)
+      bodyStyle.classes.push('share-note-plugin') // Add a targetable class for published notes
+      this.elements.push(bodyStyle)
       this.elements.push(getElementStyle('preview', renderer.previewEl))
       this.elements.push(getElementStyle('pusher', renderer.pusherEl))
       this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view as ViewModes), 'text/html')
