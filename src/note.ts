@@ -138,11 +138,16 @@ export default class Note {
     this.meta = this.plugin.app.metadataCache.getFileCache(file)
 
     // Generate the HTML file for uploading
+
     if (this.plugin.settings.removeYaml) {
       // Remove frontmatter to avoid sharing unwanted data
       this.contentDom.querySelector('div.metadata-container')?.remove()
       this.contentDom.querySelector('pre.frontmatter')?.remove()
       this.contentDom.querySelector('div.frontmatter-container')?.remove()
+    }
+    if (this.plugin.settings.removeBacklinksFooter) {
+      // Remove backlinks footer
+      this.contentDom.querySelector('div.embedded-backlinks')?.remove()
     }
 
     // Fix callout icons

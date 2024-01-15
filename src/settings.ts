@@ -32,6 +32,7 @@ export interface ShareSettings {
   themeMode: ThemeMode;
   titleSource: TitleSource;
   removeYaml: boolean;
+  removeBacklinksFooter: boolean;
   expiry: string;
   clipboard: boolean;
   shareUnencrypted: boolean;
@@ -49,6 +50,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   themeMode: ThemeMode['Same as theme'],
   titleSource: TitleSource['Note title'],
   removeYaml: true,
+  removeBacklinksFooter: true,
   expiry: '',
   clipboard: true,
   shareUnencrypted: false,
@@ -189,6 +191,20 @@ export class ShareSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.removeYaml)
           .onChange(async (value) => {
             this.plugin.settings.removeYaml = value
+            await this.plugin.saveSettings()
+            this.display()
+          })
+      })
+
+    // Strip backlinks footer
+    new Setting(containerEl)
+      .setName('Remove backlinks footer')
+      .setDesc('Remove backlinks footer from the shared note')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.removeBacklinksFooter)
+          .onChange(async (value) => {
+            this.plugin.settings.removeBacklinksFooter = value
             await this.plugin.saveSettings()
             this.display()
           })
