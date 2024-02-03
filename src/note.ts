@@ -146,6 +146,13 @@ export default class Note {
       this.contentDom.querySelector('div.metadata-container')?.remove()
       this.contentDom.querySelector('pre.frontmatter')?.remove()
       this.contentDom.querySelector('div.frontmatter-container')?.remove()
+    } else {
+      // Frontmatter property labels are <input> types with no `value`.
+      // Take the `aria-label` value and use that as the displayed value.
+      this.contentDom.querySelectorAll('input.metadata-property-key-input')
+        .forEach(el => {
+          el.setAttribute('value', el.getAttribute('aria-label') || '')
+        })
     }
     if (this.plugin.settings.removeBacklinksFooter) {
       // Remove backlinks footer
