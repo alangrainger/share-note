@@ -336,7 +336,7 @@ export default class Note {
       let content
       let filepath = ''
       if (src.startsWith('app://')) {
-        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
+        const srcMatch = src.match(/app:\/\/\w+(\/[^?#]+)/)
         if (srcMatch) {
           filepath = window.decodeURIComponent(srcMatch[1])
           if (!Platform.isLinux) {
