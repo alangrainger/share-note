@@ -335,13 +335,7 @@ export default class Note {
       if (!src) continue
       let content
       let filepath = ''
-      if (src.startsWith('app://')) {
-        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
-        if (srcMatch) {
-          filepath = window.decodeURIComponent(srcMatch[1])
-          content = await FileSystemAdapter.readLocalFile(filepath)
-        }
-      } else if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
+      if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
         filepath = src
         try {
           const res = await fetch(filepath)
