@@ -1,4 +1,4 @@
-import { CachedMetadata, FileSystemAdapter, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, FileSystemAdapter, moment, Platform, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -335,7 +335,17 @@ export default class Note {
       if (!src) continue
       let content
       let filepath = ''
-      if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
+      if (src.startsWith('app://')) {
+        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
+        if (srcMatch) {
+          filepath = window.decodeURIComponent(srcMatch[1])
+          if (!Platform.isLinux) {
+            // Prepend a root slash for Linux filepaths
+            filepath = '/' + filepath
+          }
+          content = await FileSystemAdapter.readLocalFile(filepath)
+        }
+      } else if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
         filepath = src
         try {
           const res = await fetch(filepath)
