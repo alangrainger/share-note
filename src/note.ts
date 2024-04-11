@@ -1,4 +1,4 @@
-import { CachedMetadata, FileSystemAdapter, moment, Platform, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -9,6 +9,7 @@ import FileTypes from './libraries/FileTypes'
 import { CheckFilesResult, parseExistingShareUrl } from './api'
 import { minify } from 'csso'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
+import * as path from 'path'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -333,31 +334,25 @@ export default class Note {
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src) continue
-      let content
-      let filepath = ''
-      if (src.startsWith('app://')) {
-        const srcMatch = src.match(/app:\/\/\w+\/([^?#]+)/)
-        if (srcMatch) {
-          filepath = window.decodeURIComponent(srcMatch[1])
-          if (!Platform.isLinux) {
-            // Prepend a root slash for Linux filepaths
-            filepath = '/' + filepath
-          }
-          content = await FileSystemAdapter.readLocalFile(filepath)
-        }
-      } else if (src.match(/^https?:\/\/localhost/) || !src.startsWith('http')) {
-        filepath = src
-        try {
-          const res = await fetch(filepath)
-          if (res && res.status === 200) {
-            content = await res.arrayBuffer()
-          }
-        } catch (e) {
-          // Unable to process this file
-          continue
-        }
+
+      if (src.startsWith('http') && !src.match(/^https?:\/\/localhost/)) {
+        // This is a web asset, no need to upload
+        continue
       }
-      const filetype = filepath.split('.').pop()
+
+      let content
+      try {
+        const res = await fetch(src)
+        if (res && res.status === 200) {
+          content = await res.arrayBuffer()
+        }
+      } catch (e) {
+        // Unable to process this file
+        continue
+      }
+
+      const parsed = new URL(src)
+      const filetype = path.extname(parsed.pathname)?.slice(1)
       if (filetype && content) {
         const hash = await sha1(content)
         await this.plugin.api.queueUpload({
