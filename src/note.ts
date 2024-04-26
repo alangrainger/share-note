@@ -67,9 +67,9 @@ export default class Note {
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     // .getLeaf() doesn't return a `previewMode` property when a note is pinned,
-    // so use the activeEditor.leaf
+    // so use the undocumented .getActiveFileView() which seems to work fine
     // @ts-ignore
-    this.leaf = this.plugin.app.workspace.activeEditor?.leaf
+    this.leaf = this.plugin.app.workspace.getActiveFileView()?.leaf
     this.elements = []
     this.template = new NoteTemplate()
   }
