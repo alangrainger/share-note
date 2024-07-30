@@ -103,6 +103,12 @@ You may optionally share an unencrypted version of a note by using the frontmatt
 
 If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
 
+## Self-hosting
+
+If you want to self-host your own server, you can use this repo: 
+
+https://github.com/alangrainger/share-note-self-hosted-backend
+
 ## Troubleshooting
 
 See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
