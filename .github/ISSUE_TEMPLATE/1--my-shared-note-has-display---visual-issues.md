@@ -11,7 +11,7 @@ assignees: ''
 
 Firstly, follow the troubleshooting steps here to see if that resolves your problem:
 
-https://github.com/alangrainger/obsidian-share/blob/main/docs/Troubleshooting.md
+https://docs.note.sx/troubleshooting
 
 If it still doesn't work, please create a demo vault with the plugins/themes needed to make this issue occur.
 
