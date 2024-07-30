@@ -225,7 +225,7 @@ export default class API {
 }
 
 export function parseExistingShareUrl (url: string): SharedUrl | false {
-  const match = url.match(/https:\/\/[^/]+(?:\/\w{2}|)\/(\w+).*?(#.+?|)$/)
+  const match = url.match(/(\w+)(#.+?|)$/)
   if (match) {
     return {
       filename: match[1],
