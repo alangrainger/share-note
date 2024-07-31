@@ -1,4 +1,4 @@
-import { CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, moment, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -41,6 +41,8 @@ export interface Renderer {
 }
 
 export interface ViewModes extends View {
+  getViewType,
+  getDisplayText,
   modes: {
     preview: {
       renderer: Renderer
@@ -98,8 +100,8 @@ export default class Note {
     await this.leaf.setViewState(previewMode)
     await new Promise(resolve => setTimeout(resolve, 40))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
-    // @ts-ignore // 'view.previewMode'
-    this.leaf.view.previewMode.applyScroll(0)
+    // @ts-ignore
+    this.leaf.view.previewMode.applyScroll(0) // 'view.previewMode'
     await new Promise(resolve => setTimeout(resolve, 40))
     try {
       const view = this.leaf.view as ViewModes
@@ -198,7 +200,7 @@ export default class Note {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
           if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
             // This file is shared, so update the link with the share URL
-            el.setAttribute('href', linkedMeta.frontmatter[this.field(YamlField.link)])
+            el.setAttribute('href', linkedMeta?.frontmatter?.[this.field(YamlField.link)])
             el.removeAttribute('target')
             continue
           }
@@ -227,7 +229,7 @@ export default class Note {
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
     if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = parseExistingShareUrl(this.meta.frontmatter[this.field(YamlField.link)])
+      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.field(YamlField.link)])
       if (match) {
         this.template.filename = match.filename
         decryptionKey = match.decryptionKey
@@ -295,7 +297,6 @@ export default class Note {
     // Share the file
     this.status.setStatus('Uploading note...')
     let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
-    requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
 
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
@@ -454,8 +455,8 @@ export default class Note {
         }
 
         // Store the CSS theme in the settings
-        // @ts-ignore - customCss is not exposed
-        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || ''
+        // @ts-ignore
+        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
         await this.plugin.saveSettings()
       } catch (e) { }
     }
