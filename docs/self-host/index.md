@@ -8,4 +8,4 @@ permalink: /self-hosting
 
 See the self-hosted repo here:
 
-https://github.com/alangrainger/share-note-self-hosted-backend
+[https://github.com/alangrainger/share-note-self-hosted-backend](https://github.com/alangrainger/share-note-self-hosted-backend)
