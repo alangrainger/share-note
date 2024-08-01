@@ -9,9 +9,13 @@ permalink: /notes/management
 At some stage I plan to add a management / admin page to the plugin where you can manage
 all your existing shared notes.
 
-For now, you can achieve a fairly good management view with [Dataview](https://github.com/blacksmithgu/obsidian-dataview).
+For now, you can achieve a fairly good management view with [Dataview](https://github.com/blacksmithgu/obsidian-dataview):
 
-Create a query like this:
+![](./note-management.png)
+
+The 🔒 icon indicates that a note was shared with encryption.
+
+To set it up, create a Dataview query like this in any note:
 
 ````
 ```dataview
@@ -24,8 +28,12 @@ WHERE share_link
 ```
 ````
 
-To sort with your most recent shares at the top, add `SORT share_updated DESC` under the WHERE line.
+**You need to make sure to paste as plain text. If you don't know how to do that, 
+change to Source Mode first before pasting.**
 
-If everything worked you should see a table like this of your shared notes. The 🔒 icon indicates that a note was shared with encryption.
+To sort with your most recent shares at the top, add a `SORT` under the `WHERE` line like this:
 
-![](./note-management.png)
+```
+WHERE share_link
+SORT share_updated DESC
+```
