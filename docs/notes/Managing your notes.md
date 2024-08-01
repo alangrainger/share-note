@@ -15,6 +15,8 @@ For now, you can achieve a fairly good management view with [Dataview](https://g
 
 The 🔒 icon indicates that a note was shared with encryption.
 
+## How to set up
+
 To set it up, create a Dataview query like this in any note:
 
 ````
