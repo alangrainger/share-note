@@ -31,7 +31,9 @@ WHERE share_link
 **You need to make sure to paste as plain text. If you don't know how to do that, 
 change to Source Mode first before pasting.**
 
-To sort with your most recent shares at the top, add a `SORT` under the `WHERE` line like this:
+Note titles are truncated at 28 characters. You can change that on the third line by changing the value in the `truncate` function.
+
+To sort with your most recent shares at the top, add a `SORT` after the `WHERE` line like this:
 
 ```
 WHERE share_link
