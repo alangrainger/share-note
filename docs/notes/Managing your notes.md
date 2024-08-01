@@ -24,7 +24,8 @@ WHERE share_link
 ```
 ````
 
-And you should see a table like this of your shared notes. The 🔒 icon indicates that a note was shared with encryption.
+To sort with your most recent shares at the top, add `SORT share_updated DESC` under the WHERE line.
+
+If everything worked you should see a table like this of your shared notes. The 🔒 icon indicates that a note was shared with encryption.
 
 ![](./note-management.png)
-
