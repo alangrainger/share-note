@@ -15,6 +15,15 @@ For example:
 - `15 minutes` or
 - `1 month`
 
-### Setting the expiry for an individual note
+## Setting the expiry for an individual note
 
 You can set an expiry just for a specific note by adding a `share_expires` frontmatter text property, and adding an expiry time as above.
+
+```yaml
+share_expires: 7 days
+```
+
+## Setting an expiry for all notes
+
+If you want all notes to expire by default, set this in the plugin Settings page.
+
