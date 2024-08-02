@@ -92,7 +92,7 @@ export default class Note {
     }
 
     // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Parsing note content, please do not change to another note while this message is displayed.', StatusType.Default, 60 * 1000)
+    this.status = new StatusMessage('If this message is showing, please do not change to another note as the current note data is still being parsed.', StatusType.Default, 60 * 1000)
 
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
