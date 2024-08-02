@@ -41,8 +41,8 @@ export interface Renderer {
 }
 
 export interface ViewModes extends View {
-  getViewType,
-  getDisplayText,
+  getViewType: any,
+  getDisplayText: any,
   modes: {
     preview: {
       renderer: Renderer
@@ -150,11 +150,18 @@ export default class Note {
       this.contentDom.querySelector('pre.frontmatter')?.remove()
       this.contentDom.querySelector('div.frontmatter-container')?.remove()
     } else {
-      // Frontmatter property labels are <input> types with no `value`.
-      // Take the `aria-label` value and use that as the displayed value.
-      this.contentDom.querySelectorAll('input.metadata-property-key-input')
-        .forEach(el => {
-          el.setAttribute('value', el.getAttribute('aria-label') || '')
+      // Frontmatter properties are weird - the DOM elements don't appear to contain any data.
+      // We get the label from the data-property-key and set that on the labelEl value,
+      // then take the corresponding value from the metadataCache and set that on the valueEl value.
+      this.contentDom.querySelectorAll('div.metadata-property')
+        .forEach(propertyContainerEl => {
+          const propertyName = propertyContainerEl.getAttribute('data-property-key')
+          if (propertyName) {
+            const nameEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
+            nameEl?.setAttribute('value', propertyName)
+            const valueEl = propertyContainerEl.querySelector('div.metadata-property-value > input')
+            valueEl?.setAttribute('value', this.meta?.frontmatter?.[propertyName] || '')
+          }
         })
     }
     if (this.plugin.settings.removeBacklinksFooter) {
