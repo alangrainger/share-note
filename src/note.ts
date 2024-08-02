@@ -130,7 +130,9 @@ export default class Note {
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => { this.leaf.setViewState(startMode) }, 200)
+    setTimeout(() => {
+      this.leaf.setViewState(startMode)
+    }, 200)
 
     this.status.setStatus('Processing note...')
     const file = this.plugin.app.workspace.getActiveFile()
@@ -151,15 +153,14 @@ export default class Note {
       this.contentDom.querySelector('div.frontmatter-container')?.remove()
     } else {
       // Frontmatter properties are weird - the DOM elements don't appear to contain any data.
-      // We get the label from the data-property-key and set that on the labelEl value,
+      // We get the property name from the data-property-key and set that on the labelEl value,
       // then take the corresponding value from the metadataCache and set that on the valueEl value.
       this.contentDom.querySelectorAll('div.metadata-property')
         .forEach(propertyContainerEl => {
           const propertyName = propertyContainerEl.getAttribute('data-property-key')
           if (propertyName) {
-            console.log(propertyContainerEl)
-            const nameEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
-            nameEl?.setAttribute('value', propertyName)
+            const labelEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
+            labelEl?.setAttribute('value', propertyName)
             const valueEl = propertyContainerEl.querySelector('div.metadata-property-value > input')
             const value = this.meta?.frontmatter?.[propertyName] || ''
             valueEl?.setAttribute('value', value)
@@ -167,7 +168,7 @@ export default class Note {
             switch (valueEl?.getAttribute('type')) {
               case 'checkbox':
                 if (value) valueEl.setAttribute('checked', 'checked')
-                break;
+                break
             }
           }
         })
@@ -425,7 +426,9 @@ export default class Note {
                   byteLength: parsed.buffer.byteLength,
                   expiration: this.expiration
                 },
-                callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+                callback: (url) => {
+                  this.css = this.css.replace(assetMatch[0], `url("${url}")`)
+                }
               })
             }
           }
@@ -447,7 +450,9 @@ export default class Note {
                   byteLength: contents.byteLength,
                   expiration: this.expiration
                 },
-                callback: (url) => { this.css = this.css.replace(assetMatch[0], `url("${url}")`) }
+                callback: (url) => {
+                  this.css = this.css.replace(assetMatch[0], `url("${url}")`)
+                }
               })
             }
           }
@@ -473,7 +478,8 @@ export default class Note {
         // @ts-ignore
         this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
         await this.plugin.saveSettings()
-      } catch (e) { }
+      } catch (e) {
+      }
     }
   }
 
