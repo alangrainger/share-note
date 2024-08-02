@@ -157,10 +157,18 @@ export default class Note {
         .forEach(propertyContainerEl => {
           const propertyName = propertyContainerEl.getAttribute('data-property-key')
           if (propertyName) {
+            console.log(propertyContainerEl)
             const nameEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
             nameEl?.setAttribute('value', propertyName)
             const valueEl = propertyContainerEl.querySelector('div.metadata-property-value > input')
-            valueEl?.setAttribute('value', this.meta?.frontmatter?.[propertyName] || '')
+            const value = this.meta?.frontmatter?.[propertyName] || ''
+            valueEl?.setAttribute('value', value)
+            // Special cases for different element types
+            switch (valueEl?.getAttribute('type')) {
+              case 'checkbox':
+                if (value) valueEl.setAttribute('checked', 'checked')
+                break;
+            }
           }
         })
     }
