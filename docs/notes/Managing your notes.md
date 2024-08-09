@@ -30,8 +30,9 @@ WHERE share_link
 ```
 ````
 
-**You need to make sure to paste as plain text. If you don't know how to do that, 
-change to [Source Mode](https://help.obsidian.md/Editing+and+formatting/Edit+and+preview+Markdown#Editor+modes) first before pasting.**
+{: .important }
+You need to make sure to paste as plain text. If you don't know how to do that, 
+change to [Source Mode](https://help.obsidian.md/Editing+and+formatting/Edit+and+preview+Markdown#Editor+modes) first before pasting.
 
 Note titles are truncated at 28 characters. You can change that on the third line by changing the value in the `truncate` function.
 
