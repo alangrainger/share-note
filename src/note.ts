@@ -1,4 +1,4 @@
-import { CachedMetadata, moment, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -9,7 +9,6 @@ import FileTypes from './libraries/FileTypes'
 import { CheckFilesResult, parseExistingShareUrl } from './api'
 import { minify } from 'csso'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
-import * as path from 'path'
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
   ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
@@ -313,6 +312,7 @@ export default class Note {
     // Share the file
     this.status.setStatus('Uploading note...')
     let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
+    requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
 
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
@@ -369,7 +369,7 @@ export default class Note {
       }
 
       const parsed = new URL(src)
-      const filetype = path.extname(parsed.pathname)?.slice(1)
+      const filetype = parsed.pathname.split('.').pop()
       if (filetype && content) {
         const hash = await sha1(content)
         await this.plugin.api.queueUpload({
