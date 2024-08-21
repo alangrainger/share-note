@@ -11,7 +11,7 @@ assignees: ''
 
 Firstly, follow the troubleshooting steps here to see if that resolves your problem:
 
-https://docs.note.sx/troubleshooting
+https://docs.note.sx/Troubleshooting
 
 If it still doesn't work, please create a demo vault with the plugins/themes needed to make this issue occur.
 
