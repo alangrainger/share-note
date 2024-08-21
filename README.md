@@ -3,6 +3,7 @@
 Instantly share / publish a note. Notes are shared with your full theme and should look identical to how they look in your Obsidian vault.
 
 - 👉 [Install this plugin from the Plugin Store](https://obsidian.md/plugins?id=share-note)
+- 📄 [Documentation](https://docs.note.sx/)
 - 💬 [Discussion for this plugin](https://forum.obsidian.md/t/42788)
 - 🚀 [Request new features / see the roadmap](https://note.sx/roadmap)
 
@@ -112,4 +113,4 @@ https://github.com/alangrainger/share-note-self-hosted-backend
 
 ## Troubleshooting
 
-See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
+See here: [Troubleshooting](https://docs.note.sx/Troubleshooting)
