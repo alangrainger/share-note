@@ -11,4 +11,4 @@ assignees: ''
 
 Before creating an issue, please follow the troubleshooting steps here to see if that resolves your problem:
 
-https://github.com/alangrainger/obsidian-share/blob/main/docs/Troubleshooting.md
+https://docs.note.sx/Troubleshooting
