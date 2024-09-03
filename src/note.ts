@@ -276,8 +276,7 @@ export default class Note {
       // Encrypt the note
       const encryptedData = await encryptString(plaintext, decryptionKey)
       this.template.content = JSON.stringify({
-        ciphertext: encryptedData.ciphertext,
-        iv: encryptedData.iv
+        ciphertext: encryptedData.ciphertext
       })
       decryptionKey = encryptedData.key
     } else {
