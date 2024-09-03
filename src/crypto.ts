@@ -3,7 +3,6 @@
 export interface EncryptedString {
   ciphertext: string[];
   key: string;
-  iv: string;
 }
 
 async function _generateKey (seed: ArrayBuffer) {
@@ -70,16 +69,17 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   } else {
     key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)))
   }
-  const iv = window.crypto.getRandomValues(new Uint8Array(16))
+  const iv = new Uint8Array(1)
   const aesKey = await _getAesGcmKey(key)
 
   const ciphertext = []
   const length = plaintext.length
-  const chunkSize = 1000
+  const chunkSize = 2000
   let index = 0
   while (index * chunkSize < length) {
     const plaintextChunk = plaintext.slice(index * chunkSize, (index + 1) * chunkSize)
     const encodedText = new TextEncoder().encode(plaintextChunk)
+    iv[0] = index & 0xFF
     const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       aesKey,
@@ -91,24 +91,25 @@ export async function encryptString (plaintext: string, existingKey?: string): P
 
   return {
     ciphertext,
-    iv: arrayBufferToBase64(iv),
     key: masterKeyToString(key).slice(0, 43)
   }
 }
 
 export async function decryptString (encryptedData: EncryptedString) {
-  const ivBuf = base64ToArrayBuffer(encryptedData.iv)
   const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(encryptedData.key), {
     name: 'AES-GCM',
     length: 256
   }, false, ['decrypt'])
+  const iv = new Uint8Array(1)
 
   const plaintext = []
 
-  for (const ciphertextChunk of encryptedData.ciphertext) {
+  for (let index = 0; index < encryptedData.ciphertext.length; index++) {
+    const ciphertextChunk = encryptedData.ciphertext[index]
+    iv[0] = index & 0xFF
     const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
     const plaintextChunk = await window.crypto.subtle
-      .decrypt({ name: 'AES-GCM', iv: ivBuf }, aesKey, ciphertextBuf)
+      .decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertextBuf)
     plaintext.push(new TextDecoder().decode(plaintextChunk))
   }
   return plaintext.join('')
