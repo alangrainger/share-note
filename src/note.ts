@@ -196,15 +196,21 @@ export default class Note {
     }
 
     // Replace links
-    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link')) {
+    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link, a.footnote-link')) {
       const href = el.getAttribute('href')
       const match = href ? href.match(/^([^#]+)/) : null
       if (href?.match(/^#/)) {
-        // Anchor link to a document heading, we need to add custom Javascript to jump to that heading
-        const selector = `[data-heading="${href.slice(1)}"]`
-        if (this.contentDom.querySelectorAll(selector)?.[0]) {
-          el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
-        }
+        // This is an Anchor link to a document heading, we need to add custom Javascript
+        // to jump to that heading rather than using the normal # link
+        const linkTypes = [
+          `[data-heading="${href.slice(1)}"]`, // Links to a heading
+          `[id="${href.slice(1)}"]`,           // Links to a footnote
+        ]
+        linkTypes.forEach(selector => {
+          if (this.contentDom.querySelectorAll(selector)?.[0]) {
+            el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
+          }
+        })
         el.removeAttribute('target')
         el.removeAttribute('href')
         continue
