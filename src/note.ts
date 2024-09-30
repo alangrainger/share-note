@@ -215,7 +215,7 @@ export default class Note {
         el.removeAttribute('href')
         continue
       } else if (match) {
-        // A link to another note - check to see if we can link to an already shared note
+        // This is a link to another note - check to see if we can link to an already shared note
         const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(match[1], '')
         if (linkedFile instanceof TFile) {
           const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
@@ -227,8 +227,8 @@ export default class Note {
           }
         }
       }
-      // This file is not shared, so remove the link and replace with the non-link content
-      el.replaceWith(el.innerHTML)
+      // This linked note is not shared, so remove the link and replace with the non-link content
+      el.replaceWith(el.innerText)
     }
     for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.external-link')) {
       // Remove target=_blank from external links
