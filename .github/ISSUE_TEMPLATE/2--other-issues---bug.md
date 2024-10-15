@@ -11,4 +11,4 @@ assignees: ''
 
 Before creating an issue, please follow the troubleshooting steps here to see if that resolves your problem:
 
-https://docs.note.sx/Troubleshooting
+https://docs.note.sx/troubleshooting
