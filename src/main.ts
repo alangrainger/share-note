@@ -110,6 +110,13 @@ export default class SharePlugin extends Plugin {
             item.setTitle('Share note on the web')
             item.onClick(() => this.uploadNote())
           })
+          menu.addItem((item) => {
+            item.setIcon('share-2')
+            item.setTitle('Copy shared link')
+            item.onClick(async () => {
+              await this.copyShareLink(file)
+            })
+          })
         }
       })
     )
