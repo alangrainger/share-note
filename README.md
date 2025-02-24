@@ -107,9 +107,11 @@ If you decide you want to share most notes unencrypted by default, then you can 
 
 ## Self-hosting
 
-If you want to self-host your own server, you can use this repo: 
+If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
 
-https://github.com/alangrainger/share-note-self-hosted-backend
+```bash
+docker pull ghcr.io/note-sx/server:latest
+```
 
 ## Troubleshooting
 
