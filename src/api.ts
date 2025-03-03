@@ -145,7 +145,6 @@ export default class API {
       if (compressed.changed) {
         item.data.content = compressed.data
         item.data.filetype = compressed.filetype
-        item.data.hash = await sha1(compressed.data)
       }
     }
     this.uploadQueue.push(item)
