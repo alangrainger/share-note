@@ -72,9 +72,10 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     containerEl.empty()
 
+    // Server
     new Setting(containerEl)
       .setName('Server URL')
-      .setDesc('Use default server URL (https://api.note.sx) or configure your one -> https://github.com/note-sx/server')
+      .setDesc('Use default server URL (https://api.note.sx) or configure your one')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.server)
         .setValue(this.plugin.settings.server)
@@ -82,6 +83,7 @@ export class ShareSettingsTab extends PluginSettingTab {
           this.plugin.settings.server = value || DEFAULT_SETTINGS.server
           await this.plugin.saveSettings()
         }))
+      .then(setting => addDocs(setting, 'https://github.com/note-sx/server'))
 
     // API key
     new Setting(containerEl)
