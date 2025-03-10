@@ -119,7 +119,20 @@ export default class Note {
           .forEach(rule => {
             this.cssRules.push(rule)
           }))
-      this.css = this.cssRules.map(rule => rule.cssText).join('').replace(/\n/g, '')
+
+      // Merge all CSS rules into a string for later minifying
+      this.css = this.cssRules
+        .filter((rule: CSSMediaRule) => {
+          /*
+          Remove styles that prevent a print preview from showing on the web, thanks to @texastoland on Github
+          https://github.com/alangrainger/share-note/issues/75#issuecomment-2708719828
+
+          This removes all "@media print" rules, which in my testing doesn't appear to have any negative effect.
+          Will have to revisit this if users discover issues.
+          */
+          return rule?.media?.[0] !== 'print'
+        })
+        .map(rule => rule.cssText).join('').replace(/\n/g, '')
     } catch (e) {
       console.log(e)
       this.status.hide()
