@@ -215,13 +215,16 @@ export default class Note {
       if (href?.match(/^#/)) {
         // This is an Anchor link to a document heading, we need to add custom Javascript
         // to jump to that heading rather than using the normal # link
+        const heading = href.slice(1).replace(/(['"])/g, '\\$1') // escape the quotes
         const linkTypes = [
-          `[data-heading="${href.slice(1)}"]`, // Links to a heading
-          `[id="${href.slice(1)}"]`,           // Links to a footnote
+          `[data-heading="${heading}"]`, // Links to a heading
+          `[id="${heading}"]`,           // Links to a footnote
         ]
         linkTypes.forEach(selector => {
           if (this.contentDom.querySelectorAll(selector)?.[0]) {
-            el.setAttribute('onclick', `document.querySelectorAll('${selector}')[0].scrollIntoView(true)`)
+            // Double-escape the double quotes (but leave single quotes single escaped)
+            // It makes sense if you look at the query selector...
+            el.setAttribute('onclick', `document.querySelectorAll('${selector.replace(/"/g, '\\"')}')[0].scrollIntoView(true)`)
           }
         })
         el.removeAttribute('target')

@@ -79,6 +79,8 @@ The content of your note is encrypted by default. What this means is that you ca
 
 > 🛈 **Encryption is optional, and can be turned on/off for individual notes, or for all notes, whatever you prefer.**
 
+> 🛈 Encryption applies to the note text content. It does not apply to attachments, which are stored unencrypted. Share Note is not a file sharing service, it's a **note* sharing service. If you want encrypted file sharing, it's not the right tool for you.
+
 ### 🧑‍💻 How it works 
 
 When you share an encrypted note, you'll get a share link that looks like this:
