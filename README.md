@@ -115,4 +115,8 @@ Full instructions are at that repo.
 
 ## Troubleshooting
 
-See here: [Troubleshooting](https://docs.note.sx/Troubleshooting)
+See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
+
+### System status
+
+https://status.note.sx/
