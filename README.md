@@ -73,6 +73,12 @@ If you want to force the theme CSS to update, use the command `Force re-upload o
 
 ---
 
+## Self-hosting
+
+If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
+
+Full instructions are at that repo.
+
 ## Encryption
 
 The content of your note is encrypted by default. What this means is that you can read the note, and the person you send it to can read the note, but nobody else can read the content - not even the hosting server.
@@ -106,12 +112,6 @@ The decryption key **only** exists inside your vault, and is only known to you a
 You may optionally share an unencrypted version of a note by using the frontmatter checkbox property `share_unencrypted` = ✅. This note you are currently reading is shared unencrypted.
 
 If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
-
-## Self-hosting
-
-If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
-
-Full instructions are at that repo.
 
 ## Troubleshooting
 
