@@ -1,5 +1,7 @@
 # Share Note
 
+[System Status](https://status.note.sx/)
+
 Instantly share / publish a note. Notes are shared with your full theme and should look identical to how they look in your Obsidian vault.
 
 - 🆘 I need help! [Go here first for help and troubleshooting](https://docs.note.sx/)
