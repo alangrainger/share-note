@@ -224,21 +224,25 @@ export default class Note {
       if (href?.match(/^#/)) {
         // This is an Anchor link to a document heading, we need to add custom Javascript
         // to jump to that heading rather than using the normal # link
-        const heading = href.slice(1).replace(/(['"])/g, '\\$1') // escape the quotes
-        const linkTypes = [
-          `[data-heading="${heading}"]`, // Links to a heading
-          `[id="${heading}"]`,           // Links to a footnote
-        ]
-        linkTypes.forEach(selector => {
-          if (this.contentDom.querySelectorAll(selector)?.[0]) {
-            // Double-escape the double quotes (but leave single quotes single escaped)
-            // It makes sense if you look at the query selector...
-            el.setAttribute('onclick', `document.querySelectorAll('${selector.replace(/"/g, '\\"')}')[0].scrollIntoView(true)`)
-          }
-        })
-        el.removeAttribute('target')
-        el.removeAttribute('href')
-        continue
+        try {
+          const heading = href.slice(1).replace(/(['"])/g, '\\$1') // escape the quotes
+          const linkTypes = [
+            `[data-heading="${heading}"]`, // Links to a heading
+            `[id="${heading}"]`,           // Links to a footnote
+          ]
+          linkTypes.forEach(selector => {
+            if (this.contentDom.querySelectorAll(selector)?.[0]) {
+              // Double-escape the double quotes (but leave single quotes single escaped)
+              // It makes sense if you look at the query selector...
+              el.setAttribute('onclick', `document.querySelectorAll('${selector.replace(/"/g, '\\"')}')[0].scrollIntoView(true)`)
+            }
+          })
+          el.removeAttribute('target')
+          el.removeAttribute('href')
+          continue
+        } catch (e) {
+          console.error(e)
+        }
       } else if (match) {
         if (this.internalLinkToSharedNote(match[1], el)) {
           // The internal link could be linked to another shared note
@@ -547,24 +551,28 @@ export default class Note {
    * If it's already shared, then replace the internal link with the public link to that note.
    */
   internalLinkToSharedNote (linkText: string, el: HTMLElement, method: InternalLinkMethod = 0) {
-    // This is an internal link to another note - check to see if we can link to an already shared note
-    const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
-    if (linkedFile instanceof TFile) {
-      const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-      if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
-        // This file is shared, so update the link with the share URL
-        const href = linkedMeta.frontmatter[this.field(YamlField.link)]
-        if (method === InternalLinkMethod.ANCHOR) {
-          // Set the href for an <a> element
-          el.setAttribute('href', href)
-          el.removeAttribute('target')
-        } else if (method === InternalLinkMethod.ONCLICK) {
-          // Add an onclick() method
-          el.setAttribute('onclick', `window.location.href='${href}'`)
-          el.classList.add('force-cursor')
+    try {
+      // This is an internal link to another note - check to see if we can link to an already shared note
+      const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
+      if (linkedFile instanceof TFile) {
+        const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
+        const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
+        if (href && typeof href === 'string') {
+          // This file is shared, so update the link with the share URL
+          if (method === InternalLinkMethod.ANCHOR) {
+            // Set the href for an <a> element
+            el.setAttribute('href', href)
+            el.removeAttribute('target')
+          } else if (method === InternalLinkMethod.ONCLICK) {
+            // Add an onclick() method
+            el.setAttribute('onclick', `window.location.href='${href}'`)
+            el.classList.add('force-cursor')
+          }
+          return true
         }
-        return true
       }
+    } catch (e) {
+      console.error(e)
     }
     return false
   }
