@@ -8,6 +8,7 @@ import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
 import { CheckFilesResult, parseExistingShareUrl } from './api'
 import { minify } from 'csso'
+import { InternalLinkMethod } from './types'
 import DurationConstructor = moment.unitOfTime.DurationConstructor
 
 const cssAttachmentWhitelist: { [key: string]: string[] } = {
@@ -188,6 +189,14 @@ export default class Note {
     if (this.plugin.settings.removeBacklinksFooter) {
       // Remove backlinks footer
       this.contentDom.querySelector('div.embedded-backlinks')?.remove()
+    } else {
+      // Make backlinks clickable
+      for (const el of this.contentDom.querySelectorAll<HTMLElement>('.embedded-backlinks .search-result-file-title.is-clickable')) {
+        // Get the inner text, which is the name of the destination note
+        const linkText = (el.querySelector('.tree-item-inner') as HTMLElement)?.innerText
+        // Replace with a clickable link if possible
+        if (linkText) this.internalLinkToSharedNote(linkText, el, InternalLinkMethod.ONCLICK)
+      }
     }
 
     // Fix callout icons
@@ -231,16 +240,9 @@ export default class Note {
         el.removeAttribute('href')
         continue
       } else if (match) {
-        // This is a link to another note - check to see if we can link to an already shared note
-        const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(match[1], '')
-        if (linkedFile instanceof TFile) {
-          const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-          if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
-            // This file is shared, so update the link with the share URL
-            el.setAttribute('href', linkedMeta?.frontmatter?.[this.field(YamlField.link)])
-            el.removeAttribute('target')
-            continue
-          }
+        if (this.internalLinkToSharedNote(match[1], el)) {
+          // The internal link could be linked to another shared note
+          continue
         }
       }
       // This linked note is not shared, so remove the link and replace with the non-link content
@@ -538,6 +540,33 @@ export default class Note {
       }, 100)
     })
     return html
+  }
+
+  /**
+   * Takes a linkText like 'Some note' or 'Some path/Some note.md' and sees if that note is already shared.
+   * If it's already shared, then replace the internal link with the public link to that note.
+   */
+  internalLinkToSharedNote (linkText: string, el: HTMLElement, method: InternalLinkMethod = 0) {
+    // This is an internal link to another note - check to see if we can link to an already shared note
+    const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
+    if (linkedFile instanceof TFile) {
+      const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
+      if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
+        // This file is shared, so update the link with the share URL
+        const href = linkedMeta.frontmatter[this.field(YamlField.link)]
+        if (method === InternalLinkMethod.ANCHOR) {
+          // Set the href for an <a> element
+          el.setAttribute('href', href)
+          el.removeAttribute('target')
+        } else if (method === InternalLinkMethod.ONCLICK) {
+          // Add an onclick() method
+          el.setAttribute('onclick', `window.location.href='${href}'`)
+          el.classList.add('force-cursor')
+        }
+        return true
+      }
+    }
+    return false
   }
 
   getCalloutIcon (test: (selectorText: string) => boolean) {
