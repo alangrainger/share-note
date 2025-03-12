@@ -49,7 +49,10 @@ function _getAesGcmKey (secret: ArrayBuffer): Promise<CryptoKey> {
   return window.crypto.subtle.importKey(
     'raw',
     secret,
-    { name: 'AES-GCM', length: 256 },
+    {
+      name: 'AES-GCM',
+      length: 256
+    },
     false,
     ['encrypt', 'decrypt']
   )
@@ -69,7 +72,6 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   } else {
     key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)))
   }
-  const iv = new Uint8Array(1)
   const aesKey = await _getAesGcmKey(key)
 
   const ciphertext = []
@@ -79,9 +81,11 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   while (index * chunkSize < length) {
     const plaintextChunk = plaintext.slice(index * chunkSize, (index + 1) * chunkSize)
     const encodedText = new TextEncoder().encode(plaintextChunk)
-    iv[0] = index & 0xFF
     const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
+      {
+        name: 'AES-GCM',
+        iv: indexToIv(index)
+      },
       aesKey,
       encodedText
     )
@@ -100,16 +104,17 @@ export async function decryptString (encryptedData: EncryptedString) {
     name: 'AES-GCM',
     length: 256
   }, false, ['decrypt'])
-  const iv = new Uint8Array(1)
 
   const plaintext = []
 
   for (let index = 0; index < encryptedData.ciphertext.length; index++) {
     const ciphertextChunk = encryptedData.ciphertext[index]
-    iv[0] = index & 0xFF
     const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
     const plaintextChunk = await window.crypto.subtle
-      .decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertextBuf)
+      .decrypt({
+        name: 'AES-GCM',
+        iv: indexToIv(index)
+      }, aesKey, ciphertextBuf)
     plaintext.push(new TextDecoder().decode(plaintextChunk))
   }
   return plaintext.join('')
@@ -137,4 +142,16 @@ export async function sha1 (data: string | ArrayBuffer) {
 
 export async function shortHash (text: string) {
   return (await sha256(text)).slice(0, 32)
+}
+
+/**
+ * Take an integer index and return the corresponding IV
+ */
+function indexToIv (int: number) {
+  const array = new Uint8Array(12)
+  for (let i = 0; i < array.length; i++) {
+    array[i] = int % 256
+    int = Math.floor(int / 256)
+  }
+  return array
 }
