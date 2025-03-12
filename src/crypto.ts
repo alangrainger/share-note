@@ -148,10 +148,10 @@ export async function shortHash (text: string) {
  * Take an integer index and return the corresponding IV
  */
 function indexToIv (int: number) {
-  const array = new Uint8Array(12)
-  for (let i = 0; i < array.length; i++) {
-    array[i] = int % 256
+  const iv = new Uint8Array(12)
+  for (let i = 0; i < iv.length; i++) {
+    iv[i] = int % 256
     int = Math.floor(int / 256)
   }
-  return array
+  return iv
 }
