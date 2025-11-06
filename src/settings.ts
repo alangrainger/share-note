@@ -33,6 +33,7 @@ export interface ShareSettings {
   titleSource: TitleSource;
   removeYaml: boolean;
   removeBacklinksFooter: boolean;
+  removeElements: string;
   expiry: string;
   clipboard: boolean;
   shareUnencrypted: boolean;
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   titleSource: TitleSource['Note title'],
   removeYaml: true,
   removeBacklinksFooter: true,
+  removeElements: '',
   expiry: '',
   clipboard: true,
   shareUnencrypted: false,
@@ -139,7 +141,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.clipboard = value
             await this.plugin.saveSettings()
-            this.display()
           })
       })
 
@@ -192,7 +193,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.removeYaml = value
             await this.plugin.saveSettings()
-            this.display()
           })
       })
 
@@ -206,7 +206,20 @@ export class ShareSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.removeBacklinksFooter = value
             await this.plugin.saveSettings()
-            this.display()
+          })
+      })
+
+    // Strip elements by selector
+    new Setting(containerEl)
+      .setName('Remove custom elements')
+      .setDesc('Remove elements before uploading by targeting them with CSS selectors. One selector per line.')
+      .addTextArea(text => {
+        text
+          .setPlaceholder('div.class-to-remove')
+          .setValue(this.plugin.settings.removeElements)
+          .onChange(async (value) => {
+            this.plugin.settings.removeElements = value
+            await this.plugin.saveSettings()
           })
       })
 
@@ -220,7 +233,6 @@ export class ShareSettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.shareUnencrypted = !value
             await this.plugin.saveSettings()
-            this.display()
           })
       })
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/encryption'))

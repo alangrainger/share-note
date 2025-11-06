@@ -252,10 +252,17 @@ export default class Note {
       // This linked note is not shared, so remove the link and replace with the non-link content
       el.replaceWith(el.innerText)
     }
-    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.external-link')) {
-      // Remove target=_blank from external links
-      el.removeAttribute('target')
-    }
+
+    // Remove target=_blank from external links
+    this.contentDom
+      .querySelectorAll<HTMLElement>('a.external-link')
+      .forEach(el => el.removeAttribute('target'))
+
+    // Remove elements by user's custom CSS selectors (if any)
+    this.plugin.settings.removeElements
+      .split('\n').map(s => s.trim()).filter(Boolean)
+      .forEach(selector => this.contentDom.querySelectorAll(selector)
+        .forEach(el => el.remove()))
 
     // Note options
     this.expiration = this.getExpiration()
