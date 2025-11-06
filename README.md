@@ -9,9 +9,9 @@ Instantly share / publish a note. Notes are shared with your full theme and shou
 - 💬 [Discussion for this plugin](https://forum.obsidian.md/t/42788)
 - 🚀 [Request new features / see the roadmap](https://note.sx/roadmap)
 
-To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Copy shared link`
+To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Share note on the web`
 
-<img width="260" src="https://github.com/alangrainger/obsidian-share/assets/16197738/69b270a7-c064-4915-9c81-698ae5b54b44">
+<img width="340" src="https://github.com/user-attachments/assets/457721d9-3226-429e-b1c0-050b0370045e" />
 
 ---
 
