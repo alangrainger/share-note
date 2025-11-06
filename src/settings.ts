@@ -212,7 +212,7 @@ export class ShareSettingsTab extends PluginSettingTab {
     // Strip elements by selector
     new Setting(containerEl)
       .setName('Remove custom elements')
-      .setDesc('Remove elements before uploading by targeting them with CSS selectors. One selector per line.')
+      .setDesc('Remove elements before sharing by targeting them with CSS selectors. One selector per line.')
       .addTextArea(text => {
         text
           .setPlaceholder('div.class-to-remove')
