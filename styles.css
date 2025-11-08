@@ -13,7 +13,8 @@
     color: white
 }
 .notice:has(.share-note-status-success) a {
-    color: #44a;
+    color: white;
+    text-decoration: underline;
 }
 
 .share-note-icons {
