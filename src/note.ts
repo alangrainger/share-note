@@ -373,7 +373,7 @@ export default class Note {
     }
 
     this.status.hide()
-    new StatusMessage(shareMessage, StatusType.Success)
+    new StatusMessage(shareMessage + `<br><br><a href="${shareLink}">↗️ Open shared note</a>`, StatusType.Success, 6000)
   }
 
   /**

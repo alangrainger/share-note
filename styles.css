@@ -1,16 +1,19 @@
-.share-note-status-error.notice {
+.notice:has(.share-note-status-error.notice) {
     background: #c10000;
     color: white
 }
 
-.share-note-status-info.notice {
+.notice:has(.share-note-status-info) {
     background: hsl(204, 86%, 53%);
     color: white
 }
 
-.share-note-status-success.notice {
+.notice:has(.share-note-status-success) {
     background: #629762;
     color: white
+}
+.notice:has(.share-note-status-success) a {
+    color: #44a;
 }
 
 .share-note-icons {

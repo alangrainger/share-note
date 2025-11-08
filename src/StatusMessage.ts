@@ -37,9 +37,8 @@ export default class StatusMessage extends Notice {
     const messageDoc = new DocumentFragment()
 
     const icon = statuses[type]?.icon || ''
-    const messageEl = messageDoc.createEl('div', {
-      text: `${icon}${pluginName}: ${text}`
-    })
+    const messageEl = messageDoc.createEl('div')
+    messageEl.innerHTML = `${icon}${pluginName}: ${text}`
     super(messageDoc, duration)
     if (messageEl.parentElement) {
       if (statuses[type]) {
