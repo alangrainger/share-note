@@ -96,7 +96,9 @@ export default class Note {
 
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
-    previewMode.state.mode = 'preview'
+    if (previewMode.state) {
+      previewMode.state.mode = 'preview'
+    }
     await this.leaf.setViewState(previewMode)
     await new Promise(resolve => setTimeout(resolve, 40))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
@@ -379,6 +381,60 @@ export default class Note {
   /**
    * Upload media attachments
    */
+  /**
+   * Detect image/video file type from file signature (magic bytes)
+   */
+  detectMediaTypeFromSignature (content: ArrayBuffer): string | undefined {
+    const bytes = new Uint8Array(content, 0, 12)
+    
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+      return 'png'
+    }
+    
+    // JPEG: FF D8 FF
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+      return 'jpg'
+    }
+    
+    // GIF: 47 49 46 38 (GIF8)
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+      return 'gif'
+    }
+    
+    // WebP: RIFF...WEBP
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+      // Check for WEBP at offset 8
+      if (bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+        return 'webp'
+      }
+    }
+    
+    // BMP: 42 4D
+    if (bytes[0] === 0x42 && bytes[1] === 0x4D) {
+      return 'bmp'
+    }
+    
+    // SVG: Check if content starts with XML/SVG markers
+    const textDecoder = new TextDecoder('utf-8', { fatal: false })
+    const textStart = textDecoder.decode(bytes.slice(0, 100))
+    if (textStart.trim().startsWith('<?xml') || textStart.trim().startsWith('<svg')) {
+      return 'svg'
+    }
+    
+    // MP4: ftyp box at the beginning
+    if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+      return 'mp4'
+    }
+    
+    // WebM: 1A 45 DF A3
+    if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) {
+      return 'webm'
+    }
+    
+    return undefined
+  }
+
   async processMedia () {
     const elements = ['img', 'video']
     this.status.setStatus('Processing attachments...')
@@ -391,32 +447,87 @@ export default class Note {
         continue
       }
 
+      const isBlobUrl = src.startsWith('blob:')
       let content
+      let detectedFiletype: string | undefined
+      
       try {
         const res = await fetch(src)
         if (res && res.status === 200) {
           content = await res.arrayBuffer()
+          
+          // Try to detect file type from Content-Type header
+          const contentType = res.headers.get('Content-Type')
+          if (contentType) {
+            // Extract extension from common image/video MIME types
+            const mimeToExt: { [key: string]: string } = {
+              'image/png': 'png',
+              'image/jpeg': 'jpg',
+              'image/jpg': 'jpg',
+              'image/gif': 'gif',
+              'image/webp': 'webp',
+              'image/svg+xml': 'svg',
+              'image/bmp': 'bmp',
+              'video/mp4': 'mp4',
+              'video/webm': 'webm',
+              'video/ogg': 'ogg'
+            }
+            const ext = mimeToExt[contentType.split(';')[0].trim().toLowerCase()]
+            if (ext) {
+              detectedFiletype = ext
+            }
+          }
+          
+          // If still no filetype, try to detect from file signature
+          if (!detectedFiletype && content) {
+            // First try FileTypes (for fonts, SVG)
+            const decoded = FileTypes.getFromSignature(content)
+            if (decoded) {
+              detectedFiletype = decoded.extension
+            } else {
+              // Then try media type detection
+              detectedFiletype = this.detectMediaTypeFromSignature(content)
+            }
+          }
         }
       } catch (e) {
         // Unable to process this file
         continue
       }
 
-      const parsed = new URL(src)
-      const filetype = parsed.pathname.split('.').pop()
-      if (filetype && content) {
-        const hash = await sha1(content)
-        await this.plugin.api.queueUpload({
-          data: {
-            filetype,
-            hash,
-            content,
-            byteLength: content.byteLength,
-            expiration: this.expiration
-          },
-          callback: (url) => el.setAttribute('src', url)
-        })
+      // For blob URLs, skip if we couldn't detect a valid media type
+      if (isBlobUrl && !detectedFiletype) {
+        // This blob URL doesn't contain a recognizable media file, skip it
+        // (e.g., code styler plugin icons that aren't actual image files)
+        continue
       }
+
+      // Try to get filetype from URL first, then fall back to detected type
+      const parsed = new URL(src)
+      let filetype = parsed.pathname.split('.').pop()
+      
+      // If filetype from URL is invalid (e.g., UUID from blob URL), use detected type
+      // Valid file extensions are typically 2-5 characters and contain only alphanumeric characters
+      if (!filetype || filetype.length > 10 || !/^[a-z0-9]+$/i.test(filetype)) {
+        filetype = detectedFiletype
+      }
+      
+      // Final check: if we still don't have a valid filetype, skip this file
+      if (!filetype || !content) {
+        continue
+      }
+      
+      const hash = await sha1(content)
+      await this.plugin.api.queueUpload({
+        data: {
+          filetype,
+          hash,
+          content,
+          byteLength: content.byteLength,
+          expiration: this.expiration
+        },
+        callback: (url) => el.setAttribute('src', url)
+      })
       el.removeAttribute('alt')
     }
     return this.plugin.api.processQueue(this.status)
