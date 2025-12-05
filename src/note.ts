@@ -405,6 +405,12 @@ export default class Note {
           content = await excalidraw.ea.createSVG(filesource)
           content = content.outerHTML
           filetype = 'svg'
+          /*
+            Or as PNG:
+            const blob = await excalidraw.ea.createPNG(filesource)
+            content = await blob.arrayBuffer()
+            filetype = 'png'
+          */
         } catch (e) {
           console.error('Unable to process Excalidraw drawing:')
           console.error(e)
