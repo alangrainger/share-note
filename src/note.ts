@@ -402,9 +402,9 @@ export default class Note {
           // @ts-ignore
           const excalidraw = this.plugin.app.plugins.getPlugin('obsidian-excalidraw-plugin')
           if (!excalidraw) continue
-          const blob = await excalidraw.ea.createPNG(filesource)
-          content = await blob.arrayBuffer()
-          filetype = 'png'
+          content = await excalidraw.ea.createSVG(filesource)
+          content = content.outerHTML
+          filetype = 'svg'
         } catch (e) {
           console.error('Unable to process Excalidraw drawing:')
           console.error(e)
