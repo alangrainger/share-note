@@ -41,8 +41,8 @@ export function arrayBufferToBase64 (buffer: ArrayBuffer): string {
   return window.btoa(binary)
 }
 
-export function base64ToArrayBuffer (base64: string): ArrayBuffer {
-  return Uint8Array.from(window.atob(base64), (c) => c.charCodeAt(0))
+export function base64ToArrayBuffer (base64: string) {
+  return Uint8Array.from(window.atob(base64), (c) => c.charCodeAt(0)).buffer
 }
 
 function _getAesGcmKey (secret: ArrayBuffer): Promise<CryptoKey> {
@@ -70,9 +70,9 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   if (existingKey) {
     key = base64ToArrayBuffer(existingKey)
   } else {
-    key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)))
+    key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)).buffer)
   }
-  const aesKey = await _getAesGcmKey(key)
+  const aesKey = await _getAesGcmKey(key as ArrayBuffer)
 
   const ciphertext = []
   const length = plaintext.length
@@ -95,7 +95,7 @@ export async function encryptString (plaintext: string, existingKey?: string): P
 
   return {
     ciphertext,
-    key: masterKeyToString(key).slice(0, 43)
+    key: masterKeyToString(key as ArrayBuffer).slice(0, 43)
   }
 }
 

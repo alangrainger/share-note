@@ -96,7 +96,9 @@ export default class Note {
 
     const startMode = this.leaf.getViewState()
     const previewMode = this.leaf.getViewState()
-    previewMode.state.mode = 'preview'
+    if (previewMode.state) {
+      previewMode.state.mode = 'preview'
+    }
     await this.leaf.setViewState(previewMode)
     await new Promise(resolve => setTimeout(resolve, 40))
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
@@ -385,25 +387,42 @@ export default class Note {
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src) continue
+      let content, filetype
 
       if (src.startsWith('http') && !src.match(/^https?:\/\/localhost/)) {
         // This is a web asset, no need to upload
         continue
       }
 
-      let content
-      try {
-        const res = await fetch(src)
-        if (res && res.status === 200) {
-          content = await res.arrayBuffer()
+      const filesource = el.getAttribute('filesource')
+      if (filesource?.match(/excalidraw/i)) {
+        // Excalidraw drawing
+        console.log('Processing Excalidraw drawing...')
+        try {
+          // @ts-ignore
+          const excalidraw = this.plugin.app.plugins.getPlugin('obsidian-excalidraw-plugin')
+          if (!excalidraw) continue
+          const blob = await excalidraw.ea.createPNG(filesource)
+          content = await blob.arrayBuffer()
+          filetype = 'png'
+        } catch (e) {
+          console.error('Unable to process Excalidraw drawing:')
+          console.error(e)
         }
-      } catch (e) {
-        // Unable to process this file
-        continue
+      } else {
+        try {
+          const res = await fetch(src)
+          if (res && res.status === 200) {
+            content = await res.arrayBuffer()
+            const parsed = new URL(src)
+            filetype = parsed.pathname.split('.').pop()
+          }
+        } catch (e) {
+          // Unable to process this file
+          continue
+        }
       }
 
-      const parsed = new URL(src)
-      const filetype = parsed.pathname.split('.').pop()
       if (filetype && content) {
         const hash = await sha1(content)
         await this.plugin.api.queueUpload({
