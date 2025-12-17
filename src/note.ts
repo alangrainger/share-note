@@ -271,7 +271,35 @@ export default class Note {
 
     // Process CSS and images
     const uploadResult = await this.processMedia()
-    this.cssResult = uploadResult.css
+    // Convert old format to new array format for compatibility
+    if (uploadResult.css) {
+      // Check if it's already in array format (new format)
+      if (Array.isArray(uploadResult.css)) {
+        // Only set if array is not empty
+        this.cssResult = uploadResult.css.length > 0 ? uploadResult.css : undefined
+      } else {
+        // Convert old format { url, hash, urls? } to new array format
+        const oldCss = uploadResult.css as any
+        if (oldCss.urls && Array.isArray(oldCss.urls) && oldCss.urls.length > 0) {
+          // Old format with urls array - convert to new format
+          // Note: old format didn't have hash for each chunk, so we use the main hash
+          this.cssResult = oldCss.urls.map((url: string) => ({
+            url,
+            hash: oldCss.hash || ''
+          }))
+        } else if (oldCss.url) {
+          // Old format with single URL - convert to array with single element
+          this.cssResult = [{
+            url: oldCss.url,
+            hash: oldCss.hash || ''
+          }]
+        } else {
+          this.cssResult = undefined
+        }
+      }
+    } else {
+      this.cssResult = undefined
+    }
     await this.processCss()
 
     /*
@@ -344,6 +372,11 @@ export default class Note {
     this.template.elements = this.elements
     // Check for MathJax
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
+
+    // Pass CSS information to template (unified array format)
+    if (this.cssResult && this.cssResult.length > 0) {
+      this.template.css = this.cssResult
+    }
 
     // Share the file
     this.status.setStatus('Uploading note...')
@@ -534,6 +567,81 @@ export default class Note {
   }
 
   /**
+   * Split CSS into chunks at rule boundaries to avoid breaking CSS syntax
+   * @param css CSS content to split
+   * @param maxChunkSize Maximum size of each chunk in bytes (default: 500KB)
+   * @returns Array of CSS chunks
+   */
+  splitCssIntoChunks (css: string, maxChunkSize: number = 500 * 1024): string[] {
+    const encoder = new TextEncoder()
+    const cssBytes = encoder.encode(css)
+    
+    // If CSS is smaller than maxChunkSize, return as single chunk
+    if (cssBytes.length <= maxChunkSize) {
+      return [css]
+    }
+    
+    const chunks: string[] = []
+    let currentChunk = ''
+    let currentChunkSize = 0
+    let braceDepth = 0
+    let inString = false
+    let stringChar = ''
+    let i = 0
+    
+    while (i < css.length) {
+      const char = css[i]
+      const charBytes = encoder.encode(char).length
+      
+      // Track string boundaries to avoid splitting inside strings
+      if (!inString && (char === '"' || char === "'")) {
+        inString = true
+        stringChar = char
+      } else if (inString && char === stringChar && css[i - 1] !== '\\') {
+        inString = false
+        stringChar = ''
+      }
+      
+      // Track brace depth to find rule boundaries
+      if (!inString) {
+        if (char === '{') {
+          braceDepth++
+        } else if (char === '}') {
+          braceDepth--
+        }
+      }
+      
+      currentChunk += char
+      currentChunkSize += charBytes
+      
+      // If current chunk exceeds max size, try to split at a safe point
+      if (currentChunkSize >= maxChunkSize) {
+        // Prefer splitting at end of rule (braceDepth === 0, char === '}')
+        if (braceDepth === 0 && !inString && char === '}') {
+          chunks.push(currentChunk)
+          currentChunk = ''
+          currentChunkSize = 0
+        } else if (currentChunkSize >= maxChunkSize * 1.5) {
+          // If chunk is 1.5x larger than max, force split even if not at perfect boundary
+          // This prevents extremely large chunks if CSS has very long rules
+          chunks.push(currentChunk)
+          currentChunk = ''
+          currentChunkSize = 0
+        }
+      }
+      
+      i++
+    }
+    
+    // Add remaining chunk
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk)
+    }
+    
+    return chunks.length > 0 ? chunks : [css]
+  }
+
+  /**
    * Upload theme CSS, unless this file has previously been shared,
    * or the user has requested a force re-upload
    */
@@ -541,7 +649,9 @@ export default class Note {
     // Upload the main CSS file only if the user has asked for it.
     // We do it this way to ensure that the CSS the user wants on the server
     // stays that way, until they ASK to overwrite it.
-    if (this.isForceUpload || !this.cssResult) {
+    // Check if cssResult is empty array or doesn't exist
+    const hasCssResult = this.cssResult && this.cssResult.length > 0
+    if (this.isForceUpload || !hasCssResult) {
       // Extract any attachments from the CSS.
       // Will use the mime-type whitelist to determine which attachments to extract.
       this.status.setStatus('Processing CSS...')
@@ -607,16 +717,81 @@ export default class Note {
       await this.plugin.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
       const minified = minify(this.css).css
+      
+      // Calculate actual byte length for UTF-8 encoded string
+      const encoder = new TextEncoder()
+      const cssBytes = encoder.encode(minified)
       const cssHash = await sha1(minified)
+      
       try {
-        if (cssHash !== this.cssResult?.hash) {
-          await this.plugin.api.upload({
-            filetype: 'css',
-            hash: cssHash,
-            content: minified,
-            byteLength: minified.length,
-            expiration: this.expiration
-          })
+        // Split CSS into chunks if it's larger than 500KB to avoid blocking page load
+        const CSS_CHUNK_SIZE = 500 * 1024 // 500KB per chunk
+        const chunks = this.splitCssIntoChunks(minified, CSS_CHUNK_SIZE)
+        const needsSplitting = chunks.length > 1
+        
+        const hasExistingCss = this.cssResult && this.cssResult.length > 0
+        const hasExistingChunks = hasExistingCss && (this.cssResult?.length || 0) > 1
+        const needsResplit = needsSplitting && !hasExistingChunks
+        const hashChanged = !hasExistingCss || cssHash !== (this.cssResult?.[0]?.hash)
+        
+        
+        // Upload if hash changed, needs resplit, or force upload
+        if (hashChanged || needsResplit || this.isForceUpload) {
+          if (needsSplitting) {
+            // Upload multiple CSS chunks
+            this.status.setStatus(`Uploading CSS chunks (${chunks.length} files)...`)
+            const cssFiles: Array<{ url: string; hash: string }> = []
+            
+            for (let i = 0; i < chunks.length; i++) {
+              const chunk = chunks[i]
+              const chunkBytes = encoder.encode(chunk)
+              
+              const chunkContentHash = await sha1(chunk)
+              
+              // Generate unique hash for filename generation (includes chunk index to ensure uniqueness)
+              const chunkHashForFilename = await sha1(`${i + 1}-${chunkContentHash}-${chunks.length}`)
+              
+              this.status.setStatus(`Uploading CSS chunk ${i + 1} of ${chunks.length}...`)
+              const chunkUrl = await this.plugin.api.upload({
+                filetype: 'css',
+                hash: chunkHashForFilename, // Unique hash for filename generation
+                content: chunk, // Original CSS content
+                byteLength: chunkBytes.length,
+                expiration: this.expiration
+              })
+              
+              if (chunkUrl) {
+                cssFiles.push({
+                  url: chunkUrl,
+                  hash: chunkContentHash
+                })
+                const chunkSizeKB = (chunkBytes.length / 1024).toFixed(2)
+                this.status.setStatus(`CSS chunk ${i + 1}/${chunks.length} uploaded: ${chunkUrl} (${chunkSizeKB} KB)`)
+              }
+            }
+            
+            this.cssResult = cssFiles
+          } else {
+            // Single CSS file (small enough, use array with single element)
+            if (hashChanged) {
+              const singleCssUrl = await this.plugin.api.upload({
+                filetype: 'css',
+                hash: cssHash,
+                content: minified,
+                byteLength: cssBytes.length,
+                expiration: this.expiration
+              })
+              
+              if (singleCssUrl) {
+                const cssSizeKB = (cssBytes.length / 1024).toFixed(2)
+                this.status.setStatus(`CSS uploaded: ${singleCssUrl} (${cssSizeKB} KB)`)
+                this.cssResult = [{
+                  url: singleCssUrl,
+                  hash: cssHash
+                }]
+              }
+            }
+          }
         }
 
         // Store the CSS theme in the settings
@@ -624,6 +799,7 @@ export default class Note {
         this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
         await this.plugin.saveSettings()
       } catch (e) {
+        console.error('Error in processCss:', e)
       }
     }
   }
