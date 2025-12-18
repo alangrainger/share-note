@@ -1,7 +1,7 @@
 {
 	"id": "share-note",
 	"name": "Share Note",
-	"version": "1.2.2",
+	"version": "1.3.0",
 	"minAppVersion": "0.15.0",
 	"description": "Instantly share a note, with the full theme and content exactly like you see in Reading View. Data is shared encrypted by default, and only you and the person you send it to have the key.",
 	"author": "Alan Grainger",

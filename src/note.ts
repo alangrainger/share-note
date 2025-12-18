@@ -474,75 +474,101 @@ export default class Note {
     for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
       const src = el.getAttribute('src')
       if (!src) continue
+      let content, filetype
 
       if (src.startsWith('http') && !src.match(/^https?:\/\/localhost/)) {
         // This is a web asset, no need to upload
         continue
       }
 
+      const filesource = el.getAttribute('filesource')
       const isBlobUrl = src.startsWith('blob:')
-      let content
       let detectedFiletype: string | undefined
       
-      try {
-        const res = await fetch(src)
-        if (res && res.status === 200) {
-          content = await res.arrayBuffer()
-          
-          // Try to detect file type from Content-Type header
-          const contentType = res.headers.get('Content-Type')
-          if (contentType) {
-            // Extract extension from common image/video MIME types
-            const mimeToExt: { [key: string]: string } = {
-              'image/png': 'png',
-              'image/jpeg': 'jpg',
-              'image/jpg': 'jpg',
-              'image/gif': 'gif',
-              'image/webp': 'webp',
-              'image/svg+xml': 'svg',
-              'image/bmp': 'bmp',
-              'video/mp4': 'mp4',
-              'video/webm': 'webm',
-              'video/ogg': 'ogg'
-            }
-            const ext = mimeToExt[contentType.split(';')[0].trim().toLowerCase()]
-            if (ext) {
-              detectedFiletype = ext
-            }
-          }
-          
-          // If still no filetype, try to detect from file signature
-          if (!detectedFiletype && content) {
-            // First try FileTypes (for fonts, SVG)
-            const decoded = FileTypes.getFromSignature(content)
-            if (decoded) {
-              detectedFiletype = decoded.extension
-            } else {
-              // Then try media type detection
-              detectedFiletype = this.detectMediaTypeFromSignature(content)
-            }
-          }
+      if (filesource?.match(/excalidraw/i)) {
+        // Excalidraw drawing
+        console.log('Processing Excalidraw drawing...')
+        try {
+          // @ts-ignore
+          const excalidraw = this.plugin.app.plugins.getPlugin('obsidian-excalidraw-plugin')
+          if (!excalidraw) continue
+          content = await excalidraw.ea.createSVG(filesource)
+          content = content.outerHTML
+          filetype = 'svg'
+          /*
+            Or as PNG:
+            const blob = await excalidraw.ea.createPNG(filesource)
+            content = await blob.arrayBuffer()
+            filetype = 'png'
+          */
+        } catch (e) {
+          console.error('Unable to process Excalidraw drawing:')
+          console.error(e)
+          continue
         }
-      } catch (e) {
-        // Unable to process this file
-        continue
-      }
-
-      // For blob URLs, skip if we couldn't detect a valid media type
-      if (isBlobUrl && !detectedFiletype) {
-        // This blob URL doesn't contain a recognizable media file, skip it
-        // (e.g., code styler plugin icons that aren't actual image files)
-        continue
+      } else {
+        try {
+          const res = await fetch(src)
+          if (res && res.status === 200) {
+            content = await res.arrayBuffer()
+            
+            // Try to detect file type from Content-Type header
+            const contentType = res.headers.get('Content-Type')
+            if (contentType) {
+              // Extract extension from common image/video MIME types
+              const mimeToExt: { [key: string]: string } = {
+                'image/png': 'png',
+                'image/jpeg': 'jpg',
+                'image/jpg': 'jpg',
+                'image/gif': 'gif',
+                'image/webp': 'webp',
+                'image/svg+xml': 'svg',
+                'image/bmp': 'bmp',
+                'video/mp4': 'mp4',
+                'video/webm': 'webm',
+                'video/ogg': 'ogg'
+              }
+              const ext = mimeToExt[contentType.split(';')[0].trim().toLowerCase()]
+              if (ext) {
+                detectedFiletype = ext
+              }
+            }
+            
+            // If still no filetype, try to detect from file signature
+            if (!detectedFiletype && content) {
+              // First try FileTypes (for fonts, SVG)
+              const decoded = FileTypes.getFromSignature(content)
+              if (decoded) {
+                detectedFiletype = decoded.extension
+              } else {
+                // Then try media type detection
+                detectedFiletype = this.detectMediaTypeFromSignature(content)
+              }
+            }
+          }
+        } catch (e) {
+          // Unable to process this file
+          continue
+        }
       }
 
       // Try to get filetype from URL first, then fall back to detected type
-      const parsed = new URL(src)
-      let filetype = parsed.pathname.split('.').pop()
+      if (!filetype) {
+        const parsed = new URL(src)
+        filetype = parsed.pathname.split('.').pop()
+      }
       
       // If filetype from URL is invalid (e.g., UUID from blob URL), use detected type
       // Valid file extensions are typically 2-5 characters and contain only alphanumeric characters
       if (!filetype || filetype.length > 10 || !/^[a-z0-9]+$/i.test(filetype)) {
         filetype = detectedFiletype
+      }
+      
+      // For blob URLs, skip if we couldn't detect a valid media type
+      if (isBlobUrl && !filetype) {
+        // This blob URL doesn't contain a recognizable media file, skip it
+        // (e.g., code styler plugin icons that aren't actual image files)
+        continue
       }
       
       // Final check: if we still don't have a valid filetype, skip this file
@@ -556,7 +582,7 @@ export default class Note {
           filetype,
           hash,
           content,
-          byteLength: content.byteLength,
+          byteLength: content.byteLength || (typeof content === 'string' ? new TextEncoder().encode(content).length : 0),
           expiration: this.expiration
         },
         callback: (url) => el.setAttribute('src', url)
