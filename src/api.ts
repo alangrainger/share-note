@@ -36,10 +36,10 @@ export interface UploadQueueItem {
 export interface CheckFilesResult {
   success: boolean
   files: FileUpload[]
-  css?: {
+  css?: Array<{
     url: string
     hash: string
-  }
+  }>
 }
 
 export default class API {

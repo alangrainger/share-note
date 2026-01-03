@@ -35,4 +35,8 @@ export default class NoteTemplate {
   encrypted: boolean
   content: string
   mathJax: boolean
+  css?: Array<{
+    url: string
+    hash: string
+  }>
 }
