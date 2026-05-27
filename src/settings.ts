@@ -215,7 +215,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setDesc('Remove elements before sharing by targeting them with CSS selectors. One selector per line.')
       .addTextArea(text => {
         text
-          .setPlaceholder('div.class-to-remove')
+          .setPlaceholder('.class-to-remove')
           .setValue(this.plugin.settings.removeElements)
           .onChange(async (value) => {
             this.plugin.settings.removeElements = value

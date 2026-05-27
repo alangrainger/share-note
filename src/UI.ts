@@ -19,14 +19,14 @@ class ConfirmDialog extends Modal {
 
     new Setting(contentEl)
       .addButton(btn => btn
-        .setButtonText('🗑️ Yes, delete')
+        .setButtonText('Delete')
         .setCta()
         .onClick(() => {
           this.close()
           void this.onConfirm()
         }))
       .addButton(btn => btn
-        .setButtonText('No, cancel')
+        .setButtonText('Cancel')
         .onClick(() => this.close()))
   }
 }

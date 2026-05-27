@@ -98,12 +98,12 @@ export default class Note {
     }
     await this.leaf.setViewState(previewMode)
     // Add a delay to wait for reading mode to finalise rendering - https://github.com/alangrainger/share-note/discussions/162#discussioncomment-15394971
-    await new Promise(resolve => activeWindow.setTimeout(resolve, 600))
+    await new Promise(resolve => window.setTimeout(resolve, 600))
 
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore
     this.leaf.view.previewMode.applyScroll(0) // 'view.previewMode'
-    await new Promise(resolve => activeWindow.setTimeout(resolve, 100))
+    await new Promise(resolve => window.setTimeout(resolve, 100))
     try {
       const view = this.leaf.view as ViewModes
       const renderer = view.modes.preview.renderer
@@ -144,7 +144,7 @@ export default class Note {
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       void this.leaf.setViewState(startMode)
     }, 200)
 
@@ -418,9 +418,8 @@ export default class Note {
         try {
           // NOTE: we use fetch (not requestUrl) here because src is typically an
           // `app://` URL pointing at a local vault file — requestUrl is for HTTP
-          // and doesn't handle Obsidian's custom protocols. The scorecard's
-          // "use requestUrl" warning is a false positive for local-asset reads.
-          // eslint-disable-next-line no-undef
+          // and doesn't handle Obsidian's custom protocols.
+          // eslint-disable-next-line no-restricted-globals
           const res = await fetch(src)
           if (res && res.status === 200) {
             content = await res.arrayBuffer()
@@ -503,7 +502,7 @@ export default class Note {
               // Fetch the attachment content. See note in processMedia() — we
               // need fetch here because CSS url() refs are typically local
               // (e.g. theme fonts) and requestUrl doesn't handle app:// URLs.
-              // eslint-disable-next-line no-undef
+              // eslint-disable-next-line no-restricted-globals
               const res = await fetch(assetUrl)
               const contents = await res.arrayBuffer()
               const hash = await sha1(contents)
@@ -570,7 +569,7 @@ export default class Note {
       } catch (_e) {
         break
       }
-      await new Promise(resolve => activeWindow.setTimeout(resolve, 100))
+      await new Promise(resolve => window.setTimeout(resolve, 100))
     }
     return this.reduceSections(renderer.sections)
   }

@@ -102,7 +102,7 @@ export default class API {
       }
 
       // Transient server error — wait then retry
-      await new Promise(resolve => activeWindow.setTimeout(resolve, 1000))
+      await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
     throw new Error('Retries exhausted')
@@ -135,7 +135,7 @@ export default class API {
       }
 
       // Transient server error — wait then retry
-      await new Promise(resolve => activeWindow.setTimeout(resolve, 1000))
+      await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
     throw new Error('Retries exhausted')

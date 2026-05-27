@@ -252,7 +252,7 @@ export default class SharePlugin extends Plugin {
             }
           })
       }
-      if (count < 8) activeWindow.setTimeout(tick, 50)
+      if (count < 8) window.setTimeout(tick, 50)
     }
     tick()
   }
