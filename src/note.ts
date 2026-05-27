@@ -465,7 +465,7 @@ export default class Note {
       this.status.setStatus('Processing CSS...')
       const attachments = this.css.match(/url\s*\(.*?\)/g) || []
       for (const attachment of attachments) {
-        const assetMatch = attachment.match(/url\s*\(\s*"*(.*?)\s*(?<!\\)"\s*\)/)
+        const assetMatch = attachment.match(/url\s*\(\s*"((?:\\.|[^"\\])*)"\s*\)/)
         if (!assetMatch) continue
         const assetUrl = assetMatch?.[1] || ''
         if (assetUrl.startsWith('data:')) {

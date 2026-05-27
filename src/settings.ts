@@ -118,7 +118,7 @@ export class ShareSettingsTab extends PluginSettingTab {
 
     // Choose light/dark theme mode
     new Setting(containerEl)
-      .setName('Light/Dark mode')
+      .setName('Light/dark mode')
       .setDesc('Choose the mode with which your files will be shared')
       .addDropdown(dropdown => {
         dropdown

@@ -59,7 +59,7 @@ export default class SharePlugin extends Plugin {
 
     // Add command - Share note
     this.addCommand({
-      id: 'share-note',
+      id: 'share',
       name: 'Share current note',
       callback: () => { void this.uploadNote() }
     })

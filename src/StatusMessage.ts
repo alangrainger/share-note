@@ -39,8 +39,10 @@ export default class StatusMessage extends Notice {
     const icon = statuses[type]?.icon || ''
     const messageEl = messageDoc.createDiv({ text: `${icon}${pluginName}: ${text}` })
     super(messageDoc, duration)
-    if (messageEl.parentElement && statuses[type]) {
-      messageEl.parentElement.classList.add(statuses[type].class)
+    if (statuses[type]) {
+      // containerEl wraps messageEl in Obsidian 1.8.7+; older versions only expose the inner element via messageEl.parentElement.
+      const target = (this.containerEl as HTMLElement | undefined) ?? messageEl.parentElement
+      target?.classList.add(statuses[type].class)
     }
     this.icon = icon
     this.messageEl = messageEl
