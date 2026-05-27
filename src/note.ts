@@ -604,6 +604,8 @@ export default class Note {
             el.classList.add('force-cursor')
           }
           return true
+        } else {
+          // PDF here - read the file then upload
         }
       }
     } catch (e) {
