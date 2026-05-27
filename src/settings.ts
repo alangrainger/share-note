@@ -62,7 +62,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
 
 export class ShareSettingsTab extends PluginSettingTab {
   plugin: SharePlugin
-  apikeyEl: TextComponent
+  apikeyEl?: TextComponent
 
   constructor (app: App, plugin: SharePlugin) {
     super(app, plugin)
@@ -108,7 +108,7 @@ export class ShareSettingsTab extends PluginSettingTab {
         }))
 
     new Setting(containerEl)
-      .setName('Upload options')
+      .setName('Sharing')
       .setHeading()
 
     new Setting(containerEl)
@@ -145,7 +145,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       })
 
     new Setting(containerEl)
-      .setName('Note options')
+      .setName('Note display')
       .setHeading()
 
     // Title source

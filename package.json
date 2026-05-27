@@ -17,7 +17,6 @@
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
 		"browser-image-compression": "^2.0.2",
-		"builtin-modules": "3.3.0",
 		"esbuild": "^0.25.0",
 		"eslint": "^8.49.0",
 		"eslint-config-standard": "^17.1.0",

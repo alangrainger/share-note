@@ -43,15 +43,13 @@ export default class SharePlugin extends Plugin {
       if (data.action === 'share-note' && data.key) {
         this.settings.apiKey = data.key
         await this.saveSettings()
-        if (this.settingsPage.apikeyEl) {
-          // Live-update of the settings page input field
-          this.settingsPage.apikeyEl.setValue(data.key)
-        }
+        // Live-update of the settings page input field (if it's been rendered)
+        this.settingsPage.apikeyEl?.setValue(data.key)
 
         // Check for a redirect
         if (this.settings.authRedirect === 'share') {
-          this.authRedirect(null).then()
-          this.uploadNote().then()
+          void this.authRedirect(null)
+          void this.uploadNote()
         } else {
           // Otherwise show a success message
           new StatusMessage('Plugin successfully connected. You can now start sharing notes!', StatusType.Success, 6000)
@@ -63,14 +61,14 @@ export default class SharePlugin extends Plugin {
     this.addCommand({
       id: 'share-note',
       name: 'Share current note',
-      callback: () => this.uploadNote()
+      callback: () => { void this.uploadNote() }
     })
 
     // Add command - Share note and force a re-upload of all assets
     this.addCommand({
       id: 'force-upload',
       name: 'Force re-upload of all data for this note',
-      callback: () => this.uploadNote(true)
+      callback: () => { void this.uploadNote(true) }
     })
 
     // Add command - Delete shared note
@@ -82,7 +80,7 @@ export default class SharePlugin extends Plugin {
         if (checking) {
           return !!sharedFile
         } else if (sharedFile) {
-          this.deleteSharedNote(sharedFile.file)
+          void this.deleteSharedNote(sharedFile.file)
         }
       }
     })
@@ -96,7 +94,7 @@ export default class SharePlugin extends Plugin {
         if (checking) {
           return file instanceof TFile
         } else if (file) {
-          this.copyShareLink(file)
+          void this.copyShareLink(file)
         }
       }
     })
@@ -108,7 +106,7 @@ export default class SharePlugin extends Plugin {
           menu.addItem((item) => {
             item.setIcon('globe')
             item.setTitle('Share note on the web')
-            item.onClick(() => this.uploadNote())
+            item.onClick(() => { void this.uploadNote() })
           })
           menu.addItem((item) => {
             item.setIcon('share-2')
@@ -172,9 +170,8 @@ export default class SharePlugin extends Plugin {
       try {
         await note.share()
       } catch (e) {
-        // Known errors are outputted by api.js
-        if (e.message !== 'Known error') {
-          console.log(e)
+        // Known errors are outputted by api.ts
+        if (!(e instanceof Error) || e.message !== 'Known error') {
           new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
         }
       }
@@ -220,51 +217,43 @@ export default class SharePlugin extends Plugin {
   }
 
   addShareIcons () {
-    // I tried using onLayoutReady() here rather than a timeout/interval, but it did not work.
-    // It seems that the layout is still updating even after it is "ready".
+    // I tried using onLayoutReady() here rather than polling, but it did not work.
+    // It seems that the layout is still updating even after it is "ready", so we
+    // re-check up to 8 times after the leaf change to catch the rendered DOM.
     let count = 0
-    const timer = setInterval(() => {
+    const tick = () => {
       count++
-      if (count > 8) {
-        clearInterval(timer)
-        return
-      }
       const activeFile = this.app.workspace.getActiveFile()
-      if (!activeFile) return
-      const shareLink = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[this.field(YamlField.link)]
-      if (!shareLink) return
-      document.querySelectorAll(`div.metadata-property[data-property-key="${this.field(YamlField.link)}"]`)
-        .forEach(propertyEl => {
-          const valueEl = propertyEl.querySelector('div.metadata-property-value')
-          const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
-          if (linkEl?.innerText !== shareLink) return
-          // Remove existing elements
-          // valueEl?.querySelectorAll('div.share-note-icons').forEach(el => el.remove())
-          if (valueEl && !valueEl.querySelector('div.share-note-icons')) {
-            const iconsEl = document.createElement('div')
-            iconsEl.classList.add('share-note-icons')
-            // Re-share note icon
-            const shareIcon = iconsEl.createEl('span')
-            shareIcon.title = 'Re-share note'
-            setIcon(shareIcon, 'upload-cloud')
-            shareIcon.onclick = () => this.uploadNote()
-            // Copy to clipboard icon
-            const copyIcon = iconsEl.createEl('span')
-            copyIcon.title = 'Copy link to clipboard'
-            setIcon(copyIcon, 'copy')
-            copyIcon.onclick = async () => {
-              await navigator.clipboard.writeText(shareLink)
-              new StatusMessage('📋 Shared link copied to clipboard')
+      const shareLink = activeFile
+        ? this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[this.field(YamlField.link)]
+        : undefined
+      if (activeFile && shareLink) {
+        activeDocument.querySelectorAll(`div.metadata-property[data-property-key="${this.field(YamlField.link)}"]`)
+          .forEach(propertyEl => {
+            const valueEl = propertyEl.querySelector('div.metadata-property-value')
+            const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
+            if (linkEl?.innerText !== shareLink) return
+            if (valueEl && !valueEl.querySelector('div.share-note-icons')) {
+              const iconsEl = createDiv({ cls: 'share-note-icons' })
+              const shareIcon = iconsEl.createSpan({ attr: { title: 'Re-share note' } })
+              setIcon(shareIcon, 'upload-cloud')
+              shareIcon.onclick = () => { void this.uploadNote() }
+              const copyIcon = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard' } })
+              setIcon(copyIcon, 'copy')
+              copyIcon.onclick = async () => {
+                await navigator.clipboard.writeText(shareLink)
+                new StatusMessage('📋 Shared link copied to clipboard')
+              }
+              const deleteIcon = iconsEl.createSpan({ attr: { title: 'Delete shared note' } })
+              setIcon(deleteIcon, 'trash-2')
+              deleteIcon.onclick = () => { void this.deleteSharedNote(activeFile) }
+              valueEl.prepend(iconsEl)
             }
-            // Delete shared note icon
-            const deleteIcon = iconsEl.createEl('span')
-            deleteIcon.title = 'Delete shared note'
-            setIcon(deleteIcon, 'trash-2')
-            deleteIcon.onclick = () => this.deleteSharedNote(activeFile)
-            valueEl.prepend(iconsEl)
-          }
-        })
-    }, 50)
+          })
+      }
+      if (count < 8) activeWindow.setTimeout(tick, 50)
+    }
+    tick()
   }
 
   /**

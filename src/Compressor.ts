@@ -48,8 +48,8 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
         data = originalData
       }
       changed = data.byteLength !== originalData.byteLength
-    } catch (e) {
-      console.log(e)
+    } catch (_e) {
+      // Compression failed; keep original
     }
   }
 

@@ -37,19 +37,25 @@ export default class StatusMessage extends Notice {
     const messageDoc = new DocumentFragment()
 
     const icon = statuses[type]?.icon || ''
-    const messageEl = messageDoc.createEl('div')
-    messageEl.innerHTML = `${icon}${pluginName}: ${text}`
+    const messageEl = messageDoc.createDiv({ text: `${icon}${pluginName}: ${text}` })
     super(messageDoc, duration)
-    if (messageEl.parentElement) {
-      if (statuses[type]) {
-        messageEl.parentElement.classList.add(statuses[type].class)
-      }
+    if (messageEl.parentElement && statuses[type]) {
+      messageEl.parentElement.classList.add(statuses[type].class)
     }
     this.icon = icon
     this.messageEl = messageEl
   }
 
   setStatus (message: string) {
-    this.messageEl.innerText = `${this.icon}${pluginName}: ${message}`
+    this.messageEl.setText(`${this.icon}${pluginName}: ${message}`)
+  }
+
+  /**
+   * Append a clickable link to the message on its own line.
+   */
+  addLink (url: string, text: string) {
+    this.messageEl.createEl('br')
+    this.messageEl.createEl('br')
+    this.messageEl.createEl('a', { text, href: url })
   }
 }

@@ -79,10 +79,6 @@ export default class API {
           headers,
           body: JSON.stringify(body)
         })
-        if (this.plugin.settings.debug === 1 && data?.filetype === 'html') {
-          // Debugging option
-          console.log(res.json.html)
-        }
         return res.json
       } catch (error) {
         if (error.status < 500 || retries <= 1) {
@@ -91,37 +87,38 @@ export default class API {
             new StatusMessage(message, StatusType.Error)
             if (error.status === 462) {
               // Invalid API key, request a new one
-              this.plugin.authRedirect('share').then()
+              void this.plugin.authRedirect('share')
             }
             throw new Error('Known error')
           }
           throw new Error('Unknown error')
         } else {
           // Delay before attempting to retry upload
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise(resolve => activeWindow.setTimeout(resolve, 1000))
         }
       }
-      console.log('Retrying ' + retries)
       retries--
     }
   }
 
   async postRaw (endpoint: string, data: FileUpload, retries = 4) {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       ...(await this.authHeaders()),
       'x-sharenote-filetype': data.filetype,
       'x-sharenote-hash': data.hash
     }
     if (data.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     while (retries > 0) {
-      const res = await fetch(this.plugin.settings.server + endpoint, {
+      const res = await requestUrl({
+        url: this.plugin.settings.server + endpoint,
         method: 'POST',
         headers,
-        body: data.content
+        body: data.content,
+        throw: false
       })
       if (res.status !== 200) {
         if (res.status < 500 || retries <= 1) {
-          const message = await res.text()
+          const message = res.text
           if (message) {
             new StatusMessage(message, StatusType.Error)
             throw new Error('Known error')
@@ -129,11 +126,10 @@ export default class API {
           throw new Error('Unknown error')
         }
         // Delay before attempting to retry upload
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => activeWindow.setTimeout(resolve, 1000))
       } else {
-        return res.json()
+        return res.json
       }
-      console.log('Retrying ' + retries)
       retries--
     }
   }
@@ -181,8 +177,7 @@ export default class API {
               queueItem.callback(res.url)
               resolve()
             })
-            .catch((e) => {
-              console.log(e)
+            .catch(() => {
               resolve()
             })
         }))

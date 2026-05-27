@@ -2,11 +2,11 @@ import { App, Modal, Setting } from 'obsidian'
 
 class ConfirmDialog extends Modal {
   app: App
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   title?: string
   body?: string
 
-  constructor (app: App, onConfirm: () => void) {
+  constructor (app: App, onConfirm: () => void | Promise<void>) {
     super(app)
     this.onConfirm = onConfirm
   }
@@ -28,7 +28,7 @@ class ConfirmDialog extends Modal {
           .setCta()
           .onClick(() => {
             this.close()
-            this.onConfirm()
+            void this.onConfirm()
           }))
       .addButton(btn =>
         btn
@@ -46,7 +46,7 @@ export default class UI {
     this.app = app
   }
 
-  confirmDialog (title = '', body = '', onConfirm: () => void) {
+  confirmDialog (title = '', body = '', onConfirm: () => void | Promise<void>) {
     const dialog = new ConfirmDialog(this.app, onConfirm)
     dialog.title = title
     dialog.body = body

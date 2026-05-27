@@ -41,8 +41,6 @@ export interface Renderer {
 }
 
 export interface ViewModes extends View {
-  getViewType: any,
-  getDisplayText: any,
   modes: {
     preview: {
       renderer: Renderer
@@ -87,7 +85,7 @@ export default class Note {
 
   async share () {
     if (!this.plugin.settings.apiKey) {
-      this.plugin.authRedirect('share').then()
+      void this.plugin.authRedirect('share')
       return
     }
 
@@ -102,25 +100,25 @@ export default class Note {
     }
     await this.leaf.setViewState(previewMode)
     // Add a delay to wait for reading mode to finalise rendering - https://github.com/alangrainger/share-note/discussions/162#discussioncomment-15394971
-    await new Promise(resolve => setTimeout(resolve, 600))
+    await new Promise(resolve => activeWindow.setTimeout(resolve, 600))
 
     // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
     // @ts-ignore
     this.leaf.view.previewMode.applyScroll(0) // 'view.previewMode'
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => activeWindow.setTimeout(resolve, 100))
     try {
       const view = this.leaf.view as ViewModes
       const renderer = view.modes.preview.renderer
       // Copy classes and styles
-      this.elements.push(getElementStyle('html', document.documentElement))
-      const bodyStyle = getElementStyle('body', document.body)
+      this.elements.push(getElementStyle('html', activeDocument.documentElement))
+      const bodyStyle = getElementStyle('body', activeDocument.body)
       bodyStyle.classes.push('share-note-plugin') // Add a targetable class for published notes
       this.elements.push(bodyStyle)
       this.elements.push(getElementStyle('preview', renderer.previewEl))
       this.elements.push(getElementStyle('pusher', renderer.pusherEl))
       this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view as ViewModes), 'text/html')
       this.cssRules = []
-      Array.from(document.styleSheets)
+      Array.from(activeDocument.styleSheets)
         .forEach(x => Array.from(x.cssRules)
           .forEach(rule => {
             this.cssRules.push(rule)
@@ -139,17 +137,16 @@ export default class Note {
           return rule?.media?.[0] !== 'print'
         })
         .map(rule => rule.cssText).join('').replace(/\n/g, '')
-    } catch (e) {
-      console.log(e)
+    } catch (_e) {
       this.status.hide()
-      new StatusMessage('Failed to parse current note, check console for details', StatusType.Error)
+      new StatusMessage('Failed to parse the current note', StatusType.Error)
       return
     }
 
     // Reset the view to the original mode
     // The timeout is required, even though we 'await' the preview mode setting earlier
-    setTimeout(() => {
-      this.leaf.setViewState(startMode)
+    activeWindow.setTimeout(() => {
+      void this.leaf.setViewState(startMode)
     }, 200)
 
     this.status.setStatus('Processing note...')
@@ -218,7 +215,11 @@ export default class Note {
       const iconEl = el.querySelector('div.callout-icon')
       const svgEl = iconEl?.querySelector('svg')
       if (svgEl) {
-        svgEl.outerHTML = `<svg width="16" height="16" data-share-note-lucide="${icon}"></svg>`
+        const newSvg = this.contentDom.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        newSvg.setAttribute('width', '16')
+        newSvg.setAttribute('height', '16')
+        newSvg.setAttribute('data-share-note-lucide', icon)
+        svgEl.replaceWith(newSvg)
       }
     }
 
@@ -351,7 +352,8 @@ export default class Note {
     // Share the file
     this.status.setStatus('Uploading note...')
     let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
-    requestUrl(shareLink).then().catch() // Fetch the uploaded file to pull it through the cache
+    // Fetch the uploaded file to pull it through the CDN cache
+    void requestUrl({ url: shareLink, throw: false })
 
     // Add the decryption key to the share link
     if (shareLink && this.isEncrypted) {
@@ -370,15 +372,18 @@ export default class Note {
         try {
           await navigator.clipboard.writeText(shareLink)
           shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
-        } catch (e) {
-          // If there's an error here it's because the user clicked away from the Obsidian window
+        } catch (_e) {
+          // Clipboard write fails if Obsidian window is not focused; ignore
         }
         this.isForceClipboard = false
       }
     }
 
     this.status.hide()
-    new StatusMessage(shareMessage + `<br><br><a href="${shareLink}">↗️ Open shared note</a>`, StatusType.Success, 6000)
+    const successMsg = new StatusMessage(shareMessage, StatusType.Success, 6000)
+    if (shareLink) {
+      successMsg.addLink(shareLink, '↗️ Open shared note')
+    }
   }
 
   /**
@@ -400,7 +405,6 @@ export default class Note {
       const filesource = el.getAttribute('filesource')
       if (filesource?.match(/excalidraw/i)) {
         // Excalidraw drawing
-        console.log('Processing Excalidraw drawing...')
         try {
           // @ts-ignore
           const excalidraw = this.plugin.app.plugins.getPlugin('obsidian-excalidraw-plugin')
@@ -408,25 +412,18 @@ export default class Note {
           content = await excalidraw.ea.createSVG(filesource)
           content = content.outerHTML
           filetype = 'svg'
-          /*
-            Or as PNG:
-            const blob = await excalidraw.ea.createPNG(filesource)
-            content = await blob.arrayBuffer()
-            filetype = 'png'
-          */
-        } catch (e) {
-          console.error('Unable to process Excalidraw drawing:')
-          console.error(e)
+        } catch (_e) {
+          // Unable to process this Excalidraw drawing; skip it
         }
       } else {
         try {
-          const res = await fetch(src)
-          if (res && res.status === 200) {
-            content = await res.arrayBuffer()
+          const res = await requestUrl({ url: src, throw: false })
+          if (res.status === 200) {
+            content = res.arrayBuffer
             const parsed = new URL(src)
             filetype = parsed.pathname.split('.').pop()
           }
-        } catch (e) {
+        } catch (_e) {
           // Unable to process this file
           continue
         }
@@ -500,9 +497,9 @@ export default class Note {
           if (filename) {
             if (cssAttachmentWhitelist[filename[2]]) {
               // Fetch the attachment content
-              const res = await fetch(assetUrl)
-              // Reupload to the server
-              const contents = await res.arrayBuffer()
+              const res = await requestUrl({ url: assetUrl, throw: false })
+              if (res.status !== 200) continue
+              const contents = res.arrayBuffer
               const hash = await sha1(contents)
               await this.plugin.api.queueUpload({
                 data: {
@@ -540,45 +537,36 @@ export default class Note {
         // @ts-ignore
         this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
         await this.plugin.saveSettings()
-      } catch (e) {
+      } catch (_e) {
+        // CSS upload is best-effort; ignore failures
       }
     }
   }
 
+  /**
+   * Poll the renderer until enough sections have rendered (or we time out),
+   * then return the concatenated outerHTML of all sections.
+   */
   async querySelectorAll (view: ViewModes) {
     const renderer = view.modes.preview.renderer
-    let html = ''
-    await new Promise<void>(resolve => {
-      let count = 0
-      let parsing = 0
-      const timer = setInterval(() => {
-        try {
+    const maxTicks = 40
+    let parsing = 0
+    for (let count = 0; count < maxTicks; count++) {
+      try {
+        if (renderer.parsing) parsing++
+        if (count > parsing) {
           const sections = renderer.sections
-          count++
-          if (renderer.parsing) parsing++
-          if (count > parsing) {
-            // Check the final sections to see if they have rendered
-            let rendered = 0
-            if (sections.length > 12) {
-              sections.slice(sections.length - 7, sections.length - 1).forEach((section: PreviewSection) => {
-                if (section.el.innerHTML) rendered++
-              })
-              if (rendered > 3) count = 100
-            } else {
-              count = 100
-            }
-          }
-          if (count > 40) {
-            html = this.reduceSections(renderer.sections)
-            resolve()
-          }
-        } catch (e) {
-          clearInterval(timer)
-          resolve()
+          if (sections.length <= 12) break
+          const tail = sections.slice(sections.length - 7, sections.length - 1)
+          const rendered = tail.filter(s => s.el.innerHTML).length
+          if (rendered > 3) break
         }
-      }, 100)
-    })
-    return html
+      } catch (_e) {
+        break
+      }
+      await new Promise(resolve => activeWindow.setTimeout(resolve, 100))
+    }
+    return this.reduceSections(renderer.sections)
   }
 
   /**

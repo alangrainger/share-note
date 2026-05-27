@@ -20,18 +20,18 @@ export function getElementStyle (key: string, element: HTMLElement) {
       style.removeProperty('margin-bottom')
     }
     elementStyle.style = style.cssText
-  } catch (e) {
-    console.log(e)
+  } catch (_e) {
+    // Some elements may not expose classList/style; skip them
   }
   return elementStyle
 }
 
-export default class NoteTemplate {
+export default interface NoteTemplate {
   filename: string
   title: string
   description: string
   width: string
-  elements: ElementStyle[] = []
+  elements: ElementStyle[]
   encrypted: boolean
   content: string
   mathJax: boolean
