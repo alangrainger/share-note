@@ -180,8 +180,9 @@ export default class API {
             const uploaded = await this.postRaw<{ url: string }>('/v1/file/upload', queueItem.data)
             status.setStatus(`Uploading ${type} ${count++} of ${total}...`)
             queueItem.callback(uploaded.url)
-          } catch (_e) {
+          } catch (e) {
             // Individual upload failures are non-fatal; the asset will just be missing
+            console.error(`[Share Note] ${type} upload failed:`, e)
           }
         })())
       }

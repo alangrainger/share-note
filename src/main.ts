@@ -172,6 +172,7 @@ export default class SharePlugin extends Plugin {
       } catch (e) {
         // HandledError means api.ts has already shown the user-facing message
         if (!(e instanceof HandledError)) {
+          console.error('[Share Note] Upload failed:', e)
           new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
         }
       }
