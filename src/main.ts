@@ -198,7 +198,7 @@ export default class SharePlugin extends Plugin {
     return shareLink
   }
 
-  async deleteSharedNote (file: TFile) {
+  deleteSharedNote (file: TFile) {
     const sharedFile = this.hasSharedFile(file)
     if (sharedFile) {
       this.ui.confirmDialog(
