@@ -27,9 +27,9 @@ export function getElementStyle (key: string, element: HTMLElement) {
 }
 
 export default interface NoteTemplate {
-  filename: string
-  title: string
-  description: string
+  filename?: string
+  title?: string
+  description?: string
   width: string
   elements: ElementStyle[]
   encrypted: boolean

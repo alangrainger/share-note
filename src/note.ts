@@ -51,46 +51,44 @@ export interface ViewModes extends View {
 export default class Note {
   plugin: SharePlugin
   leaf: WorkspaceLeaf
-  status: StatusMessage
-  css: string
-  cssRules: CSSRule[]
+  status!: StatusMessage
+  css!: string
+  cssRules!: CSSRule[]
   cssResult: CheckFilesResult['css']
-  contentDom: Document
-  meta: CachedMetadata | null
+  contentDom!: Document
+  meta: CachedMetadata | null = null
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
-  template: NoteTemplate
-  elements: ElementStyle[]
+  elements: ElementStyle[] = []
+  template: NoteTemplate = {
+    width: '',
+    elements: [],
+    encrypted: true,
+    content: '',
+    mathJax: false
+  }
+
   expiration?: number
 
   constructor (plugin: SharePlugin) {
     this.plugin = plugin
     // .getLeaf() doesn't return a `previewMode` property when a note is pinned,
     // so use the undocumented .getActiveFileView() which seems to work fine
-    // @ts-ignore
+    // @ts-expect-error - getActiveFileView is undocumented
     this.leaf = this.plugin.app.workspace.getActiveFileView()?.leaf
-    this.elements = []
-    this.template = new NoteTemplate()
-  }
-
-  /**
-   * Return the name (key) of a frontmatter property, eg 'share_link'
-   * @param key
-   * @return {string} The name (key) of a frontmatter property
-   */
-  field (key: YamlField): string {
-    return this.plugin.field(key)
   }
 
   async share () {
+    // Create a semi-permanent status notice up front so that callers can always
+    // safely call note.status.hide() after share() returns or throws.
+    this.status = new StatusMessage('Please do not change to another note as the current note data is still being parsed.', StatusType.Default, 60 * 1000)
+
     if (!this.plugin.settings.apiKey) {
+      this.status.hide()
       void this.plugin.authRedirect('share')
       return
     }
-
-    // Create a semi-permanent status notice which we can update
-    this.status = new StatusMessage('Please do not change to another note as the current note data is still being parsed.', StatusType.Default, 60 * 1000)
 
     // Switch to reading mode
     const startMode = this.leaf.getViewState()
@@ -177,8 +175,8 @@ export default class Note {
             const labelEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
             labelEl?.setAttribute('value', propertyName)
             const valueEl = propertyContainerEl.querySelector('div.metadata-property-value > input')
-            const value = this.meta?.frontmatter?.[propertyName] || ''
-            valueEl?.setAttribute('value', value)
+            const value = this.meta?.frontmatter?.[propertyName] ?? ''
+            valueEl?.setAttribute('value', String(value))
             // Special cases for different element types
             switch (valueEl?.getAttribute('type')) {
               case 'checkbox':
@@ -234,7 +232,7 @@ export default class Note {
           const heading = href.slice(1).replace(/(['"])/g, '\\$1') // escape the quotes
           const linkTypes = [
             `[data-heading="${heading}"]`, // Links to a heading
-            `[id="${heading}"]`,           // Links to a footnote
+            `[id="${heading}"]` // Links to a footnote
           ]
           linkTypes.forEach(selector => {
             if (this.contentDom.querySelectorAll(selector)?.[0]) {
@@ -246,8 +244,8 @@ export default class Note {
           el.removeAttribute('target')
           el.removeAttribute('href')
           continue
-        } catch (e) {
-          console.error(e)
+        } catch (_e) {
+          // Anchor target couldn't be processed; fall through and remove link
         }
       } else if (match) {
         if (this.internalLinkToSharedNote(match[1], el)) {
@@ -284,8 +282,8 @@ export default class Note {
 
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
-    if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.field(YamlField.link)])
+    if (this.meta?.frontmatter?.[this.plugin.field(YamlField.link)]) {
+      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.plugin.field(YamlField.link)])
       if (match) {
         this.template.filename = match.filename
         decryptionKey = match.decryptionKey
@@ -300,7 +298,7 @@ export default class Note {
         title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
         break
       case TitleSource['Frontmatter property']:
-        title = this.meta?.frontmatter?.[this.field(YamlField.title)]
+        title = this.meta?.frontmatter?.[this.plugin.field(YamlField.title)]
         break
     }
     if (!title) {
@@ -347,7 +345,7 @@ export default class Note {
     }
     this.template.elements = this.elements
     // Check for MathJax
-    this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
+    this.template.mathJax = !!this.contentDom.querySelector('mjx-container')
 
     // Share the file
     this.status.setStatus('Uploading note...')
@@ -364,8 +362,8 @@ export default class Note {
     if (shareLink) {
       await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
         // Update the frontmatter with the share link
-        frontmatter[this.field(YamlField.link)] = shareLink
-        frontmatter[this.field(YamlField.updated)] = moment().format()
+        frontmatter[this.plugin.field(YamlField.link)] = shareLink
+        frontmatter[this.plugin.field(YamlField.updated)] = moment().format()
       })
       if (this.plugin.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
@@ -579,7 +577,7 @@ export default class Note {
       const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
       if (linkedFile instanceof TFile) {
         const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-        const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
+        const href = linkedMeta?.frontmatter?.[this.plugin.field(YamlField.link)]
         if (href && typeof href === 'string') {
           // This file is shared, so update the link with the share URL
           if (method === InternalLinkMethod.ANCHOR) {
@@ -596,8 +594,8 @@ export default class Note {
           // PDF here - read the file then upload
         }
       }
-    } catch (e) {
-      console.error(e)
+    } catch (_e) {
+      // Best-effort link rewriting; on failure leave the link as-is
     }
     return false
   }
@@ -663,7 +661,7 @@ export default class Note {
       // Check for sanity against expected format
       const match = expiration.match(/^(\d+) ([a-z]+?)s?$/)
       if (match && whitelist.includes(match[2])) {
-        return parseInt(moment().add(+match[1], (match[2] + 's') as DurationConstructor).format('x'), 10)
+        return moment().add(+match[1], (match[2] + 's') as DurationConstructor).valueOf()
       }
     }
   }

@@ -1,6 +1,6 @@
 import { Notice } from 'obsidian'
 
-const pluginName = require('../manifest.json').name
+const pluginName = 'Share Note'
 
 export enum StatusType {
   Default,

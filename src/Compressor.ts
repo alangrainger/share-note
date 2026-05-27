@@ -34,9 +34,7 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
 
       // If size is >200Kb, test compressing the file as JPG and see how the size compares
       if (data.byteLength > 200 * 1024) {
-        const test = await compressArrayBuffer(data, type, Object.assign(defaultOptions, {
-          fileType: 'image/jpeg'
-        }))
+        const test = await compressArrayBuffer(data, type, { ...defaultOptions, fileType: 'image/jpeg' })
         if (test.byteLength < data.byteLength) {
           data = test
           filetype = 'jpg'

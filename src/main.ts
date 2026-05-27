@@ -1,7 +1,7 @@
 import { Plugin, setIcon, TFile } from 'obsidian'
 import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab, YamlField } from './settings'
 import Note, { SharedNote } from './note'
-import API, { parseExistingShareUrl } from './api'
+import API, { HandledError, parseExistingShareUrl } from './api'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import UI from './UI'
@@ -21,7 +21,7 @@ export default class SharePlugin extends Plugin {
     await this.loadSettings()
     if (!this.settings.uid) {
       // Set up a random UID if the user does not already have one
-      this.settings.uid = await shortHash('' + Date.now() + Math.random())
+      this.settings.uid = await shortHash(`${Date.now()}-${Math.random()}`)
       await this.saveSettings()
     }
     if (this.settings.server === 'https://api.obsidianshare.com') {
@@ -130,7 +130,7 @@ export default class SharePlugin extends Plugin {
   }
 
   async loadSettings () {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) }
   }
 
   async saveSettings () {
@@ -152,11 +152,11 @@ export default class SharePlugin extends Plugin {
         // The user has opted to share unencrypted by default
         note.shareAsPlainText(true)
       }
-      if (meta?.frontmatter?.[note.field(YamlField.unencrypted)] === true) {
+      if (meta?.frontmatter?.[this.field(YamlField.unencrypted)] === true) {
         // User has set the frontmatter property 'share_unencrypted` = true
         note.shareAsPlainText(true)
       }
-      if (meta?.frontmatter?.[note.field(YamlField.encrypted)] === true) {
+      if (meta?.frontmatter?.[this.field(YamlField.encrypted)] === true) {
         // User has set the frontmatter property `share_encrypted` = true
         // This setting goes after the 'unencrypted' setting, just in case of conflicting checkboxes
         note.shareAsPlainText(false)
@@ -170,8 +170,8 @@ export default class SharePlugin extends Plugin {
       try {
         await note.share()
       } catch (e) {
-        // Known errors are outputted by api.ts
-        if (!(e instanceof Error) || e.message !== 'Known error') {
+        // HandledError means api.ts has already shown the user-facing message
+        if (!(e instanceof HandledError)) {
           new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
         }
       }
@@ -237,16 +237,16 @@ export default class SharePlugin extends Plugin {
               const iconsEl = createDiv({ cls: 'share-note-icons' })
               const shareIcon = iconsEl.createSpan({ attr: { title: 'Re-share note' } })
               setIcon(shareIcon, 'upload-cloud')
-              shareIcon.onclick = () => { void this.uploadNote() }
+              this.registerDomEvent(shareIcon, 'click', () => { void this.uploadNote() })
               const copyIcon = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard' } })
               setIcon(copyIcon, 'copy')
-              copyIcon.onclick = async () => {
+              this.registerDomEvent(copyIcon, 'click', async () => {
                 await navigator.clipboard.writeText(shareLink)
                 new StatusMessage('📋 Shared link copied to clipboard')
-              }
+              })
               const deleteIcon = iconsEl.createSpan({ attr: { title: 'Delete shared note' } })
               setIcon(deleteIcon, 'trash-2')
-              deleteIcon.onclick = () => { void this.deleteSharedNote(activeFile) }
+              this.registerDomEvent(deleteIcon, 'click', () => { void this.deleteSharedNote(activeFile) })
               valueEl.prepend(iconsEl)
             }
           })
@@ -266,24 +266,18 @@ export default class SharePlugin extends Plugin {
     if (value) window.open(this.settings.server + '/v1/account/get-key?id=' + this.settings.uid)
   }
 
-  hasSharedFile (file?: TFile) {
-    if (!file) {
-      file = this.app.workspace.getActiveFile() || undefined
-    }
-    if (file) {
-      const meta = this.app.metadataCache.getFileCache(file)
-      const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
-      if (shareLink && parseExistingShareUrl(shareLink)) {
-        return {
-          file,
-          ...parseExistingShareUrl(shareLink)
-        } as SharedNote
-      }
-    }
-    return false
+  hasSharedFile (file?: TFile): SharedNote | null {
+    const target = file ?? this.app.workspace.getActiveFile()
+    if (!target) return null
+    const meta = this.app.metadataCache.getFileCache(target)
+    const shareLink = meta?.frontmatter?.[this.field(YamlField.link)]
+    if (typeof shareLink !== 'string') return null
+    const parsed = parseExistingShareUrl(shareLink)
+    if (!parsed) return null
+    return { file: target, ...parsed }
   }
 
   field (key: YamlField) {
-    return [this.settings.yamlField, YamlField[key]].join('_')
+    return `${this.settings.yamlField}_${YamlField[key]}`
   }
 }
