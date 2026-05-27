@@ -113,6 +113,36 @@ If you decide you want to share most notes unencrypted by default, then you can 
 
 If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
 
+## Disclosures
+
+This section covers items that Obsidian's [plugin scorecard](https://community.obsidian.md/plugins/share-note) flags for transparency, as recommended by Obsidian's [Developer Policies](https://docs.obsidian.md/Developer+policies).
+
+### Network requests
+
+All requests to the Share Note server (default `https://api.note.sx`, or your self-hosted instance) go through Obsidian's `requestUrl()` API, which is the recommended cross-platform HTTP client. These are necessary for the core sharing/upload/delete operations.
+
+The two `fetch()` calls in [`src/note.ts`](https://github.com/alangrainger/share-note/blob/main/src/note.ts) are used **only** to read local vault assets via Obsidian's `app://` protocol:
+
+- Image attachments embedded in a shared note.
+- Theme fonts and images referenced from `url(...)` declarations in CSS.
+
+`requestUrl()` does not handle the `app://` scheme, so native `fetch()` is required for these local reads. These calls never reach a remote server.
+
+### Runtime base64 encoding
+
+The plugin uses `btoa()`/`atob()` in two places:
+
+- [`src/crypto.ts`](https://github.com/alangrainger/share-note/blob/main/src/crypto.ts) — encoding the AES-GCM symmetric key and ciphertext to base64 strings for transport and storage. This is standard cryptographic serialization, not string obfuscation.
+- The bundled `data-uri-to-buffer` dependency uses `atob()` to decode inline `data:` URIs found in CSS — used to extract embedded fonts and images for upload alongside the shared note.
+
+No code is ever loaded, evaluated, or transformed at runtime. No API keys, URLs, or strings are hidden via base64.
+
+### Clipboard access
+
+The plugin writes the share URL to the system clipboard when you use the "Copy shared note link" command, so you can paste it into other applications. 
+
+The clipboard is never read.
+
 ## Troubleshooting
 
 See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
