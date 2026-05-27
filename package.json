@@ -23,7 +23,6 @@
 		"eslint-plugin-obsidianmd": "^0.3.0",
 		"neostandard": "^0.13.0",
 		"obsidian": "latest",
-		"obsidian-typings": "^4.68.0",
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.60.0"
