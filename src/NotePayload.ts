@@ -26,7 +26,7 @@ export function getElementStyle (key: string, element: HTMLElement) {
   return elementStyle
 }
 
-export default interface NoteTemplate {
+export default interface NotePayload {
   filename?: string
   title?: string
   description?: string

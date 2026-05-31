@@ -2,7 +2,7 @@ import { CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from '
 import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
-import NoteTemplate, { ElementStyle, getElementStyle } from './NoteTemplate'
+import NotePayload, { ElementStyle, getElementStyle } from './NotePayload'
 import { ThemeMode, TitleSource, YamlField } from './settings'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import FileTypes from './libraries/FileTypes'
@@ -61,7 +61,7 @@ export default class Note {
   isForceUpload = false
   isForceClipboard = false
   elements: ElementStyle[] = []
-  template: NoteTemplate = {
+  payload: NotePayload = {
     width: '',
     elements: [],
     encrypted: true,
@@ -286,11 +286,11 @@ export default class Note {
     if (this.meta?.frontmatter?.[this.plugin.field(YamlField.link)]) {
       const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.plugin.field(YamlField.link)])
       if (match) {
-        this.template.filename = match.filename
+        this.payload.filename = match.filename
         decryptionKey = match.decryptionKey
       }
     }
-    this.template.encrypted = this.isEncrypted
+    this.payload.encrypted = this.isEncrypted
 
     // Select which source for the title
     let title
@@ -315,24 +315,24 @@ export default class Note {
       })
       // Encrypt the note
       const encryptedData = await encryptString(plaintext, decryptionKey)
-      this.template.content = JSON.stringify({
+      this.payload.content = JSON.stringify({
         ciphertext: encryptedData.ciphertext
       })
       decryptionKey = encryptedData.key
     } else {
       // This is for notes shared without encryption, using the
       // share_unencrypted frontmatter property
-      this.template.content = this.contentDom.body.innerHTML
-      this.template.title = title
+      this.payload.content = this.contentDom.body.innerHTML
+      this.payload.title = title
       // Create a meta description preview based off the <p> elements
       const desc = Array.from(this.contentDom.querySelectorAll('p'))
         .map(x => x.innerText).filter(x => !!x)
         .join(' ')
-      this.template.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
+      this.payload.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
     }
 
-    // Make template value replacements
-    this.template.width = this.plugin.settings.noteWidth
+    // Make payload value replacements
+    this.payload.width = this.plugin.settings.noteWidth
     // Set theme light/dark
     if (this.plugin.settings.themeMode !== ThemeMode['Same as theme']) {
       this.elements
@@ -344,13 +344,13 @@ export default class Note {
           item.classes.push('theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase())
         })
     }
-    this.template.elements = this.elements
+    this.payload.elements = this.elements
     // Check for MathJax
-    this.template.mathJax = !!this.contentDom.querySelector('mjx-container')
+    this.payload.mathJax = !!this.contentDom.querySelector('mjx-container')
 
     // Share the file
     this.status.setStatus('Uploading note...')
-    let shareLink = await this.plugin.api.createNote(this.template, this.expiration)
+    let shareLink = await this.plugin.api.createNote(this.payload, this.expiration)
     // Fetch the uploaded file to pull it through the CDN cache
     void requestUrl({ url: shareLink, throw: false })
 

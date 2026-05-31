@@ -2,7 +2,7 @@ import { requestUrl } from 'obsidian'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
-import NoteTemplate from './NoteTemplate'
+import NotePayload from './NotePayload'
 import { SharedUrl } from './note'
 import { compressImage } from './Compressor'
 
@@ -35,7 +35,7 @@ export type PostData = {
   hash?: string
   byteLength?: number
   expiration?: number
-  template?: NoteTemplate
+  template?: NotePayload // wire key — kept as 'template' for server backwards compat
   debug?: number
 }
 
@@ -197,13 +197,13 @@ export default class API {
     return res.url
   }
 
-  async createNote (template: NoteTemplate, expiration?: number) {
+  async createNote (payload: NotePayload, expiration?: number) {
     const res = await this.post<{ url: string }>('/v1/file/create-note', {
-      filename: template.filename,
+      filename: payload.filename,
       filetype: 'html',
-      hash: await sha1(template.content),
+      hash: await sha1(payload.content),
       expiration,
-      template
+      template: payload // wire key kept as 'template' for server backwards compat
     }, 3)
     return res.url
   }
