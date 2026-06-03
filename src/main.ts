@@ -7,10 +7,10 @@ import { shortHash, sha256 } from './crypto'
 import UI from './UI'
 
 export default class SharePlugin extends Plugin {
-  settings: ShareSettings
-  api: API
-  settingsPage: ShareSettingsTab
-  ui: UI
+  declare settings: ShareSettings
+  api!: API
+  settingsPage!: ShareSettingsTab
+  ui!: UI
 
   // Expose some tools in the plugin object
   hash = shortHash

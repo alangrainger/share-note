@@ -124,7 +124,7 @@ export default class Note {
 
       // Merge all CSS rules into a string for later minifying
       this.css = this.cssRules
-        .filter((rule: CSSMediaRule) => {
+        .filter(rule => {
           /*
           Remove styles that prevent a print preview from showing on the web, thanks to @texastoland on Github
           https://github.com/alangrainger/share-note/issues/75#issuecomment-2708719828
@@ -132,7 +132,7 @@ export default class Note {
           This removes all "@media print" rules, which in my testing doesn't appear to have any negative effect.
           Will have to revisit this if users discover issues.
           */
-          return rule?.media?.[0] !== 'print'
+          return (rule as CSSMediaRule).media?.[0] !== 'print'
         })
         .map(rule => rule.cssText).join('').replace(/\n/g, '')
     } catch (e) {
@@ -610,7 +610,10 @@ export default class Note {
 
   getCalloutIcon (test: (selectorText: string) => boolean) {
     const rule = this.cssRules
-      .find((rule: CSSStyleRule) => rule.selectorText && test(rule.selectorText) && rule.style.getPropertyValue('--callout-icon')) as CSSStyleRule
+      .find(r => {
+        const styleRule = r as CSSStyleRule
+        return styleRule.selectorText && test(styleRule.selectorText) && styleRule.style?.getPropertyValue('--callout-icon')
+      }) as CSSStyleRule | undefined
     if (rule) {
       return rule.style.getPropertyValue('--callout-icon')
     }
