@@ -63,6 +63,9 @@ export const DEFAULT_SETTINGS: ShareSettings = {
 export class ShareSettingsTab extends PluginSettingTab {
   plugin: SharePlugin
   apikeyEl?: TextComponent
+  // Ephemeral - resets when Obsidian restarts. The "Danger / Advanced"
+  // section must be re-opened explicitly each session.
+  private showAdvanced = false
 
   constructor (app: App, plugin: SharePlugin) {
     super(app, plugin)
@@ -248,6 +251,50 @@ export class ShareSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/self-deleting-notes'))
+
+    // Danger / Advanced
+    new Setting(containerEl)
+      .setName('Danger / advanced')
+      .setHeading()
+
+    new Setting(containerEl)
+      .setName('Show advanced options')
+      .setDesc('Reveal advanced fields. Changing these can break your shared notes.')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.showAdvanced)
+          .onChange((value) => {
+            this.showAdvanced = value
+            // eslint-disable-next-line @typescript-eslint/no-deprecated
+            this.display()
+          })
+      })
+
+    if (this.showAdvanced) {
+      // UID (read-only)
+      new Setting(containerEl)
+        .setName('User ID')
+        .setDesc('Your user ID for the server. Read-only.')
+        .addText(text => {
+          text
+            .setValue(this.plugin.settings.uid)
+            .setDisabled(true)
+        })
+
+      // Server URL
+      new Setting(containerEl)
+        .setName('Server URL')
+        .setDesc(`The API server used to create shared notes. Default: ${DEFAULT_SETTINGS.server}`)
+        .addText(text => {
+          text
+            .setPlaceholder(DEFAULT_SETTINGS.server)
+            .setValue(this.plugin.settings.server)
+            .onChange(async (value) => {
+              this.plugin.settings.server = value || DEFAULT_SETTINGS.server
+              await this.plugin.saveSettings()
+            })
+        })
+    }
   }
 }
 

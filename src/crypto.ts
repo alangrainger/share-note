@@ -2,6 +2,7 @@
 
 export interface EncryptedString {
   ciphertext: string[];
+  ivs: string[];
   key: string;
 }
 
@@ -75,49 +76,32 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   const aesKey = await _getAesGcmKey(key as ArrayBuffer)
 
   const ciphertext = []
+  const ivs: string[] = []
   const length = plaintext.length
   const chunkSize = 2000
   let index = 0
   while (index * chunkSize < length) {
     const plaintextChunk = plaintext.slice(index * chunkSize, (index + 1) * chunkSize)
     const encodedText = new TextEncoder().encode(plaintextChunk)
+    // Generate a fresh random IV per chunk. Reusing IVs with the same AES-GCM
+    // key (as the previous deterministic indexToIv() scheme did across re-shares)
+    // breaks confidentiality and can leak the GCM authentication subkey.
+    const iv = window.crypto.getRandomValues(new Uint8Array(12))
     const bufCiphertext: ArrayBuffer = await window.crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv: indexToIv(index)
-      },
+      { name: 'AES-GCM', iv },
       aesKey,
       encodedText
     )
     ciphertext.push(arrayBufferToBase64(bufCiphertext))
+    ivs.push(arrayBufferToBase64(iv.buffer))
     index++
   }
 
   return {
     ciphertext,
+    ivs,
     key: masterKeyToString(key as ArrayBuffer).slice(0, 43)
   }
-}
-
-export async function decryptString (encryptedData: EncryptedString) {
-  const aesKey = await window.crypto.subtle.importKey('raw', base64ToArrayBuffer(encryptedData.key), {
-    name: 'AES-GCM',
-    length: 256
-  }, false, ['decrypt'])
-
-  const plaintext = []
-
-  for (let index = 0; index < encryptedData.ciphertext.length; index++) {
-    const ciphertextChunk = encryptedData.ciphertext[index]
-    const ciphertextBuf = base64ToArrayBuffer(ciphertextChunk)
-    const plaintextChunk = await window.crypto.subtle
-      .decrypt({
-        name: 'AES-GCM',
-        iv: indexToIv(index)
-      }, aesKey, ciphertextBuf)
-    plaintext.push(new TextDecoder().decode(plaintextChunk))
-  }
-  return plaintext.join('')
 }
 
 async function sha (algorithm: string, data: string | ArrayBuffer) {
@@ -142,16 +126,4 @@ export async function sha1 (data: string | ArrayBuffer) {
 
 export async function shortHash (text: string) {
   return (await sha256(text)).slice(0, 32)
-}
-
-/**
- * Take an integer index and return the corresponding IV
- */
-function indexToIv (int: number) {
-  const iv = new Uint8Array(12)
-  for (let i = 0; i < iv.length; i++) {
-    iv[i] = int % 256
-    int = Math.floor(int / 256)
-  }
-  return iv
 }
