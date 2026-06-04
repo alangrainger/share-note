@@ -1,8 +1,7 @@
 import { Plugin, setIcon, TFile } from 'obsidian'
 import { ShareSettings, ShareSettingsTab } from './settings'
-import Note, { SharedNote } from './note'
 import API from './api'
-import { parseExistingShareUrl } from './domain/share-link'
+import { parseExistingShareUrl, SharedNote } from './domain/share-link'
 import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
 import { resolveEncryption } from './domain/encryption-policy'
 import StatusMessage, { StatusType } from './StatusMessage'
@@ -10,6 +9,7 @@ import { shortHash, sha256 } from './crypto'
 import { SettingsStore } from './shared/settings-store'
 import { ShareError } from './shared/errors'
 import { logger } from './shared/logger'
+import { ShareService } from './pipeline/share-service'
 import UI from './UI'
 
 export default class SharePlugin extends Plugin {
@@ -17,6 +17,7 @@ export default class SharePlugin extends Plugin {
   settingsStore!: SettingsStore
   api!: API
   settingsPage!: ShareSettingsTab
+  shareService!: ShareService
   ui!: UI
 
   // Expose some tools in the plugin object
@@ -43,6 +44,13 @@ export default class SharePlugin extends Plugin {
       settings: this.settingsStore,
       manifestVersion: this.manifest.version,
       onUnauthenticated: () => { void this.authRedirect('share') }
+    })
+    this.shareService = new ShareService({
+      app: this.app,
+      settings: this.settingsStore,
+      api: this.api,
+      saveSettings: () => this.saveSettings(),
+      authRedirect: (v) => this.authRedirect(v)
     })
     this.ui = new UI(this.app)
 
@@ -150,42 +158,26 @@ export default class SharePlugin extends Plugin {
    */
   async uploadNote (forceUpload = false, forceClipboard = false) {
     const file = this.app.workspace.getActiveFile()
-    if (file instanceof TFile) {
-      const meta = this.app.metadataCache.getFileCache(file)
-      const note = new Note({
-        app: this.app,
-        settings: this.settingsStore,
-        api: this.api,
-        saveSettings: () => this.saveSettings(),
-        authRedirect: (v) => this.authRedirect(v)
-      })
+    if (!(file instanceof TFile)) return
+    const meta = this.app.metadataCache.getFileCache(file)
+    const fieldKeys = buildFieldKeys(this.settings.yamlField)
+    const encrypted = resolveEncryption({
+      defaultUnencrypted: this.settings.shareUnencrypted,
+      frontmatter: meta?.frontmatter,
+      unencryptedKey: fieldKeys.unencrypted,
+      encryptedKey: fieldKeys.encrypted
+    })
 
-      const fieldKeys = buildFieldKeys(this.settings.yamlField)
-      const encrypted = resolveEncryption({
-        defaultUnencrypted: this.settings.shareUnencrypted,
-        frontmatter: meta?.frontmatter,
-        unencryptedKey: fieldKeys.unencrypted,
-        encryptedKey: fieldKeys.encrypted
-      })
-      note.shareAsPlainText(!encrypted)
-      if (forceUpload) {
-        note.forceUpload()
+    try {
+      await this.shareService.share(file, { encrypted, forceUpload, forceClipboard })
+    } catch (e) {
+      // `handled` means the throw site already surfaced a user-facing message
+      if (!(e instanceof ShareError && e.handled)) {
+        logger.error('Upload failed:', e)
+        new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
       }
-      if (forceClipboard) {
-        note.forceClipboard()
-      }
-      try {
-        await note.share()
-      } catch (e) {
-        // `handled` means the throw site already surfaced a user-facing message
-        if (!(e instanceof ShareError && e.handled)) {
-          logger.error('Upload failed:', e)
-          new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
-        }
-      }
-      note.status.hide() // clean up status just in case
-      this.addShareIcons()
     }
+    this.addShareIcons()
   }
 
   /**

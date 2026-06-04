@@ -1,7 +1,15 @@
+import type { TFile } from 'obsidian'
+
 export interface SharedUrl {
   filename: string
   decryptionKey: string
   url: string
+}
+
+// A shared URL paired with the local TFile it lives on. Convenience type used
+// at the boundary between the plugin's vault-facing code and the domain.
+export interface SharedNote extends SharedUrl {
+  file: TFile
 }
 
 /**
