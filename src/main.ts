@@ -1,5 +1,5 @@
 import { Plugin, setIcon, TFile } from 'obsidian'
-import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
+import { ShareSettings, ShareSettingsTab } from './settings'
 import Note, { SharedNote } from './note'
 import API, { HandledError } from './api'
 import { parseExistingShareUrl } from './domain/share-link'
@@ -7,10 +7,12 @@ import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
 import { resolveEncryption } from './domain/encryption-policy'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
+import { SettingsStore } from './shared/settings-store'
 import UI from './UI'
 
 export default class SharePlugin extends Plugin {
   declare settings: ShareSettings
+  settingsStore!: SettingsStore
   api!: API
   settingsPage!: ShareSettingsTab
   ui!: UI
@@ -20,18 +22,26 @@ export default class SharePlugin extends Plugin {
   sha256 = sha256
 
   async onload () {
-    // Settings page
-    await this.loadSettings()
+    // Settings store: single source of truth for persistence. We also alias
+    // `this.settings` to the store's data so existing call sites of the form
+    // `this.plugin.settings.xxx` continue to work - it's the same object.
+    this.settingsStore = new SettingsStore(this)
+    await this.settingsStore.load()
+    this.settings = this.settingsStore.data
     if (!this.settings.uid) {
       // Set up a random UID if the user does not already have one
       this.settings.uid = await shortHash(`${Date.now()}-${Math.random()}`)
       await this.saveSettings()
     }
-    this.settingsPage = new ShareSettingsTab(this.app, this)
+    this.settingsPage = new ShareSettingsTab(this.app, this, this.settingsStore)
     this.addSettingTab(this.settingsPage)
 
     // Initialise the backend API
-    this.api = new API(this)
+    this.api = new API({
+      settings: this.settingsStore,
+      manifestVersion: this.manifest.version,
+      onUnauthenticated: () => { void this.authRedirect('share') }
+    })
     this.ui = new UI(this.app)
 
     // To get an API key, we send the user to a Cloudflare Turnstile page to verify they are a human,
@@ -127,12 +137,8 @@ export default class SharePlugin extends Plugin {
 
   }
 
-  async loadSettings () {
-    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) }
-  }
-
   async saveSettings () {
-    await this.saveData(this.settings)
+    await this.settingsStore.save()
   }
 
   /**

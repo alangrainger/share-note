@@ -1,10 +1,18 @@
 import { requestUrl } from 'obsidian'
-import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NotePayload from './NotePayload'
 import { parseExistingShareUrl } from './domain/share-link'
 import { compressImage } from './Compressor'
+import { SettingsStore } from './shared/settings-store'
+
+export interface ApiDeps {
+  settings: SettingsStore
+  manifestVersion: string
+  // Called when the server reports the auth token is missing or invalid
+  // (HTTP 462). Lets the API stay ignorant of the redirect/UI flow.
+  onUnauthenticated: () => void
+}
 
 /**
  * Thrown when we've already surfaced a user-facing error message and the caller
@@ -56,15 +64,19 @@ export interface CheckFilesResult {
 export default class API {
   uploadQueue: UploadQueueItem[] = []
 
-  constructor (private readonly plugin: SharePlugin) {}
+  constructor (private readonly deps: ApiDeps) {}
+
+  private get settings () {
+    return this.deps.settings.data
+  }
 
   async authHeaders () {
     const nonce = Date.now().toString()
     return {
-      'x-sharenote-id': this.plugin.settings.uid,
-      'x-sharenote-key': await sha256(nonce + this.plugin.settings.apiKey),
+      'x-sharenote-id': this.settings.uid,
+      'x-sharenote-key': await sha256(nonce + this.settings.apiKey),
       'x-sharenote-nonce': nonce,
-      'x-sharenote-version': this.plugin.manifest.version
+      'x-sharenote-version': this.deps.manifestVersion
     }
   }
 
@@ -75,11 +87,11 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body: PostData = { ...data }
-    if (this.plugin.settings.debug) body.debug = this.plugin.settings.debug
+    if (this.settings.debug) body.debug = this.settings.debug
 
     while (retries > 0) {
       const res = await requestUrl({
-        url: this.plugin.settings.server + endpoint,
+        url: this.settings.server + endpoint,
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -88,20 +100,20 @@ export default class API {
       if (res.status === 200) return res.json
 
       if (res.status < 500 || retries <= 1) {
-        // Permanent error — surface the server's message and stop retrying
+        // Permanent error - surface the server's message and stop retrying
         const message = res.headers?.message
         if (message) {
           new StatusMessage(message, StatusType.Error)
           if (res.status === 462) {
             // Invalid API key, request a new one
-            void this.plugin.authRedirect('share')
+            this.deps.onUnauthenticated()
           }
           throw new HandledError(message)
         }
         throw new Error('Unknown error')
       }
 
-      // Transient server error — wait then retry
+      // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
@@ -117,7 +129,7 @@ export default class API {
     if (data.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     while (retries > 0) {
       const res = await requestUrl({
-        url: this.plugin.settings.server + endpoint,
+        url: this.settings.server + endpoint,
         method: 'POST',
         headers,
         body: data.content,
@@ -134,7 +146,7 @@ export default class API {
         throw new Error('Unknown error')
       }
 
-      // Transient server error — wait then retry
+      // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
