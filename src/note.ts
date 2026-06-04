@@ -11,7 +11,14 @@ import { getFromSignature, getFromMimetype, getFromExtension } from './domain/fi
 import { CheckFilesResult } from './api'
 import { parseExistingShareUrl, SharedUrl } from './domain/share-link'
 import { minify } from 'csso'
-import { InternalLinkMethod } from './types'
+import { stripFrontmatter } from './pipeline/transforms/strip-frontmatter'
+import { preserveFrontmatterValues } from './pipeline/transforms/preserve-frontmatter-values'
+import { stripBacklinks } from './pipeline/transforms/strip-backlinks'
+import { linkBacklinksToShares } from './pipeline/transforms/link-backlinks-to-shares'
+import { fixCalloutIcons } from './pipeline/transforms/fix-callout-icons'
+import { rewriteLinks } from './pipeline/transforms/rewrite-links'
+import { removeExternalTargets } from './pipeline/transforms/remove-external-targets'
+import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
 
 export interface SharedNote extends SharedUrl {
   file: TFile
@@ -148,114 +155,26 @@ export default class Note {
 
     // Generate the HTML file for uploading
 
+    // DOM transforms - each is a pure (doc, ctx) -> void function with tests
+    // colocated in src/pipeline/transforms/.
+    const linkCtx = { resolveSharedLink: (text: string) => this.resolveSharedLink(text) }
+
     if (this.plugin.settings.removeYaml) {
-      // Remove frontmatter to avoid sharing unwanted data
-      this.contentDom.querySelector('div.metadata-container')?.remove()
-      this.contentDom.querySelector('pre.frontmatter')?.remove()
-      this.contentDom.querySelector('div.frontmatter-container')?.remove()
+      stripFrontmatter(this.contentDom)
     } else {
-      // Frontmatter properties are weird - the DOM elements don't appear to contain any data.
-      // We get the property name from the data-property-key and set that on the labelEl value,
-      // then take the corresponding value from the metadataCache and set that on the valueEl value.
-      this.contentDom.querySelectorAll('div.metadata-property')
-        .forEach(propertyContainerEl => {
-          const propertyName = propertyContainerEl.getAttribute('data-property-key')
-          if (propertyName) {
-            const labelEl = propertyContainerEl.querySelector('input.metadata-property-key-input')
-            labelEl?.setAttribute('value', propertyName)
-            const valueEl = propertyContainerEl.querySelector('div.metadata-property-value > input')
-            const value = this.meta?.frontmatter?.[propertyName] ?? ''
-            valueEl?.setAttribute('value', String(value))
-            // Special cases for different element types
-            switch (valueEl?.getAttribute('type')) {
-              case 'checkbox':
-                if (value) valueEl.setAttribute('checked', 'checked')
-                break
-            }
-          }
-        })
+      preserveFrontmatterValues(this.contentDom, this.meta?.frontmatter)
     }
+
     if (this.plugin.settings.removeBacklinksFooter) {
-      // Remove backlinks footer
-      this.contentDom.querySelector('div.embedded-backlinks')?.remove()
+      stripBacklinks(this.contentDom)
     } else {
-      // Make backlinks clickable
-      for (const el of this.contentDom.querySelectorAll<HTMLElement>('.embedded-backlinks .search-result-file-title.is-clickable')) {
-        // Get the inner text, which is the name of the destination note
-        const linkText = (el.querySelector('.tree-item-inner') as HTMLElement)?.innerText
-        // Replace with a clickable link if possible
-        if (linkText) this.internalLinkToSharedNote(linkText, el, InternalLinkMethod.ONCLICK)
-      }
+      linkBacklinksToShares(this.contentDom, linkCtx)
     }
 
-    // Fix callout icons
-    const defaultCalloutType = this.getCalloutIcon(selectorText => selectorText === '.callout') || 'pencil'
-    for (const el of this.contentDom.getElementsByClassName('callout')) {
-      // Get the callout icon from the CSS. I couldn't find any way to do this from the DOM,
-      // as the elements may be far down below the fold and are not populated.
-      const type = el.getAttribute('data-callout')
-      let icon = this.getCalloutIcon(selectorText => selectorText.includes(`data-callout="${type}"`)) || defaultCalloutType
-      icon = icon.replace('lucide-', '')
-      // Replace the existing icon so we:
-      // a) don't get double-ups, and
-      // b) have a consistent style
-      const iconEl = el.querySelector('div.callout-icon')
-      const svgEl = iconEl?.querySelector('svg')
-      if (svgEl) {
-        const newSvg = this.contentDom.createElementNS('http://www.w3.org/2000/svg', 'svg')
-        newSvg.setAttribute('width', '16')
-        newSvg.setAttribute('height', '16')
-        newSvg.setAttribute('data-share-note-lucide', icon)
-        svgEl.replaceWith(newSvg)
-      }
-    }
-
-    // Replace links
-    for (const el of this.contentDom.querySelectorAll<HTMLElement>('a.internal-link, a.footnote-link')) {
-      const href = el.getAttribute('href')
-      const match = href ? href.match(/^([^#]+)/) : null
-      if (href?.match(/^#/)) {
-        // This is an Anchor link to a document heading, we need to add custom Javascript
-        // to jump to that heading rather than using the normal # link
-        try {
-          const heading = href.slice(1).replace(/(['"])/g, '\\$1') // escape the quotes
-          const linkTypes = [
-            `[data-heading="${heading}"]`, // Links to a heading
-            `[id="${heading}"]` // Links to a footnote
-          ]
-          linkTypes.forEach(selector => {
-            if (this.contentDom.querySelectorAll(selector)?.[0]) {
-              // Double-escape the double quotes (but leave single quotes single escaped)
-              // It makes sense if you look at the query selector...
-              el.setAttribute('onclick', `document.querySelectorAll('${selector.replace(/"/g, '\\"')}')[0].scrollIntoView(true)`)
-            }
-          })
-          el.removeAttribute('target')
-          el.removeAttribute('href')
-          continue
-        } catch (_e) {
-          // Anchor target couldn't be processed; fall through and remove link
-        }
-      } else if (match) {
-        if (this.internalLinkToSharedNote(match[1], el)) {
-          // The internal link could be linked to another shared note
-          continue
-        }
-      }
-      // This linked note is not shared, so remove the link and replace with the non-link content
-      el.replaceWith(el.innerText)
-    }
-
-    // Remove target=_blank from external links
-    this.contentDom
-      .querySelectorAll<HTMLElement>('a.external-link')
-      .forEach(el => el.removeAttribute('target'))
-
-    // Remove elements by user's custom CSS selectors (if any)
-    this.plugin.settings.removeElements
-      .split('\n').map(s => s.trim()).filter(Boolean)
-      .forEach(selector => this.contentDom.querySelectorAll(selector)
-        .forEach(el => el.remove()))
+    fixCalloutIcons(this.contentDom, this.cssRules)
+    rewriteLinks(this.contentDom, linkCtx)
+    removeExternalTargets(this.contentDom)
+    removeCustomSelectors(this.contentDom, this.plugin.settings.removeElements)
 
     // Note options
     this.expiration = this.getExpiration()
@@ -564,48 +483,22 @@ export default class Note {
   }
 
   /**
-   * Takes a linkText like 'Some note' or 'Some path/Some note.md' and sees if that note is already shared.
-   * If it's already shared, then replace the internal link with the public link to that note.
+   * Resolve an internal link target to its public shared URL, if any.
+   * Used by the link-rewriting transforms; returns `undefined` if the
+   * named note isn't shared or doesn't exist.
    */
-  internalLinkToSharedNote (linkText: string, el: HTMLElement, method: InternalLinkMethod = 0) {
+  resolveSharedLink (linkText: string): string | undefined {
     try {
-      // This is an internal link to another note - check to see if we can link to an already shared note
       const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
       if (linkedFile instanceof TFile) {
         const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
         const href = linkedMeta?.frontmatter?.[this.plugin.field(YamlField.link)]
-        if (href && typeof href === 'string') {
-          // This file is shared, so update the link with the share URL
-          if (method === InternalLinkMethod.ANCHOR) {
-            // Set the href for an <a> element
-            el.setAttribute('href', href)
-            el.removeAttribute('target')
-          } else if (method === InternalLinkMethod.ONCLICK) {
-            // Add an onclick() method
-            el.setAttribute('onclick', `window.location.href='${href}'`)
-            el.classList.add('force-cursor')
-          }
-          return true
-        } else {
-          // PDF here - read the file then upload
-        }
+        if (typeof href === 'string') return href
       }
-    } catch (_e) {
-      // Best-effort link rewriting; on failure leave the link as-is
+    } catch {
+      // Best-effort lookup; on failure return undefined.
     }
-    return false
-  }
-
-  getCalloutIcon (test: (selectorText: string) => boolean) {
-    const rule = this.cssRules
-      .find(r => {
-        const styleRule = r as CSSStyleRule
-        return styleRule.selectorText && test(styleRule.selectorText) && styleRule.style?.getPropertyValue('--callout-icon')
-      }) as CSSStyleRule | undefined
-    if (rule) {
-      return rule.style.getPropertyValue('--callout-icon')
-    }
-    return ''
+    return undefined
   }
 
   reduceSections (sections: { el: HTMLElement }[]) {

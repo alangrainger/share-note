@@ -217,43 +217,55 @@ export default class SharePlugin extends Plugin {
   }
 
   addShareIcons () {
-    // I tried using onLayoutReady() here rather than polling, but it did not work.
-    // It seems that the layout is still updating even after it is "ready", so we
-    // re-check up to 8 times after the leaf change to catch the rendered DOM.
-    let count = 0
-    const tick = () => {
-      count++
-      const activeFile = this.app.workspace.getActiveFile()
-      const shareLink = activeFile
-        ? this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[this.field(YamlField.link)]
-        : undefined
-      if (activeFile && shareLink) {
-        activeDocument.querySelectorAll(`div.metadata-property[data-property-key="${this.field(YamlField.link)}"]`)
-          .forEach(propertyEl => {
-            const valueEl = propertyEl.querySelector('div.metadata-property-value')
-            const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
-            if (linkEl?.innerText !== shareLink) return
-            if (valueEl && !valueEl.querySelector('div.share-note-icons')) {
-              const iconsEl = createDiv({ cls: 'share-note-icons' })
-              const shareIcon = iconsEl.createSpan({ attr: { title: 'Re-share note' } })
-              setIcon(shareIcon, 'upload-cloud')
-              this.registerDomEvent(shareIcon, 'click', () => { void this.uploadNote() })
-              const copyIcon = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard' } })
-              setIcon(copyIcon, 'copy')
-              this.registerDomEvent(copyIcon, 'click', async () => {
-                await navigator.clipboard.writeText(shareLink)
-                new StatusMessage('📋 Shared link copied to clipboard')
-              })
-              const deleteIcon = iconsEl.createSpan({ attr: { title: 'Delete shared note' } })
-              setIcon(deleteIcon, 'trash-2')
-              this.registerDomEvent(deleteIcon, 'click', () => { void this.deleteSharedNote(activeFile) })
-              valueEl.prepend(iconsEl)
-            }
-          })
-      }
-      if (count < 8) window.setTimeout(tick, 50)
-    }
-    tick()
+    const activeFile = this.app.workspace.getActiveFile()
+    if (!activeFile) return
+    const fieldKey = this.field(YamlField.link)
+    const shareLink = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[fieldKey]
+    if (typeof shareLink !== 'string') return
+
+    // Try to inject; returns true once the icons are in place. We attempt
+    // immediately (the panel may already be rendered after a re-focus) and
+    // then watch the active document for DOM changes - Obsidian renders the
+    // properties panel asynchronously after a leaf change.
+    const inject = () => this.tryInjectShareIcons(activeFile, fieldKey, shareLink)
+    if (inject()) return
+
+    const observer = new MutationObserver(() => {
+      if (inject()) observer.disconnect()
+    })
+    observer.observe(activeDocument.body, { childList: true, subtree: true })
+    // Safety: stop watching after 1 second even if the panel never appears
+    // (e.g. user navigated away). Hanging observers waste cycles on every
+    // subsequent DOM mutation.
+    window.setTimeout(() => observer.disconnect(), 1000)
+  }
+
+  private tryInjectShareIcons (activeFile: TFile, fieldKey: string, shareLink: string): boolean {
+    let injected = false
+    activeDocument.querySelectorAll(`div.metadata-property[data-property-key="${fieldKey}"]`)
+      .forEach(propertyEl => {
+        const valueEl = propertyEl.querySelector('div.metadata-property-value')
+        const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
+        if (linkEl?.innerText !== shareLink) return
+        if (!valueEl || valueEl.querySelector('div.share-note-icons')) return
+
+        const iconsEl = createDiv({ cls: 'share-note-icons' })
+        const shareIcon = iconsEl.createSpan({ attr: { title: 'Re-share note' } })
+        setIcon(shareIcon, 'upload-cloud')
+        this.registerDomEvent(shareIcon, 'click', () => { void this.uploadNote() })
+        const copyIcon = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard' } })
+        setIcon(copyIcon, 'copy')
+        this.registerDomEvent(copyIcon, 'click', async () => {
+          await navigator.clipboard.writeText(shareLink)
+          new StatusMessage('📋 Shared link copied to clipboard')
+        })
+        const deleteIcon = iconsEl.createSpan({ attr: { title: 'Delete shared note' } })
+        setIcon(deleteIcon, 'trash-2')
+        this.registerDomEvent(deleteIcon, 'click', () => { void this.deleteSharedNote(activeFile) })
+        valueEl.prepend(iconsEl)
+        injected = true
+      })
+    return injected
   }
 
   /**
