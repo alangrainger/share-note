@@ -1,7 +1,10 @@
 import { Plugin, setIcon, TFile } from 'obsidian'
-import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab, YamlField } from './settings'
+import { DEFAULT_SETTINGS, ShareSettings, ShareSettingsTab } from './settings'
 import Note, { SharedNote } from './note'
-import API, { HandledError, parseExistingShareUrl } from './api'
+import API, { HandledError } from './api'
+import { parseExistingShareUrl } from './domain/share-link'
+import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
+import { resolveEncryption } from './domain/encryption-policy'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import UI from './UI'
@@ -143,19 +146,14 @@ export default class SharePlugin extends Plugin {
       const meta = this.app.metadataCache.getFileCache(file)
       const note = new Note(this)
 
-      if (this.settings.shareUnencrypted) {
-        // The user has opted to share unencrypted by default
-        note.shareAsPlainText(true)
-      }
-      if (meta?.frontmatter?.[this.field(YamlField.unencrypted)] === true) {
-        // User has set the frontmatter property 'share_unencrypted` = true
-        note.shareAsPlainText(true)
-      }
-      if (meta?.frontmatter?.[this.field(YamlField.encrypted)] === true) {
-        // User has set the frontmatter property `share_encrypted` = true
-        // This setting goes after the 'unencrypted' setting, just in case of conflicting checkboxes
-        note.shareAsPlainText(false)
-      }
+      const fieldKeys = buildFieldKeys(this.settings.yamlField)
+      const encrypted = resolveEncryption({
+        defaultUnencrypted: this.settings.shareUnencrypted,
+        frontmatter: meta?.frontmatter,
+        unencryptedKey: fieldKeys.unencrypted,
+        encryptedKey: fieldKeys.encrypted
+      })
+      note.shareAsPlainText(!encrypted)
       if (forceUpload) {
         note.forceUpload()
       }
@@ -274,6 +272,6 @@ export default class SharePlugin extends Plugin {
   }
 
   field (key: YamlField) {
-    return `${this.settings.yamlField}_${YamlField[key]}`
+    return buildFieldKey(this.settings.yamlField, key)
   }
 }

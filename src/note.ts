@@ -3,27 +3,15 @@ import { encryptString, sha1 } from './crypto'
 import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NotePayload, { ElementStyle, getElementStyle } from './NotePayload'
-import { ThemeMode, TitleSource, YamlField } from './settings'
+import { ThemeMode, TitleSource } from './settings'
+import { YamlField } from './domain/field-keys'
+import { parseExpiration } from './domain/expiration'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
-import FileTypes from './libraries/FileTypes'
-import { CheckFilesResult, parseExistingShareUrl } from './api'
+import { getFromSignature, getFromMimetype, getFromExtension } from './domain/file-types'
+import { CheckFilesResult } from './api'
+import { parseExistingShareUrl, SharedUrl } from './domain/share-link'
 import { minify } from 'csso'
 import { InternalLinkMethod } from './types'
-import DurationConstructor = moment.unitOfTime.DurationConstructor
-
-const cssAttachmentWhitelist: { [key: string]: string[] } = {
-  ttf: ['font/ttf', 'application/x-font-ttf', 'application/x-font-truetype', 'font/truetype'],
-  otf: ['font/otf', 'application/x-font-opentype'],
-  woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
-  woff2: ['font/woff2', 'application/font-woff2', 'application/x-font-woff2'],
-  svg: ['image/svg+xml']
-}
-
-export interface SharedUrl {
-  filename: string
-  decryptionKey: string
-  url: string
-}
 
 export interface SharedNote extends SharedUrl {
   file: TFile
@@ -474,11 +462,11 @@ export default class Note {
           if (parsed?.type) {
             if (parsed.type === 'application/octet-stream') {
               // Attempt to get type from magic bytes
-              const decoded = FileTypes.getFromSignature(parsed.buffer)
+              const decoded = getFromSignature(parsed.buffer)
               if (!decoded) continue
-              parsed.type = decoded.mimetype
+              parsed.type = decoded.mimetypes[0]
             }
-            const filetype = this.extensionFromMime(parsed.type)
+            const filetype = getFromMimetype(parsed.type)?.extension
             if (filetype) {
               const hash = await sha1(parsed.buffer)
               await this.plugin.api.queueUpload({
@@ -499,7 +487,7 @@ export default class Note {
           // Locally stored CSS attachment
           const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
           if (filename) {
-            if (cssAttachmentWhitelist[filename[2]]) {
+            if (getFromExtension(filename[2])) {
               // Fetch the attachment content. See note in processMedia() — we
               // need fetch here because CSS url() refs are typically local
               // (e.g. theme fonts) and requestUrl doesn't handle app:// URLs.
@@ -625,16 +613,6 @@ export default class Note {
   }
 
   /**
-   * Turn the font mime-type into an extension.
-   * @param {string} mimeType
-   * @return {string|undefined}
-   */
-  extensionFromMime (mimeType: string): string | undefined {
-    const mimes = cssAttachmentWhitelist
-    return Object.keys(mimes).find(x => mimes[x].includes((mimeType || '').toLowerCase()))
-  }
-
-  /**
    * Get the value of a frontmatter property
    */
   getProperty (field: YamlField) {
@@ -663,17 +641,11 @@ export default class Note {
   }
 
   /**
-   * Calculate an expiry datetime from the provided expiry duration
+   * Calculate an expiry datetime from the provided expiry duration.
+   * Per-note frontmatter takes precedence over the plugin-wide default.
    */
   getExpiration () {
-    const whitelist = ['minute', 'hour', 'day', 'month']
-    const expiration = this.getProperty(YamlField.expires) || this.plugin.settings.expiry
-    if (expiration) {
-      // Check for sanity against expected format
-      const match = expiration.match(/^(\d+) ([a-z]+?)s?$/)
-      if (match && whitelist.includes(match[2])) {
-        return moment().add(+match[1], (match[2] + 's') as DurationConstructor).valueOf()
-      }
-    }
+    const input = this.getProperty(YamlField.expires) || this.plugin.settings.expiry
+    return parseExpiration(input)
   }
 }

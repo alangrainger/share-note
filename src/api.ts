@@ -3,7 +3,7 @@ import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NotePayload from './NotePayload'
-import { SharedUrl } from './note'
+import { parseExistingShareUrl } from './domain/share-link'
 import { compressImage } from './Compressor'
 
 /**
@@ -217,15 +217,5 @@ export default class API {
       })
       new StatusMessage('The note has been deleted 🗑️', StatusType.Info)
     }
-  }
-}
-
-export function parseExistingShareUrl (url: string): SharedUrl | null {
-  const match = url.match(/(\w+)(#.+?|)$/)
-  if (!match) return null
-  return {
-    filename: match[1],
-    decryptionKey: match[2].slice(1) || '',
-    url
   }
 }

@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
 import SharePlugin from './main'
+import { YamlField } from './domain/field-keys'
 
 export enum ThemeMode {
   'Same as theme',
@@ -11,15 +12,6 @@ export enum TitleSource {
   'Note title',
   'First H1',
   'Frontmatter property'
-}
-
-export enum YamlField {
-  link,
-  updated,
-  encrypted,
-  unencrypted,
-  title,
-  expires
 }
 
 export interface ShareSettings {
