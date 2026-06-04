@@ -1,13 +1,15 @@
 import { Plugin, setIcon, TFile } from 'obsidian'
 import { ShareSettings, ShareSettingsTab } from './settings'
 import Note, { SharedNote } from './note'
-import API, { HandledError } from './api'
+import API from './api'
 import { parseExistingShareUrl } from './domain/share-link'
 import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
 import { resolveEncryption } from './domain/encryption-policy'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import { SettingsStore } from './shared/settings-store'
+import { ShareError } from './shared/errors'
+import { logger } from './shared/logger'
 import UI from './UI'
 
 export default class SharePlugin extends Plugin {
@@ -169,9 +171,9 @@ export default class SharePlugin extends Plugin {
       try {
         await note.share()
       } catch (e) {
-        // HandledError means api.ts has already shown the user-facing message
-        if (!(e instanceof HandledError)) {
-          console.error('[Share Note] Upload failed:', e)
+        // `handled` means the throw site already surfaced a user-facing message
+        if (!(e instanceof ShareError && e.handled)) {
+          logger.error('Upload failed:', e)
           new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
         }
       }

@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { requestUrl } from 'obsidian'
 import API from './api'
+import { AuthError, NetworkError } from './shared/errors'
 import type { SettingsStore } from './shared/settings-store'
 import type { ShareSettings } from './settings'
+
+// StatusMessage relies on Obsidian's `createDiv` patch to HTMLElement, which
+// happy-dom doesn't provide. The error-path tests only care about which class
+// is thrown, so stub the module to a no-op constructor.
+vi.mock('./StatusMessage', () => ({
+  default: class { setStatus () {} },
+  StatusType: { Default: 0, Info: 1, Error: 2, Success: 3 }
+}))
 
 function makeStubStore (overrides: Partial<ShareSettings> = {}): SettingsStore {
   const data: ShareSettings = {
@@ -80,5 +90,60 @@ describe('API.authHeaders', () => {
     expect((await api.authHeaders())['x-sharenote-id']).toBe('first')
     store.data.uid = 'second'
     expect((await api.authHeaders())['x-sharenote-id']).toBe('second')
+  })
+})
+
+describe('API.post error mapping', () => {
+  const mockedRequestUrl = vi.mocked(requestUrl)
+  let onUnauthenticated: () => void
+
+  beforeEach(() => {
+    mockedRequestUrl.mockReset()
+    onUnauthenticated = vi.fn()
+  })
+
+  it('throws AuthError and triggers onUnauthenticated on HTTP 462', async () => {
+    mockedRequestUrl.mockResolvedValue({
+      status: 462,
+      headers: { message: 'Invalid API key' }
+    } as never)
+    const api = new API({
+      settings: makeStubStore(),
+      manifestVersion: '1.5.0',
+      onUnauthenticated
+    })
+    await expect(api.post('/v1/file/create-note')).rejects.toBeInstanceOf(AuthError)
+    expect(onUnauthenticated).toHaveBeenCalledOnce()
+  })
+
+  it('throws a handled NetworkError when the server returns a message', async () => {
+    mockedRequestUrl.mockResolvedValue({
+      status: 400,
+      headers: { message: 'Bad request' }
+    } as never)
+    const api = new API({
+      settings: makeStubStore(),
+      manifestVersion: '1.5.0',
+      onUnauthenticated
+    })
+    const err = await api.post('/v1/file/create-note').catch((e: unknown) => e) as NetworkError
+    expect(err).toBeInstanceOf(NetworkError)
+    expect(err.handled).toBe(true)
+    expect(err.status).toBe(400)
+  })
+
+  it('throws an unhandled NetworkError when the server returns no message', async () => {
+    mockedRequestUrl.mockResolvedValue({
+      status: 400,
+      headers: {}
+    } as never)
+    const api = new API({
+      settings: makeStubStore(),
+      manifestVersion: '1.5.0',
+      onUnauthenticated
+    })
+    const err = await api.post('/v1/file/create-note').catch((e: unknown) => e) as NetworkError
+    expect(err).toBeInstanceOf(NetworkError)
+    expect(err.handled).toBe(false)
   })
 })

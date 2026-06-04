@@ -5,6 +5,8 @@ import NotePayload from './NotePayload'
 import { parseExistingShareUrl } from './domain/share-link'
 import { compressImage } from './Compressor'
 import { SettingsStore } from './shared/settings-store'
+import { logger } from './shared/logger'
+import { AuthError, NetworkError, UploadError } from './shared/errors'
 
 export interface ApiDeps {
   settings: SettingsStore
@@ -12,19 +14,6 @@ export interface ApiDeps {
   // Called when the server reports the auth token is missing or invalid
   // (HTTP 462). Lets the API stay ignorant of the redirect/UI flow.
   onUnauthenticated: () => void
-}
-
-/**
- * Thrown when we've already surfaced a user-facing error message and the caller
- * should swallow the throw silently. Use this instead of `new Error('Known error')`
- * to avoid magic-string flow control.
- */
-export class HandledError extends Error {
-  readonly handled = true
-  constructor (message = 'Handled error') {
-    super(message)
-    this.name = 'HandledError'
-  }
 }
 
 export interface FileUpload {
@@ -107,17 +96,18 @@ export default class API {
           if (res.status === 462) {
             // Invalid API key, request a new one
             this.deps.onUnauthenticated()
+            throw new AuthError(message, { status: res.status, handled: true })
           }
-          throw new HandledError(message)
+          throw new NetworkError(message, { status: res.status, handled: true })
         }
-        throw new Error('Unknown error')
+        throw new NetworkError('Unknown server error', { status: res.status })
       }
 
       // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
-    throw new Error('Retries exhausted')
+    throw new NetworkError('Retries exhausted')
   }
 
   async postRaw<T = unknown> (endpoint: string, data: FileUpload, retries = 4): Promise<T> {
@@ -141,16 +131,16 @@ export default class API {
         const message = res.text
         if (message) {
           new StatusMessage(message, StatusType.Error)
-          throw new HandledError(message)
+          throw new NetworkError(message, { status: res.status, handled: true })
         }
-        throw new Error('Unknown error')
+        throw new NetworkError('Unknown server error', { status: res.status })
       }
 
       // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
-    throw new Error('Retries exhausted')
+    throw new NetworkError('Retries exhausted')
   }
 
   async queueUpload (item: UploadQueueItem) {
@@ -194,7 +184,7 @@ export default class API {
             queueItem.callback(uploaded.url)
           } catch (e) {
             // Individual upload failures are non-fatal; the asset will just be missing
-            console.error(`[Share Note] ${type} upload failed:`, e)
+            logger.error(new UploadError(`${type} upload failed`, { cause: e }))
           }
         })())
       }

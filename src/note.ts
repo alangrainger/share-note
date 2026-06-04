@@ -19,6 +19,7 @@ import { fixCalloutIcons } from './pipeline/transforms/fix-callout-icons'
 import { rewriteLinks } from './pipeline/transforms/rewrite-links'
 import { removeExternalTargets } from './pipeline/transforms/remove-external-targets'
 import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
+import { logger } from './shared/logger'
 
 export interface SharedNote extends SharedUrl {
   file: TFile
@@ -131,7 +132,7 @@ export default class Note {
         })
         .map(rule => rule.cssText).join('').replace(/\n/g, '')
     } catch (e) {
-      console.error('[Share Note] Failed to parse current note:', e)
+      logger.error('Failed to parse current note:', e)
       this.status.hide()
       new StatusMessage('Failed to parse the current note', StatusType.Error)
       return
@@ -320,7 +321,7 @@ export default class Note {
           content = content.outerHTML
           filetype = 'svg'
         } catch (e) {
-          console.error('[Share Note] Unable to process Excalidraw drawing:', e)
+          logger.error('Unable to process Excalidraw drawing:', e)
         }
       } else {
         try {
@@ -451,7 +452,7 @@ export default class Note {
         this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
         await this.plugin.saveSettings()
       } catch (e) {
-        console.error('[Share Note] CSS upload failed:', e)
+        logger.error('CSS upload failed:', e)
       }
     }
   }
