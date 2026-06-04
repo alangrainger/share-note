@@ -1,15 +1,12 @@
 import { App, CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { encryptString, sha1 } from './crypto'
+import { encryptString } from './crypto'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NotePayload, { ElementStyle } from './NotePayload'
 import { ThemeMode, TitleSource } from './settings'
 import { buildFieldKey, YamlField } from './domain/field-keys'
 import { parseExpiration } from './domain/expiration'
-import { dataUriToBuffer } from 'data-uri-to-buffer'
-import { getFromSignature, getFromMimetype, getFromExtension } from './domain/file-types'
 import API, { CheckFilesResult } from './api'
 import { parseExistingShareUrl, SharedUrl } from './domain/share-link'
-import { minify } from 'csso'
 import { stripFrontmatter } from './pipeline/transforms/strip-frontmatter'
 import { preserveFrontmatterValues } from './pipeline/transforms/preserve-frontmatter-values'
 import { stripBacklinks } from './pipeline/transforms/strip-backlinks'
@@ -20,6 +17,7 @@ import { removeExternalTargets } from './pipeline/transforms/remove-external-tar
 import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
 import { captureRenderedNote } from './pipeline/capture'
 import { uploadMedia } from './pipeline/upload-media'
+import { uploadCss } from './pipeline/upload-css'
 import { logger } from './shared/logger'
 import { SettingsStore } from './shared/settings-store'
 
@@ -160,7 +158,20 @@ export default class Note {
       { expiration: this.expiration }
     )
     this.cssResult = uploadResult.css
-    await this.processCss()
+    await uploadCss(
+      this.css,
+      this.cssResult,
+      {
+        api: this.deps.api,
+        recordUploadedTheme: async () => {
+          // @ts-ignore - app.customCss is undocumented
+          this.settings.theme = this.deps.app?.customCss?.theme || ''
+          await this.deps.saveSettings()
+        }
+      },
+      this.status,
+      { isForceUpload: this.isForceUpload, expiration: this.expiration }
+    )
 
     /*
      * Encrypt the note contents
@@ -268,104 +279,6 @@ export default class Note {
     const successMsg = new StatusMessage(shareMessage, StatusType.Success, 6000)
     if (shareLink) {
       successMsg.addLink(shareLink, '↗️ Open shared note')
-    }
-  }
-
-  /**
-   * Upload theme CSS, unless this file has previously been shared,
-   * or the user has requested a force re-upload
-   */
-  async processCss () {
-    // Upload the main CSS file only if the user has asked for it.
-    // We do it this way to ensure that the CSS the user wants on the server
-    // stays that way, until they ASK to overwrite it.
-    if (this.isForceUpload || !this.cssResult) {
-      // Extract any attachments from the CSS.
-      // Will use the mime-type whitelist to determine which attachments to extract.
-      this.status.setStatus('Processing CSS...')
-      const attachments = this.css.match(/url\s*\(.*?\)/g) || []
-      for (const attachment of attachments) {
-        const assetMatch = attachment.match(/url\s*\(\s*"((?:\\.|[^"\\])*)"\s*\)/)
-        if (!assetMatch) continue
-        const assetUrl = assetMatch?.[1] || ''
-        if (assetUrl.startsWith('data:')) {
-          // Attempt to parse the data URL
-          const parsed = dataUriToBuffer(assetUrl)
-          if (parsed?.type) {
-            if (parsed.type === 'application/octet-stream') {
-              // Attempt to get type from magic bytes
-              const decoded = getFromSignature(parsed.buffer)
-              if (!decoded) continue
-              parsed.type = decoded.mimetypes[0]
-            }
-            const filetype = getFromMimetype(parsed.type)?.extension
-            if (filetype) {
-              const hash = await sha1(parsed.buffer)
-              await this.deps.api.queueUpload({
-                data: {
-                  filetype,
-                  hash,
-                  content: parsed.buffer,
-                  byteLength: parsed.buffer.byteLength,
-                  expiration: this.expiration
-                },
-                callback: (url) => {
-                  this.css = this.css.replace(assetMatch[0], `url("${url}")`)
-                }
-              })
-            }
-          }
-        } else if (assetUrl && !assetUrl.startsWith('http')) {
-          // Locally stored CSS attachment
-          const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
-          if (filename) {
-            if (getFromExtension(filename[2])) {
-              // Fetch the attachment content. See note in upload-media.ts -
-              // we need fetch here because CSS url() refs are typically local
-              // (e.g. theme fonts) and requestUrl doesn't handle app:// URLs.
-              // eslint-disable-next-line no-restricted-globals
-              const res = await fetch(assetUrl)
-              const contents = await res.arrayBuffer()
-              const hash = await sha1(contents)
-              await this.deps.api.queueUpload({
-                data: {
-                  filetype: filename[2],
-                  hash,
-                  content: contents,
-                  byteLength: contents.byteLength,
-                  expiration: this.expiration
-                },
-                callback: (url) => {
-                  this.css = this.css.replace(assetMatch[0], `url("${url}")`)
-                }
-              })
-            }
-          }
-        }
-      }
-      this.status.setStatus('Uploading CSS attachments...')
-      await this.deps.api.processQueue(this.status, 'CSS attachment')
-      this.status.setStatus('Uploading CSS...')
-      const minified = minify(this.css).css
-      const cssHash = await sha1(minified)
-      try {
-        if (cssHash !== this.cssResult?.hash) {
-          await this.deps.api.upload({
-            filetype: 'css',
-            hash: cssHash,
-            content: minified,
-            byteLength: minified.length,
-            expiration: this.expiration
-          })
-        }
-
-        // Store the CSS theme in the settings
-        // @ts-ignore
-        this.settings.theme = this.deps.app?.customCss?.theme || '' // customCss is not exposed
-        await this.deps.saveSettings()
-      } catch (e) {
-        logger.error('CSS upload failed:', e)
-      }
     }
   }
 
