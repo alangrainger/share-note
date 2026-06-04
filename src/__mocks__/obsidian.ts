@@ -22,3 +22,14 @@ export class Plugin {
   loadData = vi.fn(async () => ({}))
   saveData = vi.fn(async () => undefined)
 }
+
+export class PluginSettingTab {}
+
+// `moment` is occasionally imported from obsidian (re-exported by upstream).
+// Tests that touch the share() pipeline don't run, so we only need the symbol
+// to exist for the import resolver.
+export const moment = () => ({ format: () => '' })
+
+// `TFile` is referenced as a value via `instanceof TFile`. Stubbed as a class
+// so the runtime check returns false harmlessly for any non-TFile value.
+export class TFile {}

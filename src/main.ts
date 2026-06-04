@@ -152,7 +152,13 @@ export default class SharePlugin extends Plugin {
     const file = this.app.workspace.getActiveFile()
     if (file instanceof TFile) {
       const meta = this.app.metadataCache.getFileCache(file)
-      const note = new Note(this)
+      const note = new Note({
+        app: this.app,
+        settings: this.settingsStore,
+        api: this.api,
+        saveSettings: () => this.saveSettings(),
+        authRedirect: (v) => this.authRedirect(v)
+      })
 
       const fieldKeys = buildFieldKeys(this.settings.yamlField)
       const encrypted = resolveEncryption({

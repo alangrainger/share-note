@@ -1,14 +1,13 @@
-import { CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { App, CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
-import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NotePayload, { ElementStyle, getElementStyle } from './NotePayload'
 import { ThemeMode, TitleSource } from './settings'
-import { YamlField } from './domain/field-keys'
+import { buildFieldKey, YamlField } from './domain/field-keys'
 import { parseExpiration } from './domain/expiration'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import { getFromSignature, getFromMimetype, getFromExtension } from './domain/file-types'
-import { CheckFilesResult } from './api'
+import API, { CheckFilesResult } from './api'
 import { parseExistingShareUrl, SharedUrl } from './domain/share-link'
 import { minify } from 'csso'
 import { stripFrontmatter } from './pipeline/transforms/strip-frontmatter'
@@ -20,6 +19,7 @@ import { rewriteLinks } from './pipeline/transforms/rewrite-links'
 import { removeExternalTargets } from './pipeline/transforms/remove-external-targets'
 import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
 import { logger } from './shared/logger'
+import { SettingsStore } from './shared/settings-store'
 
 export interface SharedNote extends SharedUrl {
   file: TFile
@@ -44,8 +44,18 @@ export interface ViewModes extends View {
   }
 }
 
+// Dependencies Note pulls in from the host plugin. Constructor-injected so
+// Note can be exercised in isolation; nothing here imports `SharePlugin`.
+export interface NoteDeps {
+  app: App
+  settings: SettingsStore
+  api: API
+  saveSettings: () => Promise<void>
+  authRedirect: (value: string | null) => Promise<void>
+}
+
 export default class Note {
-  plugin: SharePlugin
+  private readonly deps: NoteDeps
   leaf: WorkspaceLeaf
   status!: StatusMessage
   css!: string
@@ -67,12 +77,20 @@ export default class Note {
 
   expiration?: number
 
-  constructor (plugin: SharePlugin) {
-    this.plugin = plugin
+  constructor (deps: NoteDeps) {
+    this.deps = deps
     // .getLeaf() doesn't return a `previewMode` property when a note is pinned,
     // so use the undocumented .getActiveFileView() which seems to work fine
     // @ts-expect-error - getActiveFileView is undocumented
-    this.leaf = this.plugin.app.workspace.getActiveFileView()?.leaf
+    this.leaf = this.deps.app.workspace.getActiveFileView()?.leaf
+  }
+
+  private get settings () {
+    return this.deps.settings.data
+  }
+
+  private field (key: YamlField): string {
+    return buildFieldKey(this.settings.yamlField, key)
   }
 
   async share () {
@@ -80,9 +98,9 @@ export default class Note {
     // safely call note.status.hide() after share() returns or throws.
     this.status = new StatusMessage('Please do not change to another note as the current note data is still being parsed.', StatusType.Default, 60 * 1000)
 
-    if (!this.plugin.settings.apiKey) {
+    if (!this.settings.apiKey) {
       this.status.hide()
-      void this.plugin.authRedirect('share')
+      void this.deps.authRedirect('share')
       return
     }
 
@@ -145,14 +163,14 @@ export default class Note {
     }, 200)
 
     this.status.setStatus('Processing note...')
-    const file = this.plugin.app.workspace.getActiveFile()
+    const file = this.deps.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) {
       // No active file
       this.status.hide()
       new StatusMessage('There is no active file to share')
       return
     }
-    this.meta = this.plugin.app.metadataCache.getFileCache(file)
+    this.meta = this.deps.app.metadataCache.getFileCache(file)
 
     // Generate the HTML file for uploading
 
@@ -160,13 +178,13 @@ export default class Note {
     // colocated in src/pipeline/transforms/.
     const linkCtx = { resolveSharedLink: (text: string) => this.resolveSharedLink(text) }
 
-    if (this.plugin.settings.removeYaml) {
+    if (this.settings.removeYaml) {
       stripFrontmatter(this.contentDom)
     } else {
       preserveFrontmatterValues(this.contentDom, this.meta?.frontmatter)
     }
 
-    if (this.plugin.settings.removeBacklinksFooter) {
+    if (this.settings.removeBacklinksFooter) {
       stripBacklinks(this.contentDom)
     } else {
       linkBacklinksToShares(this.contentDom, linkCtx)
@@ -175,7 +193,7 @@ export default class Note {
     fixCalloutIcons(this.contentDom, this.cssRules)
     rewriteLinks(this.contentDom, linkCtx)
     removeExternalTargets(this.contentDom)
-    removeCustomSelectors(this.contentDom, this.plugin.settings.removeElements)
+    removeCustomSelectors(this.contentDom, this.settings.removeElements)
 
     // Note options
     this.expiration = this.getExpiration()
@@ -191,8 +209,8 @@ export default class Note {
 
     // Use previous name and key if they exist, so that links will stay consistent across updates
     let decryptionKey = ''
-    if (this.meta?.frontmatter?.[this.plugin.field(YamlField.link)]) {
-      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.plugin.field(YamlField.link)])
+    if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
+      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.field(YamlField.link)])
       if (match) {
         this.payload.filename = match.filename
         decryptionKey = match.decryptionKey
@@ -202,12 +220,12 @@ export default class Note {
 
     // Select which source for the title
     let title
-    switch (this.plugin.settings.titleSource) {
+    switch (this.settings.titleSource) {
       case TitleSource['First H1']:
         title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
         break
       case TitleSource['Frontmatter property']:
-        title = this.meta?.frontmatter?.[this.plugin.field(YamlField.title)]
+        title = this.meta?.frontmatter?.[this.field(YamlField.title)]
         break
     }
     if (!title) {
@@ -241,16 +259,16 @@ export default class Note {
     }
 
     // Make payload value replacements
-    this.payload.width = this.plugin.settings.noteWidth
+    this.payload.width = this.settings.noteWidth
     // Set theme light/dark
-    if (this.plugin.settings.themeMode !== ThemeMode['Same as theme']) {
+    if (this.settings.themeMode !== ThemeMode['Same as theme']) {
       this.elements
         .filter(x => x.element === 'body')
         .forEach(item => {
           // Remove the existing theme setting
           item.classes = item.classes.filter(cls => cls !== 'theme-dark' && cls !== 'theme-light')
           // Add the preferred theme setting (dark/light)
-          item.classes.push('theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase())
+          item.classes.push('theme-' + ThemeMode[this.settings.themeMode].toLowerCase())
         })
     }
     this.payload.elements = this.elements
@@ -259,7 +277,7 @@ export default class Note {
 
     // Share the file
     this.status.setStatus('Uploading note...')
-    let shareLink = await this.plugin.api.createNote(this.payload, this.expiration)
+    let shareLink = await this.deps.api.createNote(this.payload, this.expiration)
     // Fetch the uploaded file to pull it through the CDN cache
     void requestUrl({ url: shareLink, throw: false })
 
@@ -270,12 +288,12 @@ export default class Note {
 
     let shareMessage = 'The note has been shared'
     if (shareLink) {
-      await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      await this.deps.app.fileManager.processFrontMatter(file, (frontmatter) => {
         // Update the frontmatter with the share link
-        frontmatter[this.plugin.field(YamlField.link)] = shareLink
-        frontmatter[this.plugin.field(YamlField.updated)] = moment().format()
+        frontmatter[this.field(YamlField.link)] = shareLink
+        frontmatter[this.field(YamlField.updated)] = moment().format()
       })
-      if (this.plugin.settings.clipboard || this.isForceClipboard) {
+      if (this.settings.clipboard || this.isForceClipboard) {
         // Copy the share link to the clipboard
         try {
           await navigator.clipboard.writeText(shareLink)
@@ -315,7 +333,7 @@ export default class Note {
         // Excalidraw drawing
         try {
           // @ts-ignore
-          const excalidraw = this.plugin.app.plugins.getPlugin('obsidian-excalidraw-plugin')
+          const excalidraw = this.deps.app.plugins.getPlugin('obsidian-excalidraw-plugin')
           if (!excalidraw) continue
           content = await excalidraw.ea.createSVG(filesource)
           content = content.outerHTML
@@ -343,7 +361,7 @@ export default class Note {
 
       if (filetype && content) {
         const hash = await sha1(content)
-        await this.plugin.api.queueUpload({
+        await this.deps.api.queueUpload({
           data: {
             filetype,
             hash,
@@ -356,7 +374,7 @@ export default class Note {
       }
       el.removeAttribute('alt')
     }
-    return this.plugin.api.processQueue(this.status)
+    return this.deps.api.processQueue(this.status)
   }
 
   /**
@@ -389,7 +407,7 @@ export default class Note {
             const filetype = getFromMimetype(parsed.type)?.extension
             if (filetype) {
               const hash = await sha1(parsed.buffer)
-              await this.plugin.api.queueUpload({
+              await this.deps.api.queueUpload({
                 data: {
                   filetype,
                   hash,
@@ -415,7 +433,7 @@ export default class Note {
               const res = await fetch(assetUrl)
               const contents = await res.arrayBuffer()
               const hash = await sha1(contents)
-              await this.plugin.api.queueUpload({
+              await this.deps.api.queueUpload({
                 data: {
                   filetype: filename[2],
                   hash,
@@ -432,13 +450,13 @@ export default class Note {
         }
       }
       this.status.setStatus('Uploading CSS attachments...')
-      await this.plugin.api.processQueue(this.status, 'CSS attachment')
+      await this.deps.api.processQueue(this.status, 'CSS attachment')
       this.status.setStatus('Uploading CSS...')
       const minified = minify(this.css).css
       const cssHash = await sha1(minified)
       try {
         if (cssHash !== this.cssResult?.hash) {
-          await this.plugin.api.upload({
+          await this.deps.api.upload({
             filetype: 'css',
             hash: cssHash,
             content: minified,
@@ -449,8 +467,8 @@ export default class Note {
 
         // Store the CSS theme in the settings
         // @ts-ignore
-        this.plugin.settings.theme = this.plugin.app?.customCss?.theme || '' // customCss is not exposed
-        await this.plugin.saveSettings()
+        this.settings.theme = this.deps.app?.customCss?.theme || '' // customCss is not exposed
+        await this.deps.saveSettings()
       } catch (e) {
         logger.error('CSS upload failed:', e)
       }
@@ -490,10 +508,10 @@ export default class Note {
    */
   resolveSharedLink (linkText: string): string | undefined {
     try {
-      const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkText, '')
+      const linkedFile = this.deps.app.metadataCache.getFirstLinkpathDest(linkText, '')
       if (linkedFile instanceof TFile) {
-        const linkedMeta = this.plugin.app.metadataCache.getFileCache(linkedFile)
-        const href = linkedMeta?.frontmatter?.[this.plugin.field(YamlField.link)]
+        const linkedMeta = this.deps.app.metadataCache.getFileCache(linkedFile)
+        const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
         if (typeof href === 'string') return href
       }
     } catch {
@@ -510,7 +528,7 @@ export default class Note {
    * Get the value of a frontmatter property
    */
   getProperty (field: YamlField) {
-    return this.meta?.frontmatter?.[this.plugin.field(field)]
+    return this.meta?.frontmatter?.[this.field(field)]
   }
 
   /**
@@ -539,7 +557,7 @@ export default class Note {
    * Per-note frontmatter takes precedence over the plugin-wide default.
    */
   getExpiration () {
-    const input = this.getProperty(YamlField.expires) || this.plugin.settings.expiry
+    const input = this.getProperty(YamlField.expires) || this.settings.expiry
     return parseExpiration(input)
   }
 }
