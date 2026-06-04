@@ -19,6 +19,7 @@ import { rewriteLinks } from './pipeline/transforms/rewrite-links'
 import { removeExternalTargets } from './pipeline/transforms/remove-external-targets'
 import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
 import { captureRenderedNote } from './pipeline/capture'
+import { uploadMedia } from './pipeline/upload-media'
 import { logger } from './shared/logger'
 import { SettingsStore } from './shared/settings-store'
 
@@ -143,7 +144,21 @@ export default class Note {
     this.expiration = this.getExpiration()
 
     // Process CSS and images
-    const uploadResult = await this.processMedia()
+    const uploadResult = await uploadMedia(
+      this.contentDom,
+      {
+        api: this.deps.api,
+        getExcalidrawSvg: async (filesource) => {
+          // @ts-ignore - app.plugins is undocumented
+          const excalidraw = this.deps.app.plugins.getPlugin('obsidian-excalidraw-plugin')
+          if (!excalidraw) return null
+          const svg = await excalidraw.ea.createSVG(filesource)
+          return svg.outerHTML
+        }
+      },
+      this.status,
+      { expiration: this.expiration }
+    )
     this.cssResult = uploadResult.css
     await this.processCss()
 
@@ -257,71 +272,6 @@ export default class Note {
   }
 
   /**
-   * Upload media attachments
-   */
-  async processMedia () {
-    const elements = ['img', 'video']
-    this.status.setStatus('Processing attachments...')
-    for (const el of this.contentDom.querySelectorAll(elements.join(','))) {
-      const src = el.getAttribute('src')
-      if (!src) continue
-      let content, filetype
-
-      if (src.startsWith('http') && !src.match(/^https?:\/\/localhost/)) {
-        // This is a web asset, no need to upload
-        continue
-      }
-
-      const filesource = el.getAttribute('filesource')
-      if (filesource?.match(/excalidraw/i)) {
-        // Excalidraw drawing
-        try {
-          // @ts-ignore
-          const excalidraw = this.deps.app.plugins.getPlugin('obsidian-excalidraw-plugin')
-          if (!excalidraw) continue
-          content = await excalidraw.ea.createSVG(filesource)
-          content = content.outerHTML
-          filetype = 'svg'
-        } catch (e) {
-          logger.error('Unable to process Excalidraw drawing:', e)
-        }
-      } else {
-        try {
-          // NOTE: we use fetch (not requestUrl) here because src is typically an
-          // `app://` URL pointing at a local vault file — requestUrl is for HTTP
-          // and doesn't handle Obsidian's custom protocols.
-          // eslint-disable-next-line no-restricted-globals
-          const res = await fetch(src)
-          if (res && res.status === 200) {
-            content = await res.arrayBuffer()
-            const parsed = new URL(src)
-            filetype = parsed.pathname.split('.').pop()
-          }
-        } catch (_e) {
-          // Unable to process this file
-          continue
-        }
-      }
-
-      if (filetype && content) {
-        const hash = await sha1(content)
-        await this.deps.api.queueUpload({
-          data: {
-            filetype,
-            hash,
-            content,
-            byteLength: content.byteLength,
-            expiration: this.expiration
-          },
-          callback: (url) => el.setAttribute('src', url)
-        })
-      }
-      el.removeAttribute('alt')
-    }
-    return this.deps.api.processQueue(this.status)
-  }
-
-  /**
    * Upload theme CSS, unless this file has previously been shared,
    * or the user has requested a force re-upload
    */
@@ -370,8 +320,8 @@ export default class Note {
           const filename = assetUrl.match(/([^/\\]+)\.(\w+)$/)
           if (filename) {
             if (getFromExtension(filename[2])) {
-              // Fetch the attachment content. See note in processMedia() — we
-              // need fetch here because CSS url() refs are typically local
+              // Fetch the attachment content. See note in upload-media.ts -
+              // we need fetch here because CSS url() refs are typically local
               // (e.g. theme fonts) and requestUrl doesn't handle app:// URLs.
               // eslint-disable-next-line no-restricted-globals
               const res = await fetch(assetUrl)

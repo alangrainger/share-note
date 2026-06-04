@@ -20,7 +20,9 @@ export interface FileUpload {
   filetype: string
   hash: string
   content?: ArrayBuffer | string
-  byteLength: number
+  // Optional because string-content uploads (e.g. Excalidraw SVGs) historically
+  // omitted it; the consumers gate the byte-length header on truthiness.
+  byteLength?: number
   expiration?: number
   url?: string | null
 }
