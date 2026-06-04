@@ -1,7 +1,7 @@
-import { App, CachedMetadata, moment, requestUrl, TFile, View, WorkspaceLeaf } from 'obsidian'
+import { App, CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
 import { encryptString, sha1 } from './crypto'
 import StatusMessage, { StatusType } from './StatusMessage'
-import NotePayload, { ElementStyle, getElementStyle } from './NotePayload'
+import NotePayload, { ElementStyle } from './NotePayload'
 import { ThemeMode, TitleSource } from './settings'
 import { buildFieldKey, YamlField } from './domain/field-keys'
 import { parseExpiration } from './domain/expiration'
@@ -18,30 +18,12 @@ import { fixCalloutIcons } from './pipeline/transforms/fix-callout-icons'
 import { rewriteLinks } from './pipeline/transforms/rewrite-links'
 import { removeExternalTargets } from './pipeline/transforms/remove-external-targets'
 import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selectors'
+import { captureRenderedNote } from './pipeline/capture'
 import { logger } from './shared/logger'
 import { SettingsStore } from './shared/settings-store'
 
 export interface SharedNote extends SharedUrl {
   file: TFile
-}
-
-export interface PreviewSection {
-  el: HTMLElement
-}
-
-export interface Renderer {
-  parsing: boolean,
-  pusherEl: HTMLElement,
-  previewEl: HTMLElement,
-  sections: PreviewSection[]
-}
-
-export interface ViewModes extends View {
-  modes: {
-    preview: {
-      renderer: Renderer
-    }
-  }
 }
 
 // Dependencies Note pulls in from the host plugin. Constructor-injected so
@@ -104,51 +86,13 @@ export default class Note {
       return
     }
 
-    // Switch to reading mode
     const startMode = this.leaf.getViewState()
-    const previewMode = this.leaf.getViewState()
-    if (previewMode.state) {
-      previewMode.state.mode = 'preview'
-    }
-    await this.leaf.setViewState(previewMode)
-    // Add a delay to wait for reading mode to finalise rendering - https://github.com/alangrainger/share-note/discussions/162#discussioncomment-15394971
-    await new Promise(resolve => window.setTimeout(resolve, 600))
-
-    // Scroll the view to the top to ensure we get the default margins for .markdown-preview-pusher
-    // @ts-ignore
-    this.leaf.view.previewMode.applyScroll(0) // 'view.previewMode'
-    await new Promise(resolve => window.setTimeout(resolve, 100))
     try {
-      const view = this.leaf.view as ViewModes
-      const renderer = view.modes.preview.renderer
-      // Copy classes and styles
-      this.elements.push(getElementStyle('html', activeDocument.documentElement))
-      const bodyStyle = getElementStyle('body', activeDocument.body)
-      bodyStyle.classes.push('share-note-plugin') // Add a targetable class for published notes
-      this.elements.push(bodyStyle)
-      this.elements.push(getElementStyle('preview', renderer.previewEl))
-      this.elements.push(getElementStyle('pusher', renderer.pusherEl))
-      this.contentDom = new DOMParser().parseFromString(await this.querySelectorAll(this.leaf.view as ViewModes), 'text/html')
-      this.cssRules = []
-      Array.from(activeDocument.styleSheets)
-        .forEach(x => Array.from(x.cssRules)
-          .forEach(rule => {
-            this.cssRules.push(rule)
-          }))
-
-      // Merge all CSS rules into a string for later minifying
-      this.css = this.cssRules
-        .filter(rule => {
-          /*
-          Remove styles that prevent a print preview from showing on the web, thanks to @texastoland on Github
-          https://github.com/alangrainger/share-note/issues/75#issuecomment-2708719828
-
-          This removes all "@media print" rules, which in my testing doesn't appear to have any negative effect.
-          Will have to revisit this if users discover issues.
-          */
-          return (rule as CSSMediaRule).media?.[0] !== 'print'
-        })
-        .map(rule => rule.cssText).join('').replace(/\n/g, '')
+      const captured = await captureRenderedNote(this.leaf)
+      this.contentDom = captured.contentDom
+      this.cssRules = captured.cssRules
+      this.css = captured.css
+      this.elements = captured.elements
     } catch (e) {
       logger.error('Failed to parse current note:', e)
       this.status.hide()
@@ -156,8 +100,8 @@ export default class Note {
       return
     }
 
-    // Reset the view to the original mode
-    // The timeout is required, even though we 'await' the preview mode setting earlier
+    // Reset the view to the original mode. The timeout is required even
+    // though we awaited the preview-mode switch inside captureRenderedNote.
     window.setTimeout(() => {
       void this.leaf.setViewState(startMode)
     }, 200)
@@ -476,32 +420,6 @@ export default class Note {
   }
 
   /**
-   * Poll the renderer until enough sections have rendered (or we time out),
-   * then return the concatenated outerHTML of all sections.
-   */
-  async querySelectorAll (view: ViewModes) {
-    const renderer = view.modes.preview.renderer
-    const maxTicks = 40
-    let parsing = 0
-    for (let count = 0; count < maxTicks; count++) {
-      try {
-        if (renderer.parsing) parsing++
-        if (count > parsing) {
-          const sections = renderer.sections
-          if (sections.length <= 12) break
-          const tail = sections.slice(sections.length - 7, sections.length - 1)
-          const rendered = tail.filter(s => s.el.innerHTML).length
-          if (rendered > 3) break
-        }
-      } catch (_e) {
-        break
-      }
-      await new Promise(resolve => window.setTimeout(resolve, 100))
-    }
-    return this.reduceSections(renderer.sections)
-  }
-
-  /**
    * Resolve an internal link target to its public shared URL, if any.
    * Used by the link-rewriting transforms; returns `undefined` if the
    * named note isn't shared or doesn't exist.
@@ -518,10 +436,6 @@ export default class Note {
       // Best-effort lookup; on failure return undefined.
     }
     return undefined
-  }
-
-  reduceSections (sections: { el: HTMLElement }[]) {
-    return sections.reduce((p: string, c) => p + c.el.outerHTML, '')
   }
 
   /**
