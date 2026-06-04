@@ -1,5 +1,6 @@
-import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
-import SharePlugin from './main'
+import { App, Plugin, PluginSettingTab, Setting, TextComponent } from 'obsidian'
+import { buildFieldKey, YamlField } from './domain/field-keys'
+import { SettingsStore } from './shared/settings-store'
 
 export enum ThemeMode {
   'Same as theme',
@@ -11,15 +12,6 @@ export enum TitleSource {
   'Note title',
   'First H1',
   'Frontmatter property'
-}
-
-export enum YamlField {
-  link,
-  updated,
-  encrypted,
-  unencrypted,
-  title,
-  expires
 }
 
 export interface ShareSettings {
@@ -61,15 +53,29 @@ export const DEFAULT_SETTINGS: ShareSettings = {
 }
 
 export class ShareSettingsTab extends PluginSettingTab {
-  plugin: SharePlugin
   apikeyEl?: TextComponent
   // Ephemeral - resets when Obsidian restarts. The "Danger / Advanced"
   // section must be re-opened explicitly each session.
   private showAdvanced = false
 
-  constructor (app: App, plugin: SharePlugin) {
+  constructor (
+    app: App,
+    plugin: Plugin,
+    private readonly settingsStore: SettingsStore
+  ) {
     super(app, plugin)
-    this.plugin = plugin
+  }
+
+  private get settings () {
+    return this.settingsStore.data
+  }
+
+  private async saveSettings () {
+    await this.settingsStore.save()
+  }
+
+  private fieldKey (key: YamlField) {
+    return buildFieldKey(this.settings.yamlField, key)
   }
 
   display (): void {
@@ -85,16 +91,16 @@ export class ShareSettingsTab extends PluginSettingTab {
         .setButtonText('Connect plugin')
         .setCta()
         .onClick(() => {
-          window.open(this.plugin.settings.server + '/v1/account/get-key?id=' + this.plugin.settings.uid)
+          window.open(this.settings.server + '/v1/account/get-key?id=' + this.settings.uid)
         }))
       .addText(inputEl => {
         this.apikeyEl = inputEl // so we can update it with the API key during the URI callback
         inputEl
           .setPlaceholder('API key')
-          .setValue(this.plugin.settings.apiKey)
+          .setValue(this.settings.apiKey)
           .onChange(async (value) => {
-            this.plugin.settings.apiKey = value
-            await this.plugin.saveSettings()
+            this.settings.apiKey = value
+            await this.saveSettings()
           })
       })
 
@@ -104,10 +110,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setDesc('The frontmatter property for storing the shared link and updated time. A value of `share` will create frontmatter fields of `share_link` and `share_updated`.')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.yamlField)
-        .setValue(this.plugin.settings.yamlField)
+        .setValue(this.settings.yamlField)
         .onChange(async (value) => {
-          this.plugin.settings.yamlField = value || DEFAULT_SETTINGS.yamlField
-          await this.plugin.saveSettings()
+          this.settings.yamlField = value || DEFAULT_SETTINGS.yamlField
+          await this.saveSettings()
         }))
 
     new Setting(containerEl)
@@ -115,7 +121,7 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setHeading()
 
     new Setting(containerEl)
-      .setName(`⭐ Your shared note theme is "${this.plugin.settings.theme || 'Obsidian default theme'}"`)
+      .setName(`⭐ Your shared note theme is "${this.settings.theme || 'Obsidian default theme'}"`)
       .setDesc('To set a new theme, change the theme in Obsidian to your desired theme and then use the `Force re-upload all data` command. You can change your Obsidian theme after that without affecting the theme for your shared notes.')
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/theme'))
 
@@ -128,10 +134,10 @@ export class ShareSettingsTab extends PluginSettingTab {
           .addOption('Same as theme', 'Same as theme')
           .addOption('Dark', 'Dark')
           .addOption('Light', 'Light')
-          .setValue(ThemeMode[this.plugin.settings.themeMode])
+          .setValue(ThemeMode[this.settings.themeMode])
           .onChange(async value => {
-            this.plugin.settings.themeMode = ThemeMode[value as keyof typeof ThemeMode]
-            await this.plugin.saveSettings()
+            this.settings.themeMode = ThemeMode[value as keyof typeof ThemeMode]
+            await this.saveSettings()
           })
       })
 
@@ -140,10 +146,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setName('Copy the link to clipboard after sharing')
       .addToggle(toggle => {
         toggle
-          .setValue(this.plugin.settings.clipboard)
+          .setValue(this.settings.clipboard)
           .onChange(async (value) => {
-            this.plugin.settings.clipboard = value
-            await this.plugin.saveSettings()
+            this.settings.clipboard = value
+            await this.saveSettings()
           })
       })
 
@@ -163,15 +169,15 @@ export class ShareSettingsTab extends PluginSettingTab {
           }
         }
         dropdown
-          .setValue(TitleSource[this.plugin.settings.titleSource])
+          .setValue(TitleSource[this.settings.titleSource])
           .onChange(async value => {
-            this.plugin.settings.titleSource = TitleSource[value as keyof typeof TitleSource]
-            if (this.plugin.settings.titleSource === TitleSource['Frontmatter property']) {
-              titleSetting.setDesc('Set the title you want to use in a frontmatter property called `' + this.plugin.field(YamlField.title) + '`')
+            this.settings.titleSource = TitleSource[value as keyof typeof TitleSource]
+            if (this.settings.titleSource === TitleSource['Frontmatter property']) {
+              titleSetting.setDesc('Set the title you want to use in a frontmatter property called `' + this.fieldKey(YamlField.title) + '`')
             } else {
               titleSetting.setDesc(defaultTitleDesc)
             }
-            await this.plugin.saveSettings()
+            await this.saveSettings()
           })
       })
 
@@ -180,10 +186,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setName('Note reading width')
       .setDesc('The max width for the content of your shared note, accepts any CSS unit. Leave this value empty if you want to use the theme\'s width.')
       .addText(text => text
-        .setValue(this.plugin.settings.noteWidth)
+        .setValue(this.settings.noteWidth)
         .onChange(async (value) => {
-          this.plugin.settings.noteWidth = value
-          await this.plugin.saveSettings()
+          this.settings.noteWidth = value
+          await this.saveSettings()
         }))
 
     // Strip frontmatter
@@ -192,10 +198,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setDesc('Remove frontmatter/YAML/properties from the shared note')
       .addToggle(toggle => {
         toggle
-          .setValue(this.plugin.settings.removeYaml)
+          .setValue(this.settings.removeYaml)
           .onChange(async (value) => {
-            this.plugin.settings.removeYaml = value
-            await this.plugin.saveSettings()
+            this.settings.removeYaml = value
+            await this.saveSettings()
           })
       })
 
@@ -205,10 +211,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setDesc('Remove backlinks footer from the shared note')
       .addToggle(toggle => {
         toggle
-          .setValue(this.plugin.settings.removeBacklinksFooter)
+          .setValue(this.settings.removeBacklinksFooter)
           .onChange(async (value) => {
-            this.plugin.settings.removeBacklinksFooter = value
-            await this.plugin.saveSettings()
+            this.settings.removeBacklinksFooter = value
+            await this.saveSettings()
           })
       })
 
@@ -219,10 +225,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .addTextArea(text => {
         text
           .setPlaceholder('.class-to-remove')
-          .setValue(this.plugin.settings.removeElements)
+          .setValue(this.settings.removeElements)
           .onChange(async (value) => {
-            this.plugin.settings.removeElements = value
-            await this.plugin.saveSettings()
+            this.settings.removeElements = value
+            await this.saveSettings()
           })
       })
 
@@ -232,10 +238,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setDesc('If you turn this off, you can enable encryption for individual notes by adding a `share_encrypted` checkbox into a note and ticking it.')
       .addToggle(toggle => {
         toggle
-          .setValue(!this.plugin.settings.shareUnencrypted)
+          .setValue(!this.settings.shareUnencrypted)
           .onChange(async (value) => {
-            this.plugin.settings.shareUnencrypted = !value
-            await this.plugin.saveSettings()
+            this.settings.shareUnencrypted = !value
+            await this.saveSettings()
           })
       })
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/encryption'))
@@ -245,10 +251,10 @@ export class ShareSettingsTab extends PluginSettingTab {
       .setName('Default note expiry')
       .setDesc('If you want, your notes can auto-delete themselves after a period of time. You can set this as a default for all notes here, or you can set it on a per-note basis.')
       .addText(text => text
-        .setValue(this.plugin.settings.expiry)
+        .setValue(this.settings.expiry)
         .onChange(async (value) => {
-          this.plugin.settings.expiry = value
-          await this.plugin.saveSettings()
+          this.settings.expiry = value
+          await this.saveSettings()
         }))
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/self-deleting-notes'))
 
@@ -277,7 +283,7 @@ export class ShareSettingsTab extends PluginSettingTab {
         .setDesc('Your user ID for the server. Read-only.')
         .addText(text => {
           text
-            .setValue(this.plugin.settings.uid)
+            .setValue(this.settings.uid)
             .setDisabled(true)
         })
 
@@ -288,10 +294,10 @@ export class ShareSettingsTab extends PluginSettingTab {
         .addText(text => {
           text
             .setPlaceholder(DEFAULT_SETTINGS.server)
-            .setValue(this.plugin.settings.server)
+            .setValue(this.settings.server)
             .onChange(async (value) => {
-              this.plugin.settings.server = value || DEFAULT_SETTINGS.server
-              await this.plugin.saveSettings()
+              this.settings.server = value || DEFAULT_SETTINGS.server
+              await this.saveSettings()
             })
         })
     }

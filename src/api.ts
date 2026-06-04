@@ -1,29 +1,28 @@
 import { requestUrl } from 'obsidian'
-import SharePlugin from './main'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { sha1, sha256 } from './crypto'
 import NotePayload from './NotePayload'
-import { SharedUrl } from './note'
+import { parseExistingShareUrl } from './domain/share-link'
 import { compressImage } from './Compressor'
+import { SettingsStore } from './shared/settings-store'
+import { logger } from './shared/logger'
+import { AuthError, NetworkError, UploadError } from './shared/errors'
 
-/**
- * Thrown when we've already surfaced a user-facing error message and the caller
- * should swallow the throw silently. Use this instead of `new Error('Known error')`
- * to avoid magic-string flow control.
- */
-export class HandledError extends Error {
-  readonly handled = true
-  constructor (message = 'Handled error') {
-    super(message)
-    this.name = 'HandledError'
-  }
+export interface ApiDeps {
+  settings: SettingsStore
+  manifestVersion: string
+  // Called when the server reports the auth token is missing or invalid
+  // (HTTP 462). Lets the API stay ignorant of the redirect/UI flow.
+  onUnauthenticated: () => void
 }
 
 export interface FileUpload {
   filetype: string
   hash: string
   content?: ArrayBuffer | string
-  byteLength: number
+  // Optional because string-content uploads (e.g. Excalidraw SVGs) historically
+  // omitted it; the consumers gate the byte-length header on truthiness.
+  byteLength?: number
   expiration?: number
   url?: string | null
 }
@@ -56,15 +55,19 @@ export interface CheckFilesResult {
 export default class API {
   uploadQueue: UploadQueueItem[] = []
 
-  constructor (private readonly plugin: SharePlugin) {}
+  constructor (private readonly deps: ApiDeps) {}
+
+  private get settings () {
+    return this.deps.settings.data
+  }
 
   async authHeaders () {
     const nonce = Date.now().toString()
     return {
-      'x-sharenote-id': this.plugin.settings.uid,
-      'x-sharenote-key': await sha256(nonce + this.plugin.settings.apiKey),
+      'x-sharenote-id': this.settings.uid,
+      'x-sharenote-key': await sha256(nonce + this.settings.apiKey),
       'x-sharenote-nonce': nonce,
-      'x-sharenote-version': this.plugin.manifest.version
+      'x-sharenote-version': this.deps.manifestVersion
     }
   }
 
@@ -75,11 +78,11 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body: PostData = { ...data }
-    if (this.plugin.settings.debug) body.debug = this.plugin.settings.debug
+    if (this.settings.debug) body.debug = this.settings.debug
 
     while (retries > 0) {
       const res = await requestUrl({
-        url: this.plugin.settings.server + endpoint,
+        url: this.settings.server + endpoint,
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -88,24 +91,25 @@ export default class API {
       if (res.status === 200) return res.json
 
       if (res.status < 500 || retries <= 1) {
-        // Permanent error — surface the server's message and stop retrying
+        // Permanent error - surface the server's message and stop retrying
         const message = res.headers?.message
         if (message) {
           new StatusMessage(message, StatusType.Error)
           if (res.status === 462) {
             // Invalid API key, request a new one
-            void this.plugin.authRedirect('share')
+            this.deps.onUnauthenticated()
+            throw new AuthError(message, { status: res.status, handled: true })
           }
-          throw new HandledError(message)
+          throw new NetworkError(message, { status: res.status, handled: true })
         }
-        throw new Error('Unknown error')
+        throw new NetworkError('Unknown server error', { status: res.status })
       }
 
-      // Transient server error — wait then retry
+      // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
-    throw new Error('Retries exhausted')
+    throw new NetworkError('Retries exhausted')
   }
 
   async postRaw<T = unknown> (endpoint: string, data: FileUpload, retries = 4): Promise<T> {
@@ -117,7 +121,7 @@ export default class API {
     if (data.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     while (retries > 0) {
       const res = await requestUrl({
-        url: this.plugin.settings.server + endpoint,
+        url: this.settings.server + endpoint,
         method: 'POST',
         headers,
         body: data.content,
@@ -129,16 +133,16 @@ export default class API {
         const message = res.text
         if (message) {
           new StatusMessage(message, StatusType.Error)
-          throw new HandledError(message)
+          throw new NetworkError(message, { status: res.status, handled: true })
         }
-        throw new Error('Unknown error')
+        throw new NetworkError('Unknown server error', { status: res.status })
       }
 
-      // Transient server error — wait then retry
+      // Transient server error - wait then retry
       await new Promise(resolve => window.setTimeout(resolve, 1000))
       retries--
     }
-    throw new Error('Retries exhausted')
+    throw new NetworkError('Retries exhausted')
   }
 
   async queueUpload (item: UploadQueueItem) {
@@ -182,7 +186,7 @@ export default class API {
             queueItem.callback(uploaded.url)
           } catch (e) {
             // Individual upload failures are non-fatal; the asset will just be missing
-            console.error(`[Share Note] ${type} upload failed:`, e)
+            logger.error(new UploadError(`${type} upload failed`, { cause: e }))
           }
         })())
       }
@@ -217,15 +221,5 @@ export default class API {
       })
       new StatusMessage('The note has been deleted 🗑️', StatusType.Info)
     }
-  }
-}
-
-export function parseExistingShareUrl (url: string): SharedUrl | null {
-  const match = url.match(/(\w+)(#.+?|)$/)
-  if (!match) return null
-  return {
-    filename: match[1],
-    decryptionKey: match[2].slice(1) || '',
-    url
   }
 }

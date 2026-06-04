@@ -20,7 +20,7 @@ When the user runs the **Share current note** command on an active Markdown file
 
 1. **Force reading mode.** The plugin switches the leaf to preview mode and waits ~600 ms for the renderer to settle. It then scrolls to the top so `.markdown-preview-pusher` reports its default top margin (themes with banners read this).
 
-2. **Wait for the renderer to actually finish.** Obsidian's reading-mode renderer is lazy — long notes are virtualised. `Note.querySelectorAll` polls `renderer.sections` for up to ~4 s, waiting until enough sections at the tail have populated, before scraping the HTML. Don't shorten this without testing on a long note.
+2. **Wait for the renderer to actually finish.** Obsidian's reading-mode renderer is lazy — long notes are virtualised. `sampleRenderedHtml` inside `src/pipeline/capture.ts` polls `renderer.sections` for up to ~4 s, waiting until enough sections at the tail have populated, before scraping the HTML. Don't shorten this without testing on a long note.
 
 3. **Capture the DOM.** All sections' `outerHTML` is concatenated and parsed into a detached `Document`. Inline `style` and `class` lists for `html`, `body`, `.markdown-preview-view`, `.markdown-preview-pusher` are captured separately so the published page can reproduce them.
 
@@ -29,7 +29,7 @@ When the user runs the **Share current note** command on an active Markdown file
 5. **Rewrite the DOM:**
    - Frontmatter block is removed (or hydrated with values from `metadataCache` if the user keeps it).
    - Optional: backlinks footer removed, plus any user-specified CSS selectors from settings.
-   - **Callout icons** are looked up from CSS rules (`--callout-icon` custom property), *not* from the DOM. Callouts below the fold may not have their SVG rendered yet, so the DOM is unreliable here.
+   - **Callout icons** prefer the rendered SVG's `lucide-<name>` class when present, falling back to the captured stylesheet's `--callout-icon` CSS variable. The SVG class is authoritative because Obsidian sometimes sets `--callout-icon` to an internal glyph name (e.g. `quote-glyph`) that Lucide can't resolve. Callouts below the fold may not have their SVG rendered yet - those still rely on the CSS variable, and will show a missing icon when the CSS value isn't a Lucide name.
    - **Internal links** (`a.internal-link`, `a.footnote-link`): if the linked note has a `share_link` in its frontmatter, the link is rewritten to point at that public URL. Otherwise the link is replaced with its plain text (we don't want broken links on the published page).
    - **Heading anchor links** (`href="#…"`) get rewritten to `onclick="…scrollIntoView()"`. We can't use `#fragment` because the URL fragment already carries the decryption key.
    - `target="_blank"` is stripped from external links.
@@ -90,9 +90,9 @@ The raw API key is **never** sent over the wire — only `sha256(nonce + key)`. 
 
 ### Error handling
 
-`api.ts` retries 5xx responses and surfaces 4xx errors via `StatusMessage`. When a user-facing message has already been shown, it throws `HandledError` so callers can swallow the throw without double-reporting. **Don't reinvent this with sentinel strings** — extend `HandledError` if you need richer error types.
+`api.ts` retries 5xx responses and surfaces 4xx errors via `StatusMessage`. Errors thrown out of the API layer are instances of `ShareError` (or its subclasses `NetworkError`, `AuthError`, `UploadError`) defined in `src/shared/errors.ts`. When a user-facing message has already been shown at the throw site, the error carries `handled: true` so the top-level catch in `main.ts` can skip the generic fallback. **Don't reinvent this with sentinel strings** — add a `ShareError` subclass if you need richer error types.
 
-The server can also return status `462` ("invalid API key"), which the plugin treats as a cue to restart the auth flow (`authRedirect('share')`).
+The server can also return status `462` ("invalid API key"), which the plugin treats as a cue to restart the auth flow. The `onUnauthenticated` callback (injected when `API` is constructed) fires, and the API layer throws `AuthError`.
 
 ---
 
@@ -102,13 +102,14 @@ The server can also return status `462` ("invalid API key"), which the plugin tr
 
 - **`neostandard` with `semi: false`, single quotes, 2-space indent.** Run `npm run lint`. CI/build calls this before `tsc`.
 - **`eslint-plugin-obsidianmd`** is also in the chain — it enforces Obsidian's plugin guidelines (e.g. `detachLeaves`, `noGlobalThis`, `noNodejsModules`, `noTFileTFolderCast`, `noStaticStylesAssignment`, `hardcodedConfigPath`). Don't disable rules wholesale; if you genuinely need an exception, scope an inline `// eslint-disable-next-line` comment with a one-line *why*.
-- `tsconfig.json` is intentionally permissive (no strict mode, only `strictNullChecks`). Don't tighten this in a PR unrelated to type-cleanup — it'll cascade.
+- `tsconfig.json` runs `strict: true` with `target: ES2022`. A handful of `no-unsafe-*` rules and `@typescript-eslint/no-non-null-assertion` are still disabled in `eslint.config.mjs` — re-enabling them is on the open backlog but not a precondition for new work.
+- **Tests run as part of the build.** `npm run build` is `lint → tsc → vitest → esbuild`. Tests are colocated next to source (`crypto.test.ts` next to `crypto.ts`); happy-dom provides DOM/window in tests, and `src/__mocks__/obsidian.ts` is the runtime stub for the `obsidian` module (aliased in `vitest.config.ts`). Add stubs there only as tests need them — anything not stubbed surfaces as a clear undefined error.
 
 ### `requestUrl()` vs `fetch()`
 
 Obsidian's `requestUrl()` is the cross-platform HTTP client and **must** be used for every call to the Share Note server. It avoids CORS, works on mobile, and is what Obsidian's plugin reviewers expect.
 
-`fetch()` is used in exactly two places, both in `src/note.ts`, both reading local vault assets through Obsidian's `app://` protocol (image attachments and theme fonts referenced from CSS `url(...)`). `requestUrl()` does not handle `app://`, so native `fetch()` is required. These spots carry an inline `eslint-disable no-restricted-globals` comment explaining why. **Don't introduce more `fetch()` calls.**
+`fetch()` is used in exactly two places, both reading local vault assets through Obsidian's `app://` protocol: `src/pipeline/upload-media.ts` (image and video attachments) and `src/pipeline/upload-css.ts` (theme fonts referenced from CSS `url(...)`). `requestUrl()` does not handle `app://`, so native `fetch()` is required. These spots carry an inline `eslint-disable no-restricted-globals` comment explaining why. **Don't introduce more `fetch()` calls.**
 
 This split is also documented in the README's "Disclosures" section because Obsidian's plugin scorecard flags it.
 
@@ -117,31 +118,31 @@ This split is also documented in the README's "Disclosures" section because Obsi
 Implemented in `src/crypto.ts`:
 
 - **AES-GCM-256.** Key is a 256-bit value derived from `crypto.getRandomValues(64-byte seed)` via PBKDF2 (`SHA-256`, 100k iters, zero salt — the seed is already 64 bytes of entropy).
-- **Chunked at 2000 plaintext chars.** Each chunk's IV is derived deterministically from its index. This is safe **only because every note has a fresh random key**. If you ever change the encryption model so keys are reused across notes, the IV scheme must change too.
+- **Chunked at 2000 plaintext chars. Each chunk uses a fresh random 12-byte IV** generated via `crypto.getRandomValues(new Uint8Array(12))`. The IVs are base64-encoded into the `payload.ivs` array, parallel to `payload.ciphertext`. The wire-format change is also reflected server-side: plugins >= 1.5.0 are served a `decrypt.js` that reads `ivs[index]`; older plugins still get the legacy deterministic template. **Do not reintroduce deterministic IVs.** The roundtrip + IV-uniqueness regression tests in `crypto.test.ts` guard against this.
 - **Key encoding.** The base64-encoded 256-bit key is sliced to 43 characters (the unpadded base64 length) and appended to the share URL after `#`. The server never sees the fragment.
-- **Re-shares reuse the existing key**, parsed out of the existing `share_link` frontmatter, so URLs stay stable across updates.
+- **Re-shares reuse the existing key**, parsed out of the existing `share_link` frontmatter, so URLs stay stable across updates. With random per-chunk IVs, re-using the key across re-shares is safe.
 
 `sha1` is used for content-dedup hashing only — it is not used for any security-bearing decision. `sha256` is used for the request-signing digest and the local UID derivation. `shortHash` (`sha256(...).slice(0, 32)`) is the UID format.
 
 ### Reading-mode rendering quirks
 
-Several timeouts in `src/note.ts` exist because Obsidian's renderer is async and lazy:
+Several timeouts exist because Obsidian's renderer is async and lazy. All of these live in `src/pipeline/capture.ts` (the snapshot step) except the view-state restore, which is in `src/pipeline/share-service.ts`:
 
 - The **600 ms wait** after `setViewState({mode: 'preview'})` is from issue [#162](https://github.com/alangrainger/share-note/discussions/162). Reading mode is "set" before it has finished rendering. Don't reduce this without manual testing.
 - The **`applyScroll(0)` + 100 ms wait** before capturing element styles ensures `.markdown-preview-pusher`'s top margin reflects the unscrolled state (banner themes read this).
-- The **`querySelectorAll` polling loop** waits for enough of the tail sections of a long note to render before reading them. This is the trickiest part of the pipeline — if a long note publishes with empty sections at the bottom, this is where to look.
+- The **`sampleRenderedHtml` polling loop** in `capture.ts` waits for enough of the tail sections of a long note to render before reading them. This is the trickiest part of the pipeline — if a long note publishes with empty sections at the bottom, this is where to look. Constants (`RENDER_POLL_MAX_TICKS`, `SHORT_NOTE_SECTION_COUNT`, `RENDER_TAIL_WINDOW`, `RENDER_TAIL_RENDERED_THRESHOLD`) are tuned empirically; the comments explain each.
 
-Reading mode is restored at the end via `leaf.setViewState(startMode)` with a 200 ms timeout — required even though `setViewState` is awaited.
+Reading mode is restored at the end via `leaf.setViewState(startMode)` with a 200 ms timeout — required even though `setViewState` is awaited. The restore happens in the orchestrator (`ShareService.share`), not in capture, because capture has no business knowing about restoration.
 
 ### Undocumented Obsidian APIs
 
 The plugin reaches into a few Obsidian internals. These are marked with `@ts-ignore` / `@ts-expect-error` and are the most likely things to break when Obsidian updates:
 
-- `app.workspace.getActiveFileView()` — used instead of `getLeaf()` because the latter doesn't return `previewMode` on pinned notes.
-- `leaf.view.previewMode.applyScroll(0)` — used to scroll to top before capture.
-- `leaf.view.modes.preview.renderer` — the `sections[]` array we poll, plus `parsing`, `previewEl`, `pusherEl`.
-- `app.customCss.theme` — the currently-selected theme name, stored so we can show it in settings.
-- `app.plugins.getPlugin('obsidian-excalidraw-plugin').ea.createSVG(filesource)` — for rendering Excalidraw drawings to SVG at share time.
+- `app.workspace.getActiveFileView()` — used instead of `getLeaf()` because the latter doesn't return `previewMode` on pinned notes. Called inside `ShareService.share()` (`src/pipeline/share-service.ts`).
+- `leaf.view.previewMode.applyScroll(0)` — used to scroll to top before capture. In `src/pipeline/capture.ts`.
+- `leaf.view.modes.preview.renderer` — the `sections[]` array we poll, plus `parsing`, `previewEl`, `pusherEl`. In `src/pipeline/capture.ts`; the local typing is the `Renderer` / `ViewModes` interface in the same file.
+- `app.customCss.theme` — the currently-selected theme name, captured inside the `recordUploadedTheme` callback wired by `ShareService` so the upload-css step can record it on the server.
+- `app.plugins.getPlugin('obsidian-excalidraw-plugin').ea.createSVG(filesource)` — for rendering Excalidraw drawings to SVG at share time. Wired by `ShareService` into the `getExcalidrawSvg` callback that `uploadMedia` uses, so `upload-media.ts` itself doesn't touch `app.plugins`.
 
 If a plugin release breaks after an Obsidian update, this list is the first place to check.
 
@@ -158,13 +159,13 @@ The user-facing per-note controls live in frontmatter. The prefix is configurabl
 | `share_title` | string | Source of the title when "Frontmatter property" is the configured title source. |
 | `share_expires` | string | Per-note expiry, e.g. `"7 days"` (units: `minute`, `hour`, `day`, `month`). Overrides the global default. |
 
-Always read these through `plugin.field(YamlField.x)` — never hardcode `"share_link"`, because the prefix is user-configurable.
+Always build these via `buildFieldKey(yamlField, YamlField.x)` from `src/domain/field-keys.ts` — never hardcode `"share_link"`, because the prefix is user-configurable. `SharePlugin.field(key)` and `ShareService.field(key)` are one-line delegates to that helper.
 
 ### File deduplication is core, not optimisation
 
 The check-files-then-upload-missing pattern in `API.processQueue` is the whole reason re-shares are fast. The plugin sends `{hash, filetype, byteLength}` for every queued item; the server returns a URL for the ones it already has, and the plugin only POSTs the missing bytes. **Don't introduce code paths that bypass `check-files` and upload directly.** The one fully unguarded upload path is `createNote` itself — the rendered HTML always uploads, because by definition it's per-note. (CSS uploads via `api.upload()` skip a fresh `check-files` call, but they're still gated client-side by comparing `cssHash` against the value `check-files` returned earlier in the run — see step 9.)
 
-CSS is gated separately (`isForceUpload || !this.cssResult`) — see "How it works" step 9.
+CSS is gated separately (`!options.isForceUpload && cssResult` short-circuits inside `uploadCss`) — see "How it works" step 9.
 
 ### Build & release
 
@@ -176,8 +177,9 @@ CSS is gated separately (`isForceUpload || !this.cssResult`) — see "How it wor
 
 ### Things that look like bugs but aren't
 
-- `note.shareAsPlainText(true)` *enables* unencrypted sharing. The name is honest about user intent, but reads inverted if you skim. `isEncrypted = !isPlainText`.
-- `internalLinkToSharedNote` can fail silently and return `false`. That's by design — best-effort link rewriting; the caller falls through to "remove the link, keep the text".
+- `resolveSharedLink(linkText)` on `ShareService` returns `undefined` on lookup failure (the called Obsidian API can throw on missing files). That's by design — best-effort link rewriting; `rewriteLinks` falls through to "remove the link, keep the text".
+- The byte-length header on uploaded SVG strings (Excalidraw) is intentionally omitted - `FileUpload.byteLength` is optional, and `string.length` isn't a meaningful byte count for arbitrary text. The header is gated on truthiness in `api.ts`.
+- `ShareService.share()` doesn't restore the original view-state when capture fails - only on the success path. Preserved from the original behaviour. If you want to change this, do it intentionally.
 
 ---
 
