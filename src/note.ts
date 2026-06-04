@@ -1,8 +1,6 @@
 import { App, CachedMetadata, moment, requestUrl, TFile, WorkspaceLeaf } from 'obsidian'
-import { encryptString } from './crypto'
 import StatusMessage, { StatusType } from './StatusMessage'
 import NotePayload, { ElementStyle } from './NotePayload'
-import { ThemeMode, TitleSource } from './settings'
 import { buildFieldKey, YamlField } from './domain/field-keys'
 import { parseExpiration } from './domain/expiration'
 import API, { CheckFilesResult } from './api'
@@ -18,6 +16,7 @@ import { removeCustomSelectors } from './pipeline/transforms/remove-custom-selec
 import { captureRenderedNote } from './pipeline/capture'
 import { uploadMedia } from './pipeline/upload-media'
 import { uploadCss } from './pipeline/upload-css'
+import { buildPayload } from './pipeline/build-payload'
 import { logger } from './shared/logger'
 import { SettingsStore } from './shared/settings-store'
 
@@ -173,77 +172,24 @@ export default class Note {
       { isForceUpload: this.isForceUpload, expiration: this.expiration }
     )
 
-    /*
-     * Encrypt the note contents
-     */
+    const existingLink = this.meta?.frontmatter?.[this.field(YamlField.link)]
+    const previousShare = typeof existingLink === 'string'
+      ? parseExistingShareUrl(existingLink) ?? undefined
+      : undefined
 
-    // Use previous name and key if they exist, so that links will stay consistent across updates
-    let decryptionKey = ''
-    if (this.meta?.frontmatter?.[this.field(YamlField.link)]) {
-      const match = parseExistingShareUrl(this.meta?.frontmatter?.[this.field(YamlField.link)])
-      if (match) {
-        this.payload.filename = match.filename
-        decryptionKey = match.decryptionKey
-      }
-    }
-    this.payload.encrypted = this.isEncrypted
-
-    // Select which source for the title
-    let title
-    switch (this.settings.titleSource) {
-      case TitleSource['First H1']:
-        title = this.contentDom.getElementsByTagName('h1')?.[0]?.innerText
-        break
-      case TitleSource['Frontmatter property']:
-        title = this.meta?.frontmatter?.[this.field(YamlField.title)]
-        break
-    }
-    if (!title) {
-      // Fallback to basename if either of the above fail
-      title = file.basename
-    }
-
-    if (this.isEncrypted) {
-      this.status.setStatus('Encrypting note...')
-      const plaintext = JSON.stringify({
-        content: this.contentDom.body.innerHTML,
-        basename: title
-      })
-      // Encrypt the note
-      const encryptedData = await encryptString(plaintext, decryptionKey)
-      this.payload.content = JSON.stringify({
-        ciphertext: encryptedData.ciphertext,
-        ivs: encryptedData.ivs
-      })
-      decryptionKey = encryptedData.key
-    } else {
-      // This is for notes shared without encryption, using the
-      // share_unencrypted frontmatter property
-      this.payload.content = this.contentDom.body.innerHTML
-      this.payload.title = title
-      // Create a meta description preview based off the <p> elements
-      const desc = Array.from(this.contentDom.querySelectorAll('p'))
-        .map(x => x.innerText).filter(x => !!x)
-        .join(' ')
-      this.payload.description = desc.length > 200 ? desc.slice(0, 197) + '...' : desc
-    }
-
-    // Make payload value replacements
-    this.payload.width = this.settings.noteWidth
-    // Set theme light/dark
-    if (this.settings.themeMode !== ThemeMode['Same as theme']) {
-      this.elements
-        .filter(x => x.element === 'body')
-        .forEach(item => {
-          // Remove the existing theme setting
-          item.classes = item.classes.filter(cls => cls !== 'theme-dark' && cls !== 'theme-light')
-          // Add the preferred theme setting (dark/light)
-          item.classes.push('theme-' + ThemeMode[this.settings.themeMode].toLowerCase())
-        })
-    }
-    this.payload.elements = this.elements
-    // Check for MathJax
-    this.payload.mathJax = !!this.contentDom.querySelector('mjx-container')
+    const { payload, decryptionKey } = await buildPayload({
+      contentDom: this.contentDom,
+      elements: this.elements,
+      frontmatter: this.meta?.frontmatter,
+      fallbackTitle: file.basename,
+      previousShare,
+      titleFrontmatterKey: this.field(YamlField.title),
+      isEncrypted: this.isEncrypted,
+      titleSource: this.settings.titleSource,
+      noteWidth: this.settings.noteWidth,
+      themeMode: this.settings.themeMode
+    }, this.status)
+    this.payload = payload
 
     // Share the file
     this.status.setStatus('Uploading note...')
