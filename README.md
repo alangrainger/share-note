@@ -11,7 +11,9 @@ Instantly share / publish a note. Notes are shared with your full theme and shou
 
 To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Share note on the web`
 
-<p><img width="340" src="https://github.com/user-attachments/assets/457721d9-3226-429e-b1c0-050b0370045e" /></p>
+<img width="340" src="https://github.com/user-attachments/assets/457721d9-3226-429e-b1c0-050b0370045e" />
+
+## Server stats
 
 [![Share Note stats](https://share.note.sx/stats/card.svg)](https://share.note.sx/stats)
 
