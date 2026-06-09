@@ -122,7 +122,7 @@ async function sampleRenderedHtml (view: ViewModes): Promise<string> {
         const rendered = tail.filter(s => s.el.innerHTML).length
         if (rendered > RENDER_TAIL_RENDERED_THRESHOLD) break
       }
-    } catch (_e) {
+    } catch {
       break
     }
     await sleep(RENDER_POLL_INTERVAL_MS)

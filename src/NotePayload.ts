@@ -20,7 +20,7 @@ export function getElementStyle (key: string, element: HTMLElement) {
       style.removeProperty('margin-bottom')
     }
     elementStyle.style = style.cssText
-  } catch (_e) {
+  } catch {
     // Some elements may not expose classList/style; skip them
   }
   return elementStyle

@@ -46,7 +46,7 @@ export async function compressImage (data: ArrayBuffer, filetype: string) {
         data = originalData
       }
       changed = data.byteLength !== originalData.byteLength
-    } catch (_e) {
+    } catch {
       // Compression failed; keep original
     }
   }

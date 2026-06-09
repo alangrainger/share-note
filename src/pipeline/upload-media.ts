@@ -69,7 +69,7 @@ export async function uploadMedia (
           const parsed = new URL(src)
           filetype = parsed.pathname.split('.').pop()
         }
-      } catch (_e) {
+      } catch {
         // Unable to process this file
         continue
       }

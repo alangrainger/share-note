@@ -197,7 +197,7 @@ export class ShareService {
           try {
             await navigator.clipboard.writeText(shareLink)
             shareMessage = `${shareMessage} and the link is copied to your clipboard 📋`
-          } catch (_e) {
+          } catch {
             // Clipboard write fails if the Obsidian window isn't focused; ignore.
           }
         }
