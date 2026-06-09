@@ -13,6 +13,10 @@ To share a note, choose `Share Note` from the command palette, or click the `⋮
 
 <img width="340" src="https://github.com/user-attachments/assets/457721d9-3226-429e-b1c0-050b0370045e" />
 
+## Server stats
+
+![](https://api.note.sx/stats/card.svg)
+
 ---
 
 ## Full theme support
