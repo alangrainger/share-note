@@ -15,7 +15,7 @@ To share a note, choose `Share Note` from the command palette, or click the `⋮
 
 ## Server stats
 
-![](https://api.note.sx/stats/card.svg)
+[![Share Note stats](https://share.note.sx/stats/card.svg)](https://share.note.sx/stats)
 
 ---
 
