@@ -79,17 +79,33 @@ export async function captureRenderedNote (
   const html = await sampleRenderedHtml(view)
   const contentDom = new DOMParser().parseFromString(html, 'text/html')
 
+  // MathJax CHTML builds its per-glyph stylesheet (<style id="MJX-CHTML-styles">)
+  // incrementally as equations render, and the CSSOM `.cssRules` view of that
+  // element can be stale/incomplete at capture time - which silently drops glyphs
+  // (especially Greek) from shared equations. When this note contains rendered
+  // math, read the element's textContent directly (the source of truth) instead
+  // of trusting `.cssRules`. https://github.com/alangrainger/share-note/issues/34
+  const mjxStyleEl = contentDom.querySelector('mjx-container')
+    ? activeDocument.getElementById('MJX-CHTML-styles')
+    : null
+  const mjxText = mjxStyleEl?.textContent?.trim()
+
   const cssRules: CSSRule[] = []
   for (const sheet of Array.from(activeDocument.styleSheets)) {
+    // Skip the MathJax sheet when we have its textContent - the complete version
+    // is appended below. If textContent is empty, MathJax populated the CSSOM
+    // directly and `.cssRules` is authoritative, so fall through and keep it.
+    if (mjxText && sheet.ownerNode === mjxStyleEl) continue
     for (const rule of Array.from(sheet.cssRules)) cssRules.push(rule)
   }
 
   // Merge CSS rules into a single string for later minifying. @media print
   // rules are dropped because they prevent the print preview from showing on
   // the web - https://github.com/alangrainger/share-note/issues/75#issuecomment-2708719828
-  const css = cssRules
+  let css = cssRules
     .filter(rule => (rule as CSSMediaRule).media?.[0] !== 'print')
     .map(rule => rule.cssText).join('').replace(/\n/g, '')
+  if (mjxText) css += mjxText.replace(/\n/g, '')
 
   return { contentDom, cssRules, css, elements }
 }
