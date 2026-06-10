@@ -4,9 +4,6 @@ Instantly share / publish a note. Notes are shared with your full theme and shou
 
 - 🚥 [System Status](https://status.note.sx/)
 - 🆘 I need help! [Go here first for help and troubleshooting](https://docs.note.sx/)
-- 👉 [Install this plugin from the Plugin Store](https://obsidian.md/plugins?id=share-note)
-- 📄 [Documentation](https://docs.note.sx/)
-- 💬 [Discussion for this plugin](https://forum.obsidian.md/t/42788)
 - 🚀 [Request new features / see the roadmap](https://note.sx/roadmap)
 
 To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Share note on the web`
