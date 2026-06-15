@@ -68,9 +68,20 @@ describe('encryptString', () => {
     expect(b.ivs[0]).not.toBe(a.ivs[0])
   })
 
-  it('returns a 43-character base64 key', async () => {
+  it('returns a 22-character base64 key (128-bit)', async () => {
     const enc = await encryptString('hello')
-    expect(enc.key.length).toBe(43)
+    expect(enc.key.length).toBe(22)
+  })
+
+  it('reuses and preserves a legacy 256-bit key on re-share', async () => {
+    // Notes first shared under the old scheme carry a 43-char (32-byte) key.
+    // Re-sharing must keep that full key intact, not truncate it to 22 chars.
+    const legacyKey = arrayBufferToBase64(crypto.getRandomValues(new Uint8Array(32)).buffer).replace(/=+$/, '')
+    expect(legacyKey.length).toBe(43)
+    const reshared = await encryptString('hello', legacyKey)
+    expect(reshared.key).toBe(legacyKey)
+    const back = await decryptForTest({ ciphertext: reshared.ciphertext, ivs: reshared.ivs }, reshared.key)
+    expect(back).toBe('hello')
   })
 })
 

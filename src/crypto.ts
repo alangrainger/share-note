@@ -6,29 +6,6 @@ export interface EncryptedString {
   key: string;
 }
 
-async function _generateKey (seed: ArrayBuffer) {
-  const keyMaterial = await window.crypto.subtle.importKey(
-    'raw',
-    seed,
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits']
-  )
-
-  const masterKey = await window.crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: new Uint8Array(16),
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    256
-  )
-
-  return new Uint8Array(masterKey)
-}
-
 export function masterKeyToString (masterKey: ArrayBuffer): string {
   return arrayBufferToBase64(masterKey)
 }
@@ -71,9 +48,14 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   if (existingKey) {
     key = base64ToArrayBuffer(existingKey)
   } else {
-    key = await _generateKey(window.crypto.getRandomValues(new Uint8Array(64)).buffer)
+    // 128-bit AES-GCM key. Generated directly from the CSPRNG - the bytes are
+    // already uniformly random, so there's nothing for a KDF to add here.
+    // 16 bytes encodes to a 22-char base64 fragment (vs 43 for the old 256-bit
+    // key), keeping the share URL shorter. Re-shares reuse the existing key as
+    // given, so older 256-bit keys keep working unchanged.
+    key = window.crypto.getRandomValues(new Uint8Array(16)).buffer
   }
-  const aesKey = await _getAesGcmKey(key as ArrayBuffer)
+  const aesKey = await _getAesGcmKey(key)
 
   const ciphertext = []
   const ivs: string[] = []
@@ -100,7 +82,11 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   return {
     ciphertext,
     ivs,
-    key: masterKeyToString(key as ArrayBuffer).slice(0, 43)
+    // Strip base64 padding rather than slicing to a fixed length: a fresh
+    // 16-byte key yields 22 chars, while an older reused 32-byte key still
+    // yields its full 43 chars. Hardcoding 22 would truncate (and break)
+    // re-shares of notes that were first encrypted with a 256-bit key.
+    key: masterKeyToString(key).replace(/=+$/, '')
   }
 }
 
