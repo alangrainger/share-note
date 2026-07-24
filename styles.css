@@ -19,10 +19,16 @@
 
 .share-note-icons {
     display: flex;
+    align-items: center;
 }
 
 .share-note-icons > span {
     display: flex;
     margin-left: 6px;
     cursor: pointer;
+    color: var(--text-muted);
+}
+
+.share-note-icons > span:hover {
+    color: var(--text-normal);
 }

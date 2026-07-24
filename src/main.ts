@@ -141,6 +141,14 @@ export default class SharePlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
       this.addShareIcons()
     }))
+    // Properties can re-render without a leaf change (frontmatter edit, mode
+    // switch, delayed metadata). Re-inject when the active file's cache updates.
+    this.registerEvent(this.app.metadataCache.on('changed', (file) => {
+      if (file === this.app.workspace.getActiveFile()) this.addShareIcons()
+    }))
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      this.addShareIcons()
+    }))
   }
 
   onunload () {
@@ -221,7 +229,7 @@ export default class SharePlugin extends Plugin {
     if (!activeFile) return
     const fieldKey = this.field(YamlField.link)
     const shareLink = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[fieldKey]
-    if (typeof shareLink !== 'string') return
+    if (typeof shareLink !== 'string' || !shareLink) return
 
     // Try to inject; returns true once the icons are in place. We attempt
     // immediately (the panel may already be rendered after a re-focus) and
@@ -234,10 +242,37 @@ export default class SharePlugin extends Plugin {
       if (inject()) observer.disconnect()
     })
     observer.observe(activeDocument.body, { childList: true, subtree: true })
-    // Safety: stop watching after 1 second even if the panel never appears
-    // (e.g. user navigated away). Hanging observers waste cycles on every
-    // subsequent DOM mutation.
-    window.setTimeout(() => observer.disconnect(), 1000)
+    // Safety: stop watching after a few seconds even if the panel never appears
+    // (e.g. user navigated away, or properties are collapsed).
+    window.setTimeout(() => observer.disconnect(), 5000)
+  }
+
+  /**
+   * Decide whether a properties-panel value cell currently represents the
+   * shared URL. Newer Obsidian versions no longer reliably render this as
+   * `div.external-link` with exact innerText, so we accept several shapes.
+   */
+  private propertyValueMatchesShareLink (valueEl: Element, shareLink: string): boolean {
+    const normalized = shareLink.trim()
+    const candidates: string[] = []
+
+    valueEl.querySelectorAll('div.external-link, a.external-link, a').forEach((el) => {
+      const textContent = (el.textContent || '').trim()
+      if (textContent) candidates.push(textContent)
+      const href = el.getAttribute('href')?.trim()
+      if (href) candidates.push(href)
+    })
+
+    valueEl.querySelectorAll('input').forEach((el) => {
+      const value = String((el as unknown as { value?: string }).value || '').trim()
+      if (value) candidates.push(value)
+    })
+
+    // Some themes/renderers put the URL directly on the value container.
+    const direct = (valueEl.textContent || '').trim()
+    if (direct) candidates.push(direct)
+
+    return candidates.some((c) => c === normalized || c.startsWith(normalized.split('#')[0]))
   }
 
   private tryInjectShareIcons (activeFile: TFile, fieldKey: string, shareLink: string): boolean {
@@ -245,23 +280,48 @@ export default class SharePlugin extends Plugin {
     activeDocument.querySelectorAll(`div.metadata-property[data-property-key="${fieldKey}"]`)
       .forEach(propertyEl => {
         const valueEl = propertyEl.querySelector('div.metadata-property-value')
-        const linkEl = valueEl?.querySelector('div.external-link') as HTMLElement
-        if (linkEl?.innerText !== shareLink) return
         if (!valueEl || valueEl.querySelector('div.share-note-icons')) return
 
+        // `data-property-key` already identifies the share_link row. Do not
+        // require a brittle `div.external-link` exact text match - newer
+        // Obsidian builds render URL properties as anchors/inputs/plain text.
+        // If a value is present and clearly not our link, skip; otherwise inject.
+        const hasAnyValue = !!(valueEl.textContent || '').trim() || !!valueEl.querySelector('input, a, div.external-link')
+        if (hasAnyValue && !this.propertyValueMatchesShareLink(valueEl, shareLink)) {
+          // Still allow injection when the row is our property key and the
+          // displayed text is only the URL without hash, icons, etc. The
+          // matcher already accepts base-URL prefixes; if it still fails the
+          // property is showing unrelated content.
+          return
+        }
+
         const iconsEl = createDiv({ cls: 'share-note-icons' })
-        const shareIcon = iconsEl.createSpan({ attr: { title: 'Re-share note' } })
-        setIcon(shareIcon, 'upload-cloud')
-        this.registerDomEvent(shareIcon, 'click', () => { void this.uploadNote() })
-        const copyIcon = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard' } })
-        setIcon(copyIcon, 'copy')
-        this.registerDomEvent(copyIcon, 'click', async () => {
+
+        const shareBtn = iconsEl.createSpan({ attr: { title: 'Update / re-share note', 'aria-label': 'Update shared note' } })
+        setIcon(shareBtn, 'upload-cloud')
+        this.registerDomEvent(shareBtn, 'click', (evt) => {
+          evt.preventDefault()
+          evt.stopPropagation()
+          void this.uploadNote()
+        })
+
+        const copyBtn = iconsEl.createSpan({ attr: { title: 'Copy link to clipboard', 'aria-label': 'Copy shared link' } })
+        setIcon(copyBtn, 'copy')
+        this.registerDomEvent(copyBtn, 'click', async (evt) => {
+          evt.preventDefault()
+          evt.stopPropagation()
           await navigator.clipboard.writeText(shareLink)
           new StatusMessage('📋 Shared link copied to clipboard')
         })
-        const deleteIcon = iconsEl.createSpan({ attr: { title: 'Delete shared note' } })
-        setIcon(deleteIcon, 'trash-2')
-        this.registerDomEvent(deleteIcon, 'click', () => { void this.deleteSharedNote(activeFile) })
+
+        const deleteBtn = iconsEl.createSpan({ attr: { title: 'Delete shared note', 'aria-label': 'Delete shared note' } })
+        setIcon(deleteBtn, 'trash-2')
+        this.registerDomEvent(deleteBtn, 'click', (evt) => {
+          evt.preventDefault()
+          evt.stopPropagation()
+          void this.deleteSharedNote(activeFile)
+        })
+
         valueEl.prepend(iconsEl)
         injected = true
       })
