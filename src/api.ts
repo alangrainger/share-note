@@ -43,13 +43,34 @@ export interface UploadQueueItem {
   callback: (url: string) => void
 }
 
+/** One CSS file (or chunk) known to the server / note template. */
+export interface CssFileInfo {
+  url: string
+  hash: string
+}
+
+/**
+ * CSS metadata from /v1/file/check-files.
+ * Older servers return a single object; newer / multi-chunk servers return an array.
+ */
+export type CssCheckResult = CssFileInfo | CssFileInfo[]
+
 export interface CheckFilesResult {
   success: boolean
   files: FileUpload[]
-  css?: {
-    url: string
-    hash: string
+  css?: CssCheckResult
+}
+
+/** Normalize server CSS metadata into a non-empty array, or undefined. */
+export function normalizeCssResult (css: CssCheckResult | undefined | null): CssFileInfo[] | undefined {
+  if (!css) return undefined
+  if (Array.isArray(css)) {
+    return css.length > 0 ? css : undefined
   }
+  if (css.url) {
+    return [{ url: css.url, hash: css.hash || '' }]
+  }
+  return undefined
 }
 
 export default class API {

@@ -35,4 +35,10 @@ export default interface NotePayload {
   encrypted: boolean
   content: string
   mathJax: boolean
+  // Optional multi-chunk CSS references for the published note template.
+  // Single-file themes use a one-element array.
+  css?: Array<{
+    url: string
+    hash: string
+  }>
 }

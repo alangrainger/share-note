@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { requestUrl } from 'obsidian'
-import API from './api'
+import API, { normalizeCssResult } from './api'
 import { AuthError, NetworkError } from './shared/errors'
 import type { SettingsStore } from './shared/settings-store'
 import type { ShareSettings } from './settings'
@@ -145,5 +145,27 @@ describe('API.post error mapping', () => {
     const err = await api.post('/v1/file/create-note').catch((e: unknown) => e) as NetworkError
     expect(err).toBeInstanceOf(NetworkError)
     expect(err.handled).toBe(false)
+  })
+})
+
+describe('normalizeCssResult', () => {
+  it('returns undefined for empty input', () => {
+    expect(normalizeCssResult(undefined)).toBeUndefined()
+    expect(normalizeCssResult(null)).toBeUndefined()
+    expect(normalizeCssResult([])).toBeUndefined()
+  })
+
+  it('wraps a single object into a one-element array', () => {
+    expect(normalizeCssResult({ url: 'https://x/a.css', hash: 'abc' })).toEqual([
+      { url: 'https://x/a.css', hash: 'abc' }
+    ])
+  })
+
+  it('passes through a non-empty array', () => {
+    const files = [
+      { url: 'https://x/a.css', hash: 'a' },
+      { url: 'https://x/b.css', hash: 'b' }
+    ]
+    expect(normalizeCssResult(files)).toEqual(files)
   })
 })
