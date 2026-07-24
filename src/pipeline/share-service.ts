@@ -145,7 +145,7 @@ export class ShareService {
         { expiration }
       )
 
-      await uploadCss(
+      const cssFiles = await uploadCss(
         captured.css,
         uploadResult.css,
         {
@@ -175,7 +175,8 @@ export class ShareService {
         isEncrypted: options.encrypted,
         titleSource: this.settings.titleSource,
         noteWidth: this.settings.noteWidth,
-        themeMode: this.settings.themeMode
+        themeMode: this.settings.themeMode,
+        css: cssFiles
       }, status)
 
       status.setStatus('Uploading note...')

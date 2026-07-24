@@ -28,6 +28,8 @@ export interface BuildPayloadInput {
   titleSource: TitleSource
   noteWidth: string
   themeMode: ThemeMode
+  // CSS file list (single or multi-chunk) to embed on the published note.
+  css?: Array<{ url: string, hash: string }>
 }
 
 export interface BuildPayloadResult {
@@ -93,6 +95,9 @@ export async function buildPayload (
   applyThemeModeOverride(input.elements, input.themeMode)
   payload.elements = input.elements
   payload.mathJax = !!input.contentDom.querySelector('mjx-container')
+  if (input.css && input.css.length > 0) {
+    payload.css = input.css
+  }
 
   return { payload, decryptionKey }
 }
