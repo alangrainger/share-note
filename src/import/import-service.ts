@@ -45,7 +45,7 @@ export class ImportService {
         'md'
       )
       const file = await app.vault.create(path, source.markdown)
-      await app.workspace.getLeaf(true).openFile(file)
+      await app.workspace.getLeaf(true).openFile(file, { active: true })
       new StatusMessage(`Imported "${file.basename}" into your vault`, StatusType.Success, 6000)
     } catch (e) {
       logger.error('Import failed:', e)

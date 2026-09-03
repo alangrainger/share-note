@@ -33,5 +33,23 @@ export default [
       '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/restrict-plus-operands': 'off'
     }
+  },
+  {
+    // Tests and the obsidian stub run under happy-dom, where Obsidian's
+    // createEl/createDiv/createSvg helpers don't exist.
+    files: ['src/**/*.test.ts', 'src/__mocks__/**'],
+    rules: {
+      'obsidianmd/prefer-create-el': 'off'
+    }
+  },
+  {
+    // Transforms operate on a DOMParser document, which has no window of its
+    // own. `doc.createElementNS(...)` already targets that document; the
+    // rule's suggested `doc.win.createSvg(...)` would fall back to the global
+    // window, and the helper doesn't exist in the test environment.
+    files: ['src/pipeline/transforms/**'],
+    rules: {
+      'obsidianmd/prefer-create-el': 'off'
+    }
   }
 ]

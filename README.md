@@ -74,6 +74,10 @@ The first time a file is shared, the plugin will automatically upload all your t
 
 If you want to force the theme CSS to update, use the command `Force re-upload of all data for this note`.
 
+### Let readers save your note
+
+Turn on **Include Markdown source in shared notes** in the plugin settings and your shared pages get a **💾 Save note** button. A reader with Obsidian and the Share Note plugin can click it to save a copy of the note straight into their own vault, images included. It is off by default because the Markdown source shows things the rendered page hides, such as frontmatter and `%% comments %%`. Encrypted notes keep the source encrypted. You can override it per note with a `share_source` checkbox property. See [the docs](https://docs.note.sx/notes/save-note) for details.
+
 ---
 
 ## Encryption

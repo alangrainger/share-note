@@ -195,7 +195,7 @@ export class ShareSettingsTab extends PluginSettingTab {
           },
           {
             name: 'Include Markdown source in shared notes',
-            desc: withDocs('Adds a "Save to Obsidian" button to your shared notes so the reader can import a copy into their own vault. The raw Markdown is embedded in the page, which exposes anything the rendered view hides: frontmatter, %% comments %%, elements removed by your custom selectors, and Dataview queries. Encrypted notes keep the source encrypted. Override per note with the `' + this.fieldKey(YamlField.source) + '` property.', 'https://docs.note.sx/notes/import'),
+            desc: withDocs('Adds a "Save note" button to your shared notes so the reader can save a copy into their own vault. The raw Markdown is embedded in the page, which exposes anything the rendered view hides: frontmatter, %% comments %%, elements removed by your custom selectors, and Dataview queries. Encrypted notes keep the source encrypted. Override per note with the `' + this.fieldKey(YamlField.source) + '` property.', 'https://docs.note.sx/notes/save-note'),
             control: { type: 'toggle', key: 'includeSource' }
           },
           {
