@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   encryptString,
+  decryptString,
   sha1,
   sha256,
   shortHash,
@@ -108,5 +109,25 @@ describe('base64 codec', () => {
     const bytes = new Uint8Array([0, 1, 2, 254, 255])
     const back = new Uint8Array(base64ToArrayBuffer(arrayBufferToBase64(bytes.buffer)))
     expect(Array.from(back)).toEqual([0, 1, 2, 254, 255])
+  })
+})
+
+describe('decryptString', () => {
+  it('round-trips a fresh 16-byte key', async () => {
+    const enc = await encryptString('short')
+    expect(await decryptString(enc, enc.key)).toBe('short')
+  })
+
+  it('round-trips a legacy 32-byte key', async () => {
+    const key = arrayBufferToBase64(crypto.getRandomValues(new Uint8Array(32)).buffer).replace(/=+$/, '')
+    const enc = await encryptString('legacy', key)
+    expect(await decryptString(enc, key)).toBe('legacy')
+  })
+
+  it('joins text spanning several 2000-char chunks', async () => {
+    const text = 'x'.repeat(4500) + '✓'
+    const enc = await encryptString(text)
+    expect(enc.ciphertext.length).toBeGreaterThan(2)
+    expect(await decryptString(enc, enc.key)).toBe(text)
   })
 })

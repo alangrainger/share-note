@@ -11,6 +11,7 @@ import { SettingsStore } from './shared/settings-store'
 import { ShareError } from './shared/errors'
 import { logger } from './shared/logger'
 import { ShareService } from './pipeline/share-service'
+import { ImportService } from './import/import-service'
 import UI from './UI'
 
 export default class SharePlugin extends Plugin {
@@ -19,6 +20,7 @@ export default class SharePlugin extends Plugin {
   api!: API
   settingsPage!: ShareSettingsTab
   shareService!: ShareService
+  importService!: ImportService
   ui!: UI
 
   // Expose some tools in the plugin object
@@ -53,13 +55,22 @@ export default class SharePlugin extends Plugin {
       saveSettings: () => this.saveSettings(),
       authRedirect: (v) => this.authRedirect(v)
     })
+    this.importService = new ImportService({ app: this.app })
     this.ui = new UI(this.app)
 
     // To get an API key, we send the user to a Cloudflare Turnstile page to verify they are a human,
     // as a way to prevent abuse. The key is then sent back to Obsidian via this URI handler.
     // This way we do not require any personal data from the user like an email address.
     this.registerObsidianProtocolHandler('share-note', async (data) => {
-      if (data.action === 'share-note' && data.key) {
+      // `op` selects the operation. Obsidian reserves `action` for the path
+      // segment, so it can't be used for this. Each op is checked before the
+      // API-key callback below, and none of them use a `key` param, so an op
+      // can never be mistaken for a connect callback.
+      if (data.op === 'import' && data.url) {
+        // "Save to Obsidian" button on a shared page:
+        // obsidian://share-note?op=import&url=<page>&secret=<key>
+        await this.importService.importFromShare({ url: data.url, secret: data.secret })
+      } else if (data.action === 'share-note' && data.key) {
         this.settings.apiKey = data.key
         await this.saveSettings()
         // Live-update of the settings page input field (if it's been rendered)
