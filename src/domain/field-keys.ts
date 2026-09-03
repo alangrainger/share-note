@@ -9,7 +9,8 @@ export enum YamlField {
   encrypted,
   unencrypted,
   title,
-  expires
+  expires,
+  source
 }
 
 export interface FieldKeys {
@@ -19,6 +20,7 @@ export interface FieldKeys {
   unencrypted: string
   title: string
   expires: string
+  source: string
 }
 
 /**
@@ -40,6 +42,7 @@ export function buildFieldKeys (prefix: string): FieldKeys {
     encrypted: buildFieldKey(prefix, YamlField.encrypted),
     unencrypted: buildFieldKey(prefix, YamlField.unencrypted),
     title: buildFieldKey(prefix, YamlField.title),
-    expires: buildFieldKey(prefix, YamlField.expires)
+    expires: buildFieldKey(prefix, YamlField.expires),
+    source: buildFieldKey(prefix, YamlField.source)
   }
 }

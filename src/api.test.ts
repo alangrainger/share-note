@@ -29,6 +29,7 @@ function makeStubStore (overrides: Partial<ShareSettings> = {}): SettingsStore {
     expiry: '',
     clipboard: true,
     shareUnencrypted: false,
+    includeSource: false,
     authRedirect: null,
     debug: 0,
     ...overrides

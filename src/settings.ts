@@ -29,6 +29,7 @@ export interface ShareSettings {
   expiry: string;
   clipboard: boolean;
   shareUnencrypted: boolean;
+  includeSource: boolean;
   authRedirect: string | null;
   debug: number;
 }
@@ -48,6 +49,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   expiry: '',
   clipboard: true,
   shareUnencrypted: false,
+  includeSource: false,
   authRedirect: null,
   debug: 0
 }
@@ -245,6 +247,20 @@ export class ShareSettingsTab extends PluginSettingTab {
           })
       })
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/encryption'))
+
+    // Embed the Markdown source so recipients can import the note
+    new Setting(containerEl)
+      .setName('Include Markdown source in shared notes')
+      .setDesc('Adds a "Save to Obsidian" button to your shared notes so the reader can import a copy into their own vault. The raw Markdown is embedded in the page, which exposes anything the rendered view hides: frontmatter, %% comments %%, elements removed by your custom selectors, and Dataview queries. Encrypted notes keep the source encrypted. Override per note with the `' + buildFieldKey(this.settings.yamlField, YamlField.source) + '` property.')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.settings.includeSource)
+          .onChange(async (value) => {
+            this.settings.includeSource = value
+            await this.saveSettings()
+          })
+      })
+      .then(setting => addDocs(setting, 'https://docs.note.sx/notes/import'))
 
     // Default note expiry
     new Setting(containerEl)

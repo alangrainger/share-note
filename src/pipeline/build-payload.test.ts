@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { buildPayload, BuildPayloadInput } from './build-payload'
 import { ThemeMode, TitleSource } from '../settings'
 import StatusMessage from '../StatusMessage'
+import { decryptString } from '../crypto'
+import { SOURCE_ISLAND_ID } from '../domain/source-island'
 
 // Minimal status stub - buildPayload only calls setStatus, and only on the
 // encrypted branch ("Encrypting note...").
@@ -122,6 +124,38 @@ describe('buildPayload (encrypted branch)', () => {
     )
     expect(payload.filename).toBe('abc.html')
     expect(decryptionKey).toBe(previousShare.decryptionKey)
+  })
+})
+
+describe('buildPayload markdown source', () => {
+  const markdown = '# Heading\n\nBody with </script> in it.'
+
+  it('appends a JSON data island to plaintext content', async () => {
+    const { payload } = await buildPayload(baseInput({ markdown }), noopStatus)
+    const doc = new DOMParser().parseFromString(payload.content, 'text/html')
+    const island = doc.getElementById(SOURCE_ISLAND_ID)
+    expect(JSON.parse(island?.textContent ?? '')).toEqual({ basename: 'note-basename', markdown })
+    // The description is built from the rendered body only.
+    expect(payload.description).toBe('Hello world')
+  })
+
+  it('adds the markdown key to the encrypted JSON', async () => {
+    const { payload, decryptionKey } = await buildPayload(
+      baseInput({ isEncrypted: true, markdown }),
+      noopStatus
+    )
+    const plaintext = JSON.parse(await decryptString(JSON.parse(payload.content), decryptionKey))
+    expect(plaintext.markdown).toBe(markdown)
+    expect(plaintext.basename).toBe('note-basename')
+    expect(plaintext.content).toContain('Hello world')
+  })
+
+  it('omits the source entirely when markdown is not supplied', async () => {
+    const plain = await buildPayload(baseInput(), noopStatus)
+    expect(plain.payload.content).not.toContain(SOURCE_ISLAND_ID)
+    const enc = await buildPayload(baseInput({ isEncrypted: true }), noopStatus)
+    const plaintext = JSON.parse(await decryptString(JSON.parse(enc.payload.content), enc.decryptionKey))
+    expect(plaintext).not.toHaveProperty('markdown')
   })
 })
 

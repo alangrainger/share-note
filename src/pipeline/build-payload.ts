@@ -2,6 +2,7 @@ import { encryptString } from '../crypto'
 import NotePayload, { ElementStyle } from '../NotePayload'
 import { ThemeMode, TitleSource } from '../settings'
 import StatusMessage from '../StatusMessage'
+import { buildSourceIsland } from '../domain/source-island'
 
 export interface BuildPayloadInput {
   contentDom: Document
@@ -25,6 +26,10 @@ export interface BuildPayloadInput {
   // domain/field-keys.
   titleFrontmatterKey: string
   isEncrypted: boolean
+  // The note's Markdown source, already prepared by buildSource(). When set
+  // it rides along inside the encrypted JSON, or as a JSON data island
+  // appended to the plaintext content, so the recipient can import the note.
+  markdown?: string
   titleSource: TitleSource
   noteWidth: string
   themeMode: ThemeMode
@@ -45,6 +50,7 @@ export interface BuildPayloadResult {
  * - Encryption (if `isEncrypted`) or plaintext content + description preview.
  * - Body-element class override for forced light/dark mode.
  * - MathJax detection.
+ * - Embedding the Markdown source (if supplied) for the import feature.
  *
  * Returns the assembled payload alongside the decryption key the orchestrator
  * appends to the share URL (empty for unencrypted notes).
@@ -73,7 +79,8 @@ export async function buildPayload (
     status.setStatus('Encrypting note...')
     const plaintext = JSON.stringify({
       content: input.contentDom.body.innerHTML,
-      basename: title
+      basename: title,
+      ...(input.markdown !== undefined && { markdown: input.markdown })
     })
     const encrypted = await encryptString(plaintext, decryptionKey)
     payload.content = JSON.stringify({
@@ -87,6 +94,11 @@ export async function buildPayload (
     payload.content = input.contentDom.body.innerHTML
     payload.title = title
     payload.description = buildDescription(input.contentDom)
+    if (input.markdown !== undefined) {
+      // Appended after the description is built, so the source never leaks
+      // into the meta preview.
+      payload.content += buildSourceIsland({ basename: title, markdown: input.markdown })
+    }
   }
 
   payload.width = input.noteWidth

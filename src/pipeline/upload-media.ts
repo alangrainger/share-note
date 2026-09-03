@@ -15,9 +15,19 @@ export interface UploadMediaOptions {
   expiration?: number
 }
 
+export interface UploadMediaResult extends CheckFilesResult {
+  /**
+   * Hosted URL of every uploaded asset, keyed by the sha1 of its original
+   * (pre-compression) bytes. Lets the source builder map a vault file to
+   * the URL its rendered `<img>` ended up with.
+   */
+  mediaUrls: Map<string, string>
+}
+
 /**
  * Walk the rendered DOM's `<img>`/`<video>` elements, queue each local asset
- * for upload, and resolve to the server's check-files result.
+ * for upload, and resolve to the server's check-files result plus the
+ * hash -> hosted URL map of everything uploaded.
  *
  * Mutates `contentDom` in two ways:
  * - removes the `alt` attribute from every processed element;
@@ -32,8 +42,9 @@ export async function uploadMedia (
   deps: UploadMediaDeps,
   status: StatusMessage,
   options: UploadMediaOptions = {}
-): Promise<CheckFilesResult> {
+): Promise<UploadMediaResult> {
   status.setStatus('Processing attachments...')
+  const mediaUrls = new Map<string, string>()
 
   for (const el of contentDom.querySelectorAll('img,video')) {
     const src = el.getAttribute('src')
@@ -87,11 +98,15 @@ export async function uploadMedia (
           byteLength: typeof content === 'string' ? undefined : content.byteLength,
           expiration: options.expiration
         },
-        callback: (url) => el.setAttribute('src', url)
+        callback: (url) => {
+          el.setAttribute('src', url)
+          mediaUrls.set(hash, url)
+        }
       })
     }
     el.removeAttribute('alt')
   }
 
-  return deps.api.processQueue(status)
+  const result = await deps.api.processQueue(status)
+  return { ...result, mediaUrls }
 }

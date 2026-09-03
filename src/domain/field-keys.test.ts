@@ -9,6 +9,7 @@ describe('buildFieldKey', () => {
     expect(buildFieldKey('share', YamlField.unencrypted)).toBe('share_unencrypted')
     expect(buildFieldKey('share', YamlField.title)).toBe('share_title')
     expect(buildFieldKey('share', YamlField.expires)).toBe('share_expires')
+    expect(buildFieldKey('share', YamlField.source)).toBe('share_source')
   })
 
   it('respects a custom prefix', () => {
@@ -24,7 +25,8 @@ describe('buildFieldKeys', () => {
       encrypted: 'share_encrypted',
       unencrypted: 'share_unencrypted',
       title: 'share_title',
-      expires: 'share_expires'
+      expires: 'share_expires',
+      source: 'share_source'
     })
   })
 })

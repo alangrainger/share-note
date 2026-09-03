@@ -90,6 +90,29 @@ export async function encryptString (plaintext: string, existingKey?: string): P
   }
 }
 
+/**
+ * Decrypt the output of encryptString(). Mirrors the server's decrypt.js:
+ * each chunk is decrypted with its own IV and the chunks are joined in
+ * order. The base64 key may be 16 bytes (current) or 32 bytes (pre-1.5.5
+ * shares); importKey accepts both.
+ */
+export async function decryptString (
+  { ciphertext, ivs }: Pick<EncryptedString, 'ciphertext' | 'ivs'>,
+  key: string
+): Promise<string> {
+  const aesKey = await _getAesGcmKey(base64ToArrayBuffer(key))
+  const chunks: string[] = []
+  for (let i = 0; i < ciphertext.length; i++) {
+    const plaintext = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: new Uint8Array(base64ToArrayBuffer(ivs[i])) },
+      aesKey,
+      base64ToArrayBuffer(ciphertext[i])
+    )
+    chunks.push(new TextDecoder().decode(plaintext))
+  }
+  return chunks.join('')
+}
+
 async function sha (algorithm: string, data: string | ArrayBuffer) {
   let uint8Array
   if (typeof data === 'string') {

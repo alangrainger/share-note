@@ -6,10 +6,12 @@ import { parseExistingShareUrl } from '../domain/share-link'
 import { parseExpiration } from '../domain/expiration'
 import { SettingsStore } from '../shared/settings-store'
 import { logger } from '../shared/logger'
+import { sha1 } from '../crypto'
 import { captureRenderedNote } from './capture'
 import { uploadMedia } from './upload-media'
 import { uploadCss } from './upload-css'
 import { buildPayload } from './build-payload'
+import { buildSource } from './build-source'
 import { stripFrontmatter } from './transforms/strip-frontmatter'
 import { preserveFrontmatterValues } from './transforms/preserve-frontmatter-values'
 import { stripBacklinks } from './transforms/strip-backlinks'
@@ -31,6 +33,10 @@ export interface ShareOptions {
   // Encrypt the note body. Resolved per-invocation by the caller from
   // settings + frontmatter via resolveEncryption().
   encrypted: boolean
+  // Embed the note's Markdown source in the page so recipients can import
+  // it. Resolved by the caller from settings + frontmatter via
+  // resolveIncludeSource().
+  includeSource: boolean
   // Re-upload all related assets (CSS bundle + attachments) even if the
   // server already has them.
   forceUpload?: boolean
@@ -46,6 +52,9 @@ const VIEW_RESTORE_DELAY_MS = 200
 // Maximum lifetime of the "please don't switch notes" status; the share()
 // pipeline normally finishes well inside this.
 const INITIAL_STATUS_TIMEOUT_MS = 60 * 1000
+// Above this much embedded source the page gets noticeably heavier for every
+// reader, so warn the author. Never blocks the share.
+const SOURCE_SIZE_WARN_BYTES = 500 * 1024
 
 /**
  * Orchestrates a single share-note operation: capture the rendered DOM,
@@ -160,6 +169,19 @@ export class ShareService {
         { isForceUpload: options.forceUpload, expiration }
       )
 
+      let markdown: string | undefined
+      if (options.includeSource) {
+        status.setStatus('Embedding source...')
+        markdown = await this.buildSourceForFile(file, uploadResult.mediaUrls)
+        if (markdown.length > SOURCE_SIZE_WARN_BYTES) {
+          new StatusMessage(
+            `This note's Markdown source is over ${Math.round(SOURCE_SIZE_WARN_BYTES / 1024)} KB, so the shared page will be slow to load.`,
+            StatusType.Info,
+            8000
+          )
+        }
+      }
+
       const existingLink = meta?.frontmatter?.[this.field(YamlField.link)]
       const previousShare = typeof existingLink === 'string'
         ? parseExistingShareUrl(existingLink) ?? undefined
@@ -173,6 +195,7 @@ export class ShareService {
         previousShare,
         titleFrontmatterKey: this.field(YamlField.title),
         isEncrypted: options.encrypted,
+        markdown,
         titleSource: this.settings.titleSource,
         noteWidth: this.settings.noteWidth,
         themeMode: this.settings.themeMode
@@ -212,20 +235,47 @@ export class ShareService {
     }
   }
 
+  // Read the note's raw Markdown and prepare it for embedding. Embeds are
+  // matched to their hosted URLs by hashing the vault file the same way
+  // uploadMedia hashed the rendered asset (sha1 of the original bytes).
+  private buildSourceForFile (file: TFile, mediaUrls: Map<string, string>): Promise<string> {
+    return this.deps.app.vault.cachedRead(file).then(markdown => buildSource(markdown, {
+      fieldPrefix: this.settings.yamlField,
+      resolveSharedLink: (text) => this.resolveSharedLink(text),
+      resolveEmbed: async (target) => {
+        const linked = this.resolveLinkedFile(target, file.path)
+        // Note embeds are left as written; only uploaded assets resolve.
+        if (!linked || linked.extension === 'md') return undefined
+        try {
+          const hash = await sha1(await this.deps.app.vault.readBinary(linked))
+          return mediaUrls.get(hash)
+        } catch (e) {
+          logger.warn('Unable to hash embed for source rewrite:', target, e)
+          return undefined
+        }
+      }
+    }))
+  }
+
   // Resolve an internal link target to its public shared URL, if any. Used by
   // the link-rewriting transforms via the linkCtx callback.
   private resolveSharedLink (linkText: string): string | undefined {
+    const linkedFile = this.resolveLinkedFile(linkText, '')
+    if (!linkedFile) return undefined
+    const linkedMeta = this.deps.app.metadataCache.getFileCache(linkedFile)
+    const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
+    return typeof href === 'string' ? href : undefined
+  }
+
+  // Best-effort lookup of a link target in the metadata cache; undefined on
+  // any failure.
+  private resolveLinkedFile (linkText: string, sourcePath: string): TFile | undefined {
     try {
-      const linkedFile = this.deps.app.metadataCache.getFirstLinkpathDest(linkText, '')
-      if (linkedFile instanceof TFile) {
-        const linkedMeta = this.deps.app.metadataCache.getFileCache(linkedFile)
-        const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
-        if (typeof href === 'string') return href
-      }
+      const linked = this.deps.app.metadataCache.getFirstLinkpathDest(linkText, sourcePath)
+      return linked instanceof TFile ? linked : undefined
     } catch {
-      // Best-effort lookup; on failure return undefined.
+      return undefined
     }
-    return undefined
   }
 
   // Per-note frontmatter (`<prefix>_expires`) takes precedence over the

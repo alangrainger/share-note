@@ -4,6 +4,7 @@ import API from './api'
 import { parseExistingShareUrl, SharedNote } from './domain/share-link'
 import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
 import { resolveEncryption } from './domain/encryption-policy'
+import { resolveIncludeSource } from './domain/source-policy'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import { SettingsStore } from './shared/settings-store'
@@ -167,9 +168,14 @@ export default class SharePlugin extends Plugin {
       unencryptedKey: fieldKeys.unencrypted,
       encryptedKey: fieldKeys.encrypted
     })
+    const includeSource = resolveIncludeSource({
+      defaultInclude: this.settings.includeSource,
+      frontmatter: meta?.frontmatter,
+      sourceKey: fieldKeys.source
+    })
 
     try {
-      await this.shareService.share(file, { encrypted, forceUpload, forceClipboard })
+      await this.shareService.share(file, { encrypted, includeSource, forceUpload, forceClipboard })
     } catch (e) {
       // `handled` means the throw site already surfaced a user-facing message
       if (!(e instanceof ShareError && e.handled)) {
