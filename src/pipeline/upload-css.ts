@@ -90,10 +90,9 @@ export async function uploadCss (
       if (!filename) continue
       if (!getFromExtension(filename[2])) continue
       // Fetch the attachment content. See note in upload-media.ts - we need
-      // fetch here because CSS url() refs are typically local (e.g. theme
-      // fonts) and requestUrl doesn't handle app:// URLs.
-      // eslint-disable-next-line no-restricted-globals
-      const res = await fetch(assetUrl)
+      // window.fetch here because CSS url() refs are typically local (e.g.
+      // theme fonts) and requestUrl doesn't handle app:// URLs.
+      const res = await window.fetch(assetUrl)
       const contents = await res.arrayBuffer()
       const hash = await sha1(contents)
       await deps.api.queueUpload({

@@ -20,7 +20,7 @@ export function preserveFrontmatterValues (
     // Preserves legacy behaviour: objects coerce to '[object Object]'. Obsidian
     // frontmatter is overwhelmingly primitives and arrays; this stays bug-for-bug
     // compatible with the previous implementation.
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- deliberate legacy coercion, see above
     valueEl?.setAttribute('value', String(value))
 
     if (valueEl?.getAttribute('type') === 'checkbox' && value) {

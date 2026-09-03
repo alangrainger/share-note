@@ -4,7 +4,6 @@
 //
 // Add stub members only as tests need them. Anything not exported here
 // will surface as a clear "undefined" error rather than a silent any.
-/* eslint-disable obsidianmd/prefer-active-doc -- test stub, no popout concerns */
 import { vi } from 'vitest'
 
 export const requestUrl = vi.fn()

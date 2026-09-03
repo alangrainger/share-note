@@ -22,7 +22,7 @@
 		"browser-image-compression": "^2.0.2",
 		"esbuild": "^0.28.0",
 		"eslint": "^9.39.4",
-		"eslint-plugin-obsidianmd": "^0.3.0",
+		"eslint-plugin-obsidianmd": "^0.4.2",
 		"happy-dom": "^20.9.0",
 		"neostandard": "^0.13.0",
 		"obsidian": "^1.13.0",
