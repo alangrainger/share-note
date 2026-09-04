@@ -30,7 +30,7 @@ const OPTIONS: ShareStyleOption[] = [
   {
     style: 'encrypted',
     name: 'Encrypted link',
-    desc: 'Your note is encrypted before it leaves Obsidian, and only people with the link can read it. The link is long because it carries the decryption key.',
+    desc: 'Your note is encrypted before it leaves Obsidian, and only people with the link can read it. The link is longer because it carries the decryption key.',
     example: `${EXAMPLE_LINK}#${EXAMPLE_KEY}`,
     button: 'Use encrypted links'
   }
