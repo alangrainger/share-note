@@ -1,6 +1,7 @@
 import { View, WorkspaceLeaf } from 'obsidian'
 import { ElementStyle, getElementStyle } from '../NotePayload'
 import { sleep } from '../shared/sleep'
+import { logger } from '../shared/logger'
 
 export interface PreviewSection {
   el: HTMLElement
@@ -79,16 +80,7 @@ export async function captureRenderedNote (
   const html = await sampleRenderedHtml(view)
   const contentDom = new DOMParser().parseFromString(html, 'text/html')
 
-  const cssRules: CSSRule[] = []
-  for (const sheet of Array.from(activeDocument.styleSheets)) {
-    // Skip MathJax's per-glyph stylesheet (#MJX-CHTML-styles). It is built
-    // incrementally as equations render, so it is routinely incomplete at
-    // capture time and silently drops glyphs (especially Greek) from shared
-    // equations. Published notes load the complete CHTML stylesheet from the
-    // server instead. https://github.com/alangrainger/share-note/issues/34
-    if ((sheet.ownerNode as HTMLElement | null)?.id === 'MJX-CHTML-styles') continue
-    for (const rule of Array.from(sheet.cssRules)) cssRules.push(rule)
-  }
+  const cssRules = collectCssRules(Array.from(activeDocument.styleSheets))
 
   // Merge CSS rules into a single string for later minifying. @media print
   // rules are dropped because they prevent the print preview from showing on
@@ -98,6 +90,35 @@ export async function captureRenderedNote (
     .map(rule => rule.cssText).join('').replace(/\n/g, '')
 
   return { contentDom, cssRules, css, elements }
+}
+
+/**
+ * Gather the rules of every stylesheet the page can read, in document order.
+ */
+export function collectCssRules (sheets: CSSStyleSheet[]): CSSRule[] {
+  const cssRules: CSSRule[] = []
+  for (const sheet of sheets) {
+    // Skip MathJax's per-glyph stylesheet (#MJX-CHTML-styles). It is built
+    // incrementally as equations render, so it is routinely incomplete at
+    // capture time and silently drops glyphs (especially Greek) from shared
+    // equations. Published notes load the complete CHTML stylesheet from the
+    // server instead. https://github.com/alangrainger/share-note/issues/34
+    if ((sheet.ownerNode as HTMLElement | null)?.id === 'MJX-CHTML-styles') continue
+
+    let rules: CSSRule[]
+    try {
+      rules = Array.from(sheet.cssRules)
+    } catch (e) {
+      // Reading cssRules throws a SecurityError for a cross-origin sheet, such
+      // as a <link> to a font service added by another plugin. Its rules can't
+      // be captured either way, so skip the sheet rather than abort the share.
+      // https://github.com/alangrainger/share-note/issues/166
+      logger.warn('Skipping unreadable stylesheet:', sheet.href, e)
+      continue
+    }
+    for (const rule of rules) cssRules.push(rule)
+  }
+  return cssRules
 }
 
 // Renderer-sampling heuristic. Obsidian's preview renderer streams sections
