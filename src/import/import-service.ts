@@ -23,7 +23,8 @@ export class ImportService {
   async importFromShare ({ url, secret }: ImportRequest): Promise<void> {
     const status = new StatusMessage('Importing shared note...', StatusType.Default, 30 * 1000)
     try {
-      if (!url.startsWith('https://')) {
+      // Only fetch over https, except from a local dev server.
+      if (!/^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url)) {
         throw new Error(`Refusing to import from a non-https URL: ${url}`)
       }
       const res = await requestUrl({ url, throw: false })
