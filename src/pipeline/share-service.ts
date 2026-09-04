@@ -19,6 +19,7 @@ import { linkBacklinksToShares } from './transforms/link-backlinks-to-shares'
 import { fixCalloutIcons } from './transforms/fix-callout-icons'
 import { rewriteLinks } from './transforms/rewrite-links'
 import { removeExternalTargets } from './transforms/remove-external-targets'
+import { rewriteYoutubeEmbeds } from './transforms/rewrite-youtube-embeds'
 import { removeCustomSelectors } from './transforms/remove-custom-selectors'
 
 export interface ShareServiceDeps {
@@ -134,6 +135,7 @@ export class ShareService {
       fixCalloutIcons(captured.contentDom, captured.cssRules)
       rewriteLinks(captured.contentDom, linkCtx)
       removeExternalTargets(captured.contentDom)
+      rewriteYoutubeEmbeds(captured.contentDom)
       removeCustomSelectors(captured.contentDom, this.settings.removeElements)
 
       const expiration = this.resolveExpiration(meta?.frontmatter)
