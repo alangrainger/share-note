@@ -20,6 +20,9 @@ export interface ViewModes extends View {
       renderer: Renderer
     }
   }
+  previewMode: {
+    applyScroll (top: number): void
+  }
 }
 
 export interface CaptureResult {
@@ -61,11 +64,10 @@ export async function captureRenderedNote (
 
   // Scroll the view to the top to ensure we get the default margins for
   // .markdown-preview-pusher.
-  // @ts-ignore - leaf.view.previewMode is undocumented
-  leaf.view.previewMode.applyScroll(0)
+  const view = leaf.view as ViewModes
+  view.previewMode.applyScroll(0)
   await sleep(scrollWaitMs)
 
-  const view = leaf.view as ViewModes
   const renderer = view.modes.preview.renderer
 
   // Copy classes and styles

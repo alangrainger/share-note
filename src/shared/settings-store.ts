@@ -18,7 +18,8 @@ export class SettingsStore {
   constructor (private readonly plugin: Plugin) {}
 
   async load (): Promise<void> {
-    this.data = { ...DEFAULT_SETTINGS, ...(await this.plugin.loadData()) }
+    const stored = (await this.plugin.loadData()) as Partial<ShareSettings> | null
+    this.data = { ...DEFAULT_SETTINGS, ...stored }
   }
 
   async save (): Promise<void> {

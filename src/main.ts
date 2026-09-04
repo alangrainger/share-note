@@ -221,16 +221,16 @@ export default class SharePlugin extends Plugin {
    */
   async copyShareLink (file: TFile): Promise<string | undefined> {
     const meta = this.app.metadataCache.getFileCache(file)
-    const shareLink = meta?.frontmatter?.[this.settings.yamlField + '_' + YamlField[YamlField.link]]
-    if (shareLink) {
+    const shareLink: unknown = meta?.frontmatter?.[this.field(YamlField.link)]
+    if (typeof shareLink === 'string' && shareLink) {
       // The note is already shared, copy the link to the clipboard
       await navigator.clipboard.writeText(shareLink)
       new StatusMessage('📋 Shared link copied to clipboard')
-    } else {
-      // The note is not already shared, share it first and copy the link to the clipboard
-      await this.uploadNote(false, true)
+      return shareLink
     }
-    return shareLink
+    // The note is not already shared, share it first and copy the link to the clipboard
+    await this.uploadNote(false, true)
+    return undefined
   }
 
   deleteSharedNote (file: TFile) {
@@ -242,7 +242,7 @@ export default class SharePlugin extends Plugin {
         async () => {
           new StatusMessage('Deleting note...')
           await this.api.deleteSharedNote(sharedFile.url)
-          await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter) => {
+          await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter: Record<string, unknown>) => {
             // Remove the shared link
             delete frontmatter[this.field(YamlField.link)]
             delete frontmatter[this.field(YamlField.updated)]
@@ -255,7 +255,7 @@ export default class SharePlugin extends Plugin {
     const activeFile = this.app.workspace.getActiveFile()
     if (!activeFile) return
     const fieldKey = this.field(YamlField.link)
-    const shareLink = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[fieldKey]
+    const shareLink: unknown = this.app.metadataCache.getFileCache(activeFile)?.frontmatter?.[fieldKey]
     if (typeof shareLink !== 'string') return
 
     // Try to inject; returns true once the icons are in place. We attempt
@@ -317,7 +317,7 @@ export default class SharePlugin extends Plugin {
     const target = file ?? this.app.workspace.getActiveFile()
     if (!target) return null
     const meta = this.app.metadataCache.getFileCache(target)
-    const shareLink = meta?.frontmatter?.[this.field(YamlField.link)]
+    const shareLink: unknown = meta?.frontmatter?.[this.field(YamlField.link)]
     if (typeof shareLink !== 'string') return null
     const parsed = parseExistingShareUrl(shareLink)
     if (!parsed) return null

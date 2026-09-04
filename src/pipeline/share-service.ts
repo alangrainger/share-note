@@ -1,4 +1,4 @@
-import { App, moment, requestUrl, TFile } from 'obsidian'
+import { App, FileView, moment, requestUrl, TFile, Workspace } from 'obsidian'
 import StatusMessage, { StatusType } from '../StatusMessage'
 import API from '../api'
 import { buildFieldKey, YamlField } from '../domain/field-keys'
@@ -6,6 +6,7 @@ import { parseExistingShareUrl } from '../domain/share-link'
 import { parseExpiration } from '../domain/expiration'
 import { SettingsStore } from '../shared/settings-store'
 import { logger } from '../shared/logger'
+import { ShareError } from '../shared/errors'
 import { sha1 } from '../crypto'
 import { captureRenderedNote } from './capture'
 import { uploadMedia } from './upload-media'
@@ -28,6 +29,27 @@ export interface ShareServiceDeps {
   api: API
   saveSettings: () => Promise<void>
   authRedirect: (value: string | null) => Promise<void>
+}
+
+/**
+ * Undocumented Obsidian internals the share pipeline relies on, typed just
+ * enough for the calls below.
+ */
+interface AppInternals {
+  workspace: Workspace & {
+    // Returns the active FileView, whose leaf exposes previewMode. getLeaf()
+    // omits that on pinned notes.
+    getActiveFileView (): FileView | null
+  }
+  // Community plugin registry, used to reach Excalidraw's automate API.
+  plugins: { getPlugin (id: string): unknown }
+  // The active theme name.
+  customCss?: { theme?: string }
+}
+
+/** The subset of the Excalidraw plugin used to render drawings to SVG. */
+interface ExcalidrawPlugin {
+  ea: { createSVG (file: string): Promise<SVGSVGElement> }
 }
 
 export interface ShareOptions {
@@ -75,6 +97,10 @@ export class ShareService {
     return this.deps.settings.data
   }
 
+  private get internals (): App & AppInternals {
+    return this.deps.app as App & AppInternals
+  }
+
   private field (key: YamlField): string {
     return buildFieldKey(this.settings.yamlField, key)
   }
@@ -92,10 +118,8 @@ export class ShareService {
         return
       }
 
-      // getActiveFileView is undocumented but reliably returns a leaf that
-      // exposes previewMode - getLeaf() omits that on pinned notes.
-      // @ts-expect-error - getActiveFileView is undocumented
-      const leaf = this.deps.app.workspace.getActiveFileView()?.leaf
+      const leaf = this.internals.workspace.getActiveFileView()?.leaf
+      if (!leaf) throw new ShareError('No active file view to share')
       const startMode = leaf.getViewState()
 
       let captured
@@ -146,8 +170,7 @@ export class ShareService {
         {
           api: this.deps.api,
           getExcalidrawSvg: async (filesource) => {
-            // @ts-ignore - app.plugins is undocumented
-            const excalidraw = this.deps.app.plugins.getPlugin('obsidian-excalidraw-plugin')
+            const excalidraw = this.internals.plugins.getPlugin('obsidian-excalidraw-plugin') as ExcalidrawPlugin | null
             if (!excalidraw) return null
             const svg = await excalidraw.ea.createSVG(filesource)
             return svg.outerHTML
@@ -163,8 +186,7 @@ export class ShareService {
         {
           api: this.deps.api,
           recordUploadedTheme: async () => {
-            // @ts-ignore - app.customCss is undocumented
-            this.settings.theme = this.deps.app?.customCss?.theme || ''
+            this.settings.theme = this.internals.customCss?.theme || ''
             await this.deps.saveSettings()
           }
         },
@@ -185,7 +207,7 @@ export class ShareService {
         }
       }
 
-      const existingLink = meta?.frontmatter?.[this.field(YamlField.link)]
+      const existingLink: unknown = meta?.frontmatter?.[this.field(YamlField.link)]
       const previousShare = typeof existingLink === 'string'
         ? parseExistingShareUrl(existingLink) ?? undefined
         : undefined
@@ -215,7 +237,7 @@ export class ShareService {
 
       let shareMessage = 'The note has been shared'
       if (shareLink) {
-        await this.deps.app.fileManager.processFrontMatter(file, (frontmatter) => {
+        await this.deps.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
           frontmatter[this.field(YamlField.link)] = shareLink
           frontmatter[this.field(YamlField.updated)] = moment().format()
         })
@@ -266,7 +288,7 @@ export class ShareService {
     const linkedFile = this.resolveLinkedFile(linkText, '')
     if (!linkedFile) return undefined
     const linkedMeta = this.deps.app.metadataCache.getFileCache(linkedFile)
-    const href = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
+    const href: unknown = linkedMeta?.frontmatter?.[this.field(YamlField.link)]
     return typeof href === 'string' ? href : undefined
   }
 

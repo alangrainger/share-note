@@ -1,5 +1,5 @@
 /**
- * Replace the inline SVG icons inside `.callout` blocks with a placeholder
+ * Reset the inline SVG icons inside `.callout` blocks to an empty placeholder
  * SVG carrying `data-share-note-lucide="<name>"`. The shared note renderer
  * uses that attribute to inject the right Lucide icon at view time.
  *
@@ -27,11 +27,13 @@ export function fixCalloutIcons (doc: Document, cssRules: CSSRule[]): void {
     const fromCss = stripLucidePrefix(findCalloutIcon(cssRules, s => s.includes(`data-callout="${type}"`)))
     const icon = fromSvg || fromCss || defaultIcon
 
-    const newSvg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    newSvg.setAttribute('width', '16')
-    newSvg.setAttribute('height', '16')
-    newSvg.setAttribute('data-share-note-lucide', icon)
-    svgEl.replaceWith(newSvg)
+    // Strip the rendered icon down to a bare placeholder in place, so the
+    // transform never has to create nodes in the parsed document.
+    svgEl.replaceChildren()
+    for (const name of svgEl.getAttributeNames()) svgEl.removeAttribute(name)
+    svgEl.setAttribute('width', '16')
+    svgEl.setAttribute('height', '16')
+    svgEl.setAttribute('data-share-note-lucide', icon)
   }
 }
 

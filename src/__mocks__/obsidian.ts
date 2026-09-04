@@ -8,12 +8,20 @@ import { vi } from 'vitest'
 
 export const requestUrl = vi.fn()
 
+/*
+ Obsidian's createDiv() helper does not exist under happy-dom, so build the
+ elements with the namespace-aware DOM primitive the helper wraps.
+*/
+function createDiv (): HTMLElement {
+  return document.createElementNS('http://www.w3.org/1999/xhtml', 'div')
+}
+
 export class Notice {
   messageEl: HTMLElement
   containerEl: HTMLElement
   constructor () {
-    this.messageEl = document.createElement('div')
-    this.containerEl = document.createElement('div')
+    this.messageEl = createDiv()
+    this.containerEl = createDiv()
   }
 }
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildPayload, BuildPayloadInput } from './build-payload'
 import { ThemeMode, TitleSource } from '../settings'
 import StatusMessage from '../StatusMessage'
-import { decryptString } from '../crypto'
+import { decryptString, EncryptedString } from '../crypto'
 import { SOURCE_ISLAND_ID } from '../domain/source-island'
 
 // Minimal status stub - buildPayload only calls setStatus, and only on the
@@ -27,6 +27,12 @@ function baseInput (overrides: Partial<BuildPayloadInput> = {}): BuildPayloadInp
     themeMode: ThemeMode['Same as theme'],
     ...overrides
   }
+}
+
+// Decrypt an encrypted payload's content and parse the plaintext JSON.
+async function decryptContent (content: string, key: string): Promise<Record<string, unknown>> {
+  const encrypted = JSON.parse(content) as EncryptedString
+  return JSON.parse(await decryptString(encrypted, key)) as Record<string, unknown>
 }
 
 describe('buildPayload (plaintext branch)', () => {
@@ -102,7 +108,7 @@ describe('buildPayload (encrypted branch)', () => {
     )
     expect(payload.encrypted).toBe(true)
     // payload.content is a JSON string containing ciphertext + ivs arrays.
-    const parsed = JSON.parse(payload.content)
+    const parsed = JSON.parse(payload.content) as EncryptedString
     expect(Array.isArray(parsed.ciphertext)).toBe(true)
     expect(Array.isArray(parsed.ivs)).toBe(true)
     expect(parsed.ciphertext.length).toBeGreaterThan(0)
@@ -144,7 +150,7 @@ describe('buildPayload markdown source', () => {
       baseInput({ isEncrypted: true, markdown }),
       noopStatus
     )
-    const plaintext = JSON.parse(await decryptString(JSON.parse(payload.content), decryptionKey))
+    const plaintext = await decryptContent(payload.content, decryptionKey)
     expect(plaintext.markdown).toBe(markdown)
     expect(plaintext.basename).toBe('note-basename')
     expect(plaintext.content).toContain('Hello world')
@@ -154,7 +160,7 @@ describe('buildPayload markdown source', () => {
     const plain = await buildPayload(baseInput(), noopStatus)
     expect(plain.payload.content).not.toContain(SOURCE_ISLAND_ID)
     const enc = await buildPayload(baseInput({ isEncrypted: true }), noopStatus)
-    const plaintext = JSON.parse(await decryptString(JSON.parse(enc.payload.content), enc.decryptionKey))
+    const plaintext = await decryptContent(enc.payload.content, enc.decryptionKey)
     expect(plaintext).not.toHaveProperty('markdown')
   })
 })

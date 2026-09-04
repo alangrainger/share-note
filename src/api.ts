@@ -88,7 +88,7 @@ export default class API {
         body: JSON.stringify(body),
         throw: false
       })
-      if (res.status === 200) return res.json
+      if (res.status === 200) return res.json as T
 
       if (res.status < 500 || retries <= 1) {
         // Permanent error - surface the server's message and stop retrying
@@ -127,7 +127,7 @@ export default class API {
         body: data.content,
         throw: false
       })
-      if (res.status === 200) return res.json
+      if (res.status === 200) return res.json as T
 
       if (res.status < 500 || retries <= 1) {
         const message = res.text

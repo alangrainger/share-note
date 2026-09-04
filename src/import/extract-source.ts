@@ -1,4 +1,4 @@
-import { decryptString } from '../crypto'
+import { decryptString, EncryptedString } from '../crypto'
 import { SOURCE_ISLAND_ID, SourceIslandData } from '../domain/source-island'
 
 /**
@@ -31,12 +31,14 @@ export async function extractSharedSource (html: string, secret?: string): Promi
 
 function readIsland (doc: Document): Partial<SourceIslandData> | undefined {
   const text = doc.getElementById(SOURCE_ISLAND_ID)?.textContent
-  return text ? JSON.parse(text) : undefined
+  if (!text) return undefined
+  return JSON.parse(text) as Partial<SourceIslandData>
 }
 
 async function readEncrypted (doc: Document, secret: string): Promise<Partial<SourceIslandData> | undefined> {
   const text = doc.getElementById(ENCRYPTED_DATA_ID)?.textContent?.trim()
   if (!text) return undefined
-  const plaintext = await decryptString(JSON.parse(text), secret)
-  return JSON.parse(plaintext)
+  const encrypted = JSON.parse(text) as Pick<EncryptedString, 'ciphertext' | 'ivs'>
+  const plaintext = await decryptString(encrypted, secret)
+  return JSON.parse(plaintext) as Partial<SourceIslandData>
 }

@@ -6,11 +6,9 @@ function parseHtml (html: string): Document {
 }
 
 function rulesFor (css: string): CSSRule[] {
-  const doc = parseHtml('')
-  const style = doc.createElement('style')
-  style.textContent = css
-  doc.head.appendChild(style)
-  return Array.from(style.sheet!.cssRules)
+  const sheet = new CSSStyleSheet()
+  sheet.replaceSync(css)
+  return Array.from(sheet.cssRules)
 }
 
 const calloutHtml = (type: string, svgClass = '') => `
