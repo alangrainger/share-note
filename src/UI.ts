@@ -1,4 +1,6 @@
 import { App, Modal, Setting } from 'obsidian'
+import ShareStyleModal from './ShareStyleModal'
+import { ShareStyle } from './domain/share-style'
 
 type ConfirmCallback = () => void | Promise<void>
 
@@ -38,5 +40,15 @@ export default class UI {
     const dialog = new ConfirmDialog(this.app, title, body, onConfirm)
     dialog.open()
     return dialog
+  }
+
+  /**
+   * Ask which kind of share link to use by default. Resolves when the modal
+   * closes: with the pick, or null if it was closed without one.
+   */
+  shareStylePrompt (): Promise<ShareStyle | null> {
+    return new Promise(resolve => {
+      new ShareStyleModal(this.app, resolve).open()
+    })
   }
 }

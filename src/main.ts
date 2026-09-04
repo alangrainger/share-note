@@ -5,6 +5,7 @@ import { parseExistingShareUrl, SharedNote } from './domain/share-link'
 import { buildFieldKey, buildFieldKeys, YamlField } from './domain/field-keys'
 import { resolveEncryption } from './domain/encryption-policy'
 import { resolveIncludeSource } from './domain/source-policy'
+import { shouldPromptShareStyle, toShareUnencrypted } from './domain/share-style'
 import StatusMessage, { StatusType } from './StatusMessage'
 import { shortHash, sha256 } from './crypto'
 import { SettingsStore } from './shared/settings-store'
@@ -164,6 +165,20 @@ export default class SharePlugin extends Plugin {
   }
 
   /**
+   * Before the user's first share, ask which kind of share link to use by
+   * default.
+   */
+  async promptShareStyle (): Promise<boolean> {
+    if (!shouldPromptShareStyle(this.settings)) return true
+    const style = await this.ui.shareStylePrompt()
+    if (!style) return false
+    this.settings.shareUnencrypted = toShareUnencrypted(style)
+    this.settings.shareStyleChosen = true
+    await this.saveSettings()
+    return true
+  }
+
+  /**
    * Upload a note.
    * @param forceUpload - Optionally force an upload of all related assets
    * @param forceClipboard - Optionally copy the link to the clipboard, regardless of the user setting
@@ -171,6 +186,9 @@ export default class SharePlugin extends Plugin {
   async uploadNote (forceUpload = false, forceClipboard = false) {
     const file = this.app.workspace.getActiveFile()
     if (!(file instanceof TFile)) return
+    // No share without an explicit style choice. resolveEncryption below
+    // reads the result.
+    if (!(await this.promptShareStyle())) return
     const meta = this.app.metadataCache.getFileCache(file)
     const fieldKeys = buildFieldKeys(this.settings.yamlField)
     const encrypted = resolveEncryption({

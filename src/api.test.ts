@@ -31,6 +31,7 @@ function makeStubStore (overrides: Partial<ShareSettings> = {}): SettingsStore {
     shareUnencrypted: false,
     includeSource: false,
     authRedirect: null,
+    shareStyleChosen: false,
     debug: 0,
     ...overrides
   }

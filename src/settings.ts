@@ -31,6 +31,7 @@ export interface ShareSettings {
   shareUnencrypted: boolean;
   includeSource: boolean;
   authRedirect: string | null;
+  shareStyleChosen: boolean;
   debug: number;
 }
 
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   shareUnencrypted: false,
   includeSource: false,
   authRedirect: null,
+  shareStyleChosen: false,
   debug: 0
 }
 

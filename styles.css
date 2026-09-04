@@ -26,3 +26,21 @@
     margin-left: 6px;
     cursor: pointer;
 }
+
+/* First-share style prompt */
+.share-note-style-modal .setting-item-name {
+    font-weight: var(--font-bold);
+}
+
+.share-note-style-example {
+    margin-top: var(--size-4-2);
+}
+
+.share-note-style-example code {
+    color: var(--text-accent);
+    word-break: break-all;
+}
+
+.share-note-style-modal-footer {
+    margin-bottom: 0;
+}
