@@ -15,6 +15,17 @@ export interface UploadMediaOptions {
   expiration?: number
 }
 
+// Upload extension for each Content-Type a fetch can report. Only consulted
+// when the source URL carries no usable extension.
+const EXTENSION_BY_MIMETYPE: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/svg+xml': 'svg',
+  'video/webm': 'webm'
+}
+
 export interface UploadMediaResult extends CheckFilesResult {
   /**
    * Hosted URL of every uploaded asset, keyed by the sha1 of its original
@@ -78,8 +89,7 @@ export async function uploadMedia (
         const res = await window.fetch(src)
         if (res && res.status === 200) {
           content = await res.arrayBuffer()
-          const parsed = new URL(src)
-          filetype = parsed.pathname.split('.').pop()
+          filetype = resolveFiletype(src, res.headers.get('content-type'))
         }
       } catch {
         // Unable to process this file
@@ -110,4 +120,27 @@ export async function uploadMedia (
 
   const result = await deps.api.processQueue(status)
   return { ...result, mediaUrls }
+}
+
+/**
+ * Work out the upload extension for a rendered asset. Vault files carry it
+ * in the URL path. `blob:` and `data:` URLs do not - Code Styler's language
+ * icons, for example, are object URLs of in-memory SVGs - so those fall back
+ * to the Content-Type the fetch reported. Returns undefined when neither
+ * yields a known type; the caller then leaves the element untouched.
+ * https://github.com/alangrainger/share-note/issues/92
+ */
+export function resolveFiletype (src: string, contentType: string | null): string | undefined {
+  let url: URL
+  try {
+    url = new URL(src)
+  } catch {
+    return undefined
+  }
+  if (url.protocol !== 'blob:' && url.protocol !== 'data:') {
+    const extension = url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]
+    if (extension) return extension.toLowerCase()
+  }
+  const mimetype = contentType?.split(';')[0].trim().toLowerCase()
+  return mimetype ? EXTENSION_BY_MIMETYPE[mimetype] : undefined
 }
