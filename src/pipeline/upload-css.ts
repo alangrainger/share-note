@@ -1,4 +1,3 @@
-import { minify } from 'csso'
 import { dataUriToBuffer } from 'data-uri-to-buffer'
 import { sha1 } from '../crypto'
 import API, { CheckFilesResult } from '../api'
@@ -26,8 +25,11 @@ export interface UploadCssOptions {
  *
  * - Extract `url(...)` references from the CSS string, queue each local /
  *   data: asset for upload, and rewrite the url() refs to the uploaded URLs.
- * - Minify the (now-rewritten) CSS and upload it if its hash differs from
- *   the server's existing copy.
+ * - Upload the (now-rewritten) CSS if its hash differs from the server's
+ *   existing copy. It is sent as captured: the browser's CSSOM serialisation
+ *   is already compact, and the minifier previously used here (csso) dropped
+ *   nested rules and range media queries and crashed on nested at-rules.
+ *   https://github.com/alangrainger/share-note/issues/199
  * - On success, invoke `deps.recordUploadedTheme()` so the caller can
  *   persist whichever theme is now considered current.
  *
@@ -114,15 +116,14 @@ export async function uploadCss (
   await deps.api.processQueue(status, 'CSS attachment')
 
   status.setStatus('Uploading CSS...')
-  const minified = minify(workingCss).css
-  const cssHash = await sha1(minified)
+  const cssHash = await sha1(workingCss)
   try {
     if (cssHash !== cssResult?.hash) {
       await deps.api.upload({
         filetype: 'css',
         hash: cssHash,
-        content: minified,
-        byteLength: minified.length,
+        content: workingCss,
+        byteLength: workingCss.length,
         expiration: options.expiration
       })
     }

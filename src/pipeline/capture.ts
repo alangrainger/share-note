@@ -82,7 +82,7 @@ export async function captureRenderedNote (
 
   const cssRules = collectCssRules(Array.from(activeDocument.styleSheets))
 
-  // Merge CSS rules into a single string for later minifying. @media print
+  // Merge CSS rules into a single string for upload. @media print
   // rules are dropped because they prevent the print preview from showing on
   // the web - https://github.com/alangrainger/share-note/issues/75#issuecomment-2708719828
   const css = cssRules
