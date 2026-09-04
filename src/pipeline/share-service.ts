@@ -12,7 +12,7 @@ import { uploadMedia } from './upload-media'
 import { uploadCss } from './upload-css'
 import { buildPayload } from './build-payload'
 import { buildSource } from './build-source'
-import { stripFrontmatter } from './transforms/strip-frontmatter'
+import { stripEmbeddedFrontmatter, stripFrontmatter } from './transforms/strip-frontmatter'
 import { preserveFrontmatterValues } from './transforms/preserve-frontmatter-values'
 import { stripBacklinks } from './transforms/strip-backlinks'
 import { linkBacklinksToShares } from './transforms/link-backlinks-to-shares'
@@ -122,6 +122,7 @@ export class ShareService {
         resolveSharedLink: (text: string) => this.resolveSharedLink(text)
       }
 
+      stripEmbeddedFrontmatter(captured.contentDom)
       if (this.settings.removeYaml) {
         stripFrontmatter(captured.contentDom)
       } else {
