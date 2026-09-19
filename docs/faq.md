@@ -15,7 +15,7 @@ No. A shared note is a normal web page and opens in any browser. Obsidian and th
 
 Yes. Share it again and the page is replaced. The link stays the same, so anyone who has it sees the new version. If your theme or attachments have changed, use **Force re-upload of all data for this note** instead.
 
-## What happens if I rename or move the note?
+## What happens if I rename or move the note inside Obsidian?
 
 Nothing breaks. The link lives in the note's `share_link` property, so it moves with the note, and sharing again updates the same page. If the page title comes from the note title, it updates the next time you share.
 
