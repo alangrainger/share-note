@@ -23,5 +23,6 @@ data.json
 .DS_Store
 
 test
-docs/.sass-cache/
-docs/_site/
+docs/node_modules
+docs/.vitepress/dist
+docs/.vitepress/cache

@@ -1,0 +1,14 @@
+{
+  "name": "share-note-docs",
+  "private": true,
+  "description": "Documentation site for the Share Note plugin, published at https://docs.note.sx",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

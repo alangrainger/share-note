@@ -1,0 +1,5 @@
+/* VitePress resets svg to display: block; the inline Lucide icons in the docs need to sit in the text */
+.vp-doc svg.lucide {
+  display: inline-block;
+  vertical-align: -0.15em;
+}
