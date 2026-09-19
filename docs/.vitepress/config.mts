@@ -28,9 +28,8 @@ export default defineConfig({
         text: 'Getting started',
         items: [
           { text: 'About Share Note', link: '/' },
-          { text: 'Settings', link: '/settings' },
-          { text: 'FAQ', link: '/faq' },
-          { text: 'Troubleshooting', link: '/troubleshooting' }
+          { text: 'Sharing your first note', link: '/sharing-your-first-note' },
+          { text: 'Settings', link: '/settings' }
         ]
       },
       {
@@ -40,12 +39,15 @@ export default defineConfig({
           { text: 'Theme', link: '/notes/theme' },
           { text: 'Self-deleting notes', link: '/notes/self-deleting-notes' },
           { text: 'Letting readers import your note', link: '/notes/importing-shared-notes' },
-          { text: 'Managing your notes', link: '/notes/managing-your-notes' }
+          { text: 'Managing your notes', link: '/notes/managing-your-notes' },
+          { text: 'Frontmatter properties', link: '/notes/frontmatter-properties' }
         ]
       },
       {
-        text: 'Advanced',
+        text: 'Help',
         items: [
+          { text: 'Troubleshooting', link: '/troubleshooting' },
+          { text: 'FAQ', link: '/faq' },
           { text: 'Running your own server', link: '/running-your-own-server' }
         ]
       }

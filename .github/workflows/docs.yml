@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so VitePress can show each page's real last-updated date
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

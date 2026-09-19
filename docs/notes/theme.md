@@ -5,7 +5,7 @@ title: Theme
 
 When you upload your first note, your Obsidian CSS (your theme and snippets) is compiled and sent to the server. This same CSS is then used for all subsequent note shares.
 
-This means that you can have a different theme inside your vault as you do for your shared notes. Even if you change your theme in Obsidian, it will keep using the same theme for your uploaded notes.
+This means that you can have a different theme inside your vault as you do for your shared notes. Even if you change your theme in Obsidian, it will keep using the same theme for your uploaded notes. The plugin settings show which theme is currently on the server.
 
 ## Changing the theme used for your shared notes
 

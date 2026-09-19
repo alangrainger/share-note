@@ -16,8 +16,8 @@ interface ShareStyleOption {
 
 /* Modelled on a real share link: an 8-character filename and, for encrypted
 notes, the 22-character key that the plugin appends as the URL fragment. */
-const EXAMPLE_LINK = 'https://share.note.sx/4earajc8'
-const EXAMPLE_KEY = 'PtC3oQDjDQK9VP7fljmQkL'
+const EXAMPLE_LINK = 'https://share.note.sx/xldtzcxq'
+const EXAMPLE_KEY = 'Ty9bCAhVlSvC9f2FOxsUBS'
 
 const OPTIONS: ShareStyleOption[] = [
   {
