@@ -2,13 +2,13 @@
 
 Instantly share / publish a note. Notes are shared with your full theme and should look identical to how they look in your Obsidian vault.
 
-- 🚥 [System Status](https://status.note.sx/)
-- 🆘 I need help! [Go here first for help and troubleshooting](https://docs.note.sx/)
-- 🚀 [Request new features / see the roadmap](https://note.sx/roadmap)
-
 To share a note, choose `Share Note` from the command palette, or click the `⋮` menu in any note and choose `Share note on the web`
 
 <img width="340" src="docs/images/menu.png" />
+
+- 🚥 [System Status](https://status.note.sx/)
+- 🆘 I need help! [Go here first for help and troubleshooting](https://docs.note.sx/)
+- 🚀 [Request new features / see the roadmap](https://note.sx/roadmap)
 
 ## Server stats
 
