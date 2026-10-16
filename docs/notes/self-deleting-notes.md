@@ -10,14 +10,15 @@ title: Self-deleting / expiring notes
 
 In the [settings](../settings#default-note-expiry), you can specify a default expiry time if you want your notes to automatically disappear after the time has passed.
 
-The value is a number, a space, and a unit: `minute`, `hour`, `day` or `month`, singular or plural. For example:
+The value is a number, a space, and a unit: `minute`, `hour`, `day`, `week` or `month`, singular or plural. For example:
 
 - `15 minutes`
 - `3 hours`
 - `1 day`
+- `2 weeks`
 - `1 month`
 
-The minimum is 1 minute and a month counts as 30 days. Anything in another form, such as `7d`, `1 week` or `1.5 hours`, isn't understood and is ignored.
+The minimum is 1 minute and a month counts as 30 days. Anything in another form, such as `7d`, `1 year` or `1.5 hours`, isn't understood. The settings field shows an error and won't save it, and sharing a note whose `share_expires` isn't understood shows a warning, as that note is shared without an expiry.
 
 The default applies to every note you share from then on. Notes you shared before setting it aren't affected until you share them again.
 

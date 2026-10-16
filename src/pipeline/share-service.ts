@@ -3,7 +3,7 @@ import StatusMessage, { StatusType } from '../StatusMessage'
 import API from '../api'
 import { buildFieldKey, YamlField } from '../domain/field-keys'
 import { parseExistingShareUrl } from '../domain/share-link'
-import { parseExpiration } from '../domain/expiration'
+import { parseExpiration, validateExpiration } from '../domain/expiration'
 import { SettingsStore } from '../shared/settings-store'
 import { logger } from '../shared/logger'
 import { ShareError } from '../shared/errors'
@@ -304,10 +304,16 @@ export class ShareService {
   }
 
   // Per-note frontmatter (`<prefix>_expires`) takes precedence over the
-  // plugin-wide expiry default.
+  // plugin-wide expiry default. An expiry that doesn't parse is reported
+  // rather than silently dropped, as the note is then shared with none.
   private resolveExpiration (frontmatter: Record<string, unknown> | undefined): number | undefined {
     const perNote = frontmatter?.[this.field(YamlField.expires)]
-    const input = (typeof perNote === 'string' ? perNote : '') || this.settings.expiry
+    // A bare number (`share_expires: 7`) is kept so it gets reported too.
+    const input = (typeof perNote === 'string' || typeof perNote === 'number' ? String(perNote) : '') || this.settings.expiry
+    const error = validateExpiration(input)
+    if (error) {
+      new StatusMessage(`Couldn't understand the expiry "${input}", so this note won't expire. ${error}`, StatusType.Error, 15000)
+    }
     return parseExpiration(input)
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseExpiration } from './expiration'
+import { EXPIRATION_FORMAT_HINT, parseExpiration, validateExpiration } from './expiration'
 
 const NOW = 1_700_000_000_000 // arbitrary fixed point
 
@@ -22,13 +22,22 @@ describe('parseExpiration', () => {
     expect(parseExpiration('3 days', NOW)).toBe(NOW + 3 * 24 * 60 * 60 * 1000)
   })
 
+  it('parses week', () => {
+    expect(parseExpiration('1 week', NOW)).toBe(NOW + 7 * 24 * 60 * 60 * 1000)
+    expect(parseExpiration('2 weeks', NOW)).toBe(NOW + 14 * 24 * 60 * 60 * 1000)
+  })
+
   it('parses month as 30 days', () => {
     expect(parseExpiration('1 month', NOW)).toBe(NOW + 30 * 24 * 60 * 60 * 1000)
   })
 
+  it('ignores surrounding whitespace and case', () => {
+    expect(parseExpiration(' 7 days ', NOW)).toBe(NOW + 7 * 24 * 60 * 60 * 1000)
+    expect(parseExpiration('1 Week', NOW)).toBe(NOW + 7 * 24 * 60 * 60 * 1000)
+  })
+
   it('returns undefined for an unsupported unit', () => {
     expect(parseExpiration('5 years', NOW)).toBeUndefined()
-    expect(parseExpiration('5 weeks', NOW)).toBeUndefined()
   })
 
   it('returns undefined for malformed input', () => {
@@ -45,5 +54,21 @@ describe('parseExpiration', () => {
     expect(result).toBeDefined()
     expect(result!).toBeGreaterThanOrEqual(before + 60_000)
     expect(result!).toBeLessThanOrEqual(after + 60_000)
+  })
+})
+
+describe('validateExpiration', () => {
+  it('accepts empty input, meaning no expiry', () => {
+    expect(validateExpiration(undefined)).toBeUndefined()
+    expect(validateExpiration('')).toBeUndefined()
+  })
+
+  it('accepts a valid expiry', () => {
+    expect(validateExpiration('1 week')).toBeUndefined()
+  })
+
+  it('returns the format hint for an invalid expiry', () => {
+    expect(validateExpiration('7d')).toBe(EXPIRATION_FORMAT_HINT)
+    expect(validateExpiration('1.5 hours')).toBe(EXPIRATION_FORMAT_HINT)
   })
 })

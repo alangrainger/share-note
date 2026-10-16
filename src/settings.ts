@@ -1,5 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent } from 'obsidian'
 import { buildFieldKey, YamlField } from './domain/field-keys'
+import { validateExpiration } from './domain/expiration'
 import { SettingsStore } from './shared/settings-store'
 
 export enum ThemeMode {
@@ -203,7 +204,7 @@ export class ShareSettingsTab extends PluginSettingTab {
           {
             name: 'Default note expiry',
             desc: withDocs('If you want, your notes can auto-delete themselves after a period of time. You can set this as a default for all notes here, or you can set it on a per-note basis.', 'https://docs.note.sx/notes/self-deleting-notes'),
-            control: { type: 'text', key: 'expiry' }
+            control: { type: 'text', key: 'expiry', validate: validateExpiration }
           }
         ]
       },
