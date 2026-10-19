@@ -20,11 +20,13 @@ export interface SharedNote extends SharedUrl {
  * An empty key (no fragment) is valid - that's how unencrypted shares look.
  */
 export function parseExistingShareUrl (url: string): SharedUrl | null {
-  const match = url.match(/(\w+)(#.+?|)$/)
-  if (!match) return null
-  return {
-    filename: match[1],
-    decryptionKey: match[2].slice(1) || '',
-    url
+  try {
+    const parsed = new URL(url)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null
+    const filename = parsed.pathname.split('/').pop() || ''
+    if (!/^[a-zA-Z0-9_][a-zA-Z0-9_-]*$/.test(filename)) return null
+    return { filename, decryptionKey: parsed.hash.slice(1), url }
+  } catch {
+    return null
   }
 }

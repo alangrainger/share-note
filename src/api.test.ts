@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { requestUrl } from 'obsidian'
+import { requestUrl, RequestUrlParam } from 'obsidian'
 import API from './api'
 import { AuthError, NetworkError } from './shared/errors'
 import type { SettingsStore } from './shared/settings-store'
@@ -16,6 +16,7 @@ vi.mock('./StatusMessage', () => ({
 function makeStubStore (overrides: Partial<ShareSettings> = {}): SettingsStore {
   const data: ShareSettings = {
     server: 'https://test.example',
+    customSlugs: false,
     uid: 'test-uid',
     apiKey: 'test-api-key',
     yamlField: 'share',
@@ -148,4 +149,51 @@ describe('API.post error mapping', () => {
     expect(err).toBeInstanceOf(NetworkError)
     expect(err.handled).toBe(false)
   })
+})
+
+describe('custom slug API contract', () => {
+  const payload = { filename: 'my-note', encrypted: true, content: 'ciphertext', width: '', elements: [], mathJax: false }
+  const mockRequest = vi.mocked(requestUrl)
+  beforeEach(() => mockRequest.mockReset())
+
+  it('returns publication metadata and keeps identity separate from encrypted contents', async () => {
+    mockRequest.mockResolvedValue({ status: 200, json: { url: 'https://test.example/my-note', publicationId: 'new-id' } } as never)
+    const api = new API({ settings: makeStubStore({ customSlugs: true }), manifestVersion: '1.6.2', onUnauthenticated: vi.fn() })
+    const result = await api.createNote(payload, undefined, 'my-note', 'old-id')
+    expect(result).toEqual({ url: 'https://test.example/my-note', publicationId: 'new-id' })
+    const body = JSON.parse((mockRequest.mock.calls[0][0] as RequestUrlParam).body as string) as Record<string, unknown>
+    expect(body).toMatchObject({ customSlug: 'my-note', publicationId: 'old-id', filename: 'my-note', template: payload })
+    expect(body).not.toHaveProperty('decryptionKey')
+  })
+
+  it.each(['https://api.note.sx', 'HTTP://API.NOTE.SX/', 'https://api.note.sx./'])('never sends custom slug requests to %s', async server => {
+    const api = new API({ settings: makeStubStore({ server, customSlugs: true }), manifestVersion: '1.6.2', onUnauthenticated: vi.fn() })
+    await expect(api.createNote(payload, undefined, 'my-note')).rejects.toThrow('self-hosted')
+    await expect(api.deleteSharedNote('https://self.example/my-note#secret', 'id')).rejects.toThrow('public server')
+    expect(mockRequest).not.toHaveBeenCalled()
+  })
+
+  it('can update and delete an existing slug when client opt-in is off', async () => {
+    mockRequest.mockResolvedValue({ status: 200, json: { url: 'https://test.example/my-note', publicationId: 'id', capabilities: { customSlugs: false } } } as never)
+    const api = new API({ settings: makeStubStore(), manifestVersion: '1.6.2', onUnauthenticated: vi.fn() })
+    await api.createNote(payload, undefined, undefined, 'id')
+    await api.deleteSharedNote('https://test.example/my-note#secret', 'id')
+    const bodies = mockRequest.mock.calls.map(([request]) => JSON.parse((request as RequestUrlParam).body as string) as Record<string, unknown>)
+    expect(bodies[0]).not.toHaveProperty('customSlug')
+    expect(bodies.at(-1)).toEqual({ filename: 'my-note', filetype: 'html', publicationId: 'id' })
+    expect(JSON.stringify(bodies)).not.toContain('secret')
+  })
+})
+
+it('requires server support for stale-publication protection even when creation is off', async () => {
+  const api = new API({ settings: makeStubStore(), manifestVersion: '1.6.2', onUnauthenticated: vi.fn() })
+  const mock = vi.mocked(requestUrl)
+  mock.mockReset()
+  mock.mockResolvedValue({ status: 200, json: { files: [] } } as never)
+  await expect(api.checkCustomSlugSupport(true)).rejects.toThrow('Upgrade')
+  await expect(api.deleteSharedNote('https://test.example/my-note', 'old-id')).rejects.toThrow('Upgrade')
+  expect(mock.mock.calls.every(([request]) => (request as RequestUrlParam).url.endsWith('/check-files'))).toBe(true)
+  mock.mockResolvedValue({ status: 200, json: { files: [], capabilities: { customSlugs: false } } } as never)
+  await expect(api.checkCustomSlugSupport(true)).resolves.toBeUndefined()
+  await expect(api.checkCustomSlugSupport(false)).rejects.toThrow('enable ALLOW_CUSTOM_SLUGS')
 })

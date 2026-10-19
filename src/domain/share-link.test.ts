@@ -34,3 +34,18 @@ describe('parseExistingShareUrl', () => {
     expect(r?.decryptionKey).toBe('thekey')
   })
 })
+
+it('preserves a complete hyphenated slug and its fragment', () => {
+  expect(parseExistingShareUrl('https://host.example/sub/my-project-notes#secret')).toEqual({
+    filename: 'my-project-notes', decryptionKey: 'secret', url: 'https://host.example/sub/my-project-notes#secret'
+  })
+  expect(parseExistingShareUrl('https://host.example/my-project-notes')?.filename).toBe('my-project-notes')
+  expect(parseExistingShareUrl('https://host.example/')).toBeNull()
+  expect(parseExistingShareUrl('https://host.example/a%2Fb')).toBeNull()
+})
+
+it('preserves uppercase letters and underscores in an existing share URL', () => {
+  expect(parseExistingShareUrl('https://host.example/My_Note#secret')).toEqual({
+    filename: 'My_Note', decryptionKey: 'secret', url: 'https://host.example/My_Note#secret'
+  })
+})

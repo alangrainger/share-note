@@ -54,7 +54,8 @@ export default class SharePlugin extends Plugin {
       settings: this.settingsStore,
       api: this.api,
       saveSettings: () => this.saveSettings(),
-      authRedirect: (v) => this.authRedirect(v)
+      authRedirect: (v) => this.authRedirect(v),
+      customSlugPrompt: () => this.ui.customSlugPrompt()
     })
     this.importService = new ImportService({ app: this.app })
     this.ui = new UI(this.app)
@@ -209,7 +210,7 @@ export default class SharePlugin extends Plugin {
       // `handled` means the throw site already surfaced a user-facing message
       if (!(e instanceof ShareError && e.handled)) {
         logger.error('Upload failed:', e)
-        new StatusMessage('There was an error uploading the note, please try again.', StatusType.Error)
+        new StatusMessage(e instanceof ShareError ? e.message : 'There was an error uploading the note, please try again.', StatusType.Error)
       }
     }
     this.addShareIcons()
@@ -241,11 +242,13 @@ export default class SharePlugin extends Plugin {
         'Are you sure you want to delete this shared note and the shared link? This will not delete your local note.',
         async () => {
           new StatusMessage('Deleting note...')
-          await this.api.deleteSharedNote(sharedFile.url)
+          const storedId: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.[this.field(YamlField.id)]
+          await this.api.deleteSharedNote(sharedFile.url, typeof storedId === 'string' ? storedId : undefined)
           await this.app.fileManager.processFrontMatter(sharedFile.file, (frontmatter: Record<string, unknown>) => {
             // Remove the shared link
             delete frontmatter[this.field(YamlField.link)]
             delete frontmatter[this.field(YamlField.updated)]
+            delete frontmatter[this.field(YamlField.id)]
           })
         })
     }
