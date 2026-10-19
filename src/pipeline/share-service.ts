@@ -2,6 +2,7 @@ import { App, FileView, moment, requestUrl, TFile, Workspace } from 'obsidian'
 import StatusMessage, { StatusType } from '../StatusMessage'
 import API from '../api'
 import { buildFieldKey, YamlField } from '../domain/field-keys'
+import { isSelfHostedServer, resolveCustomSlug } from '../domain/custom-slug'
 import { parseExistingShareUrl } from '../domain/share-link'
 import { parseExpiration, validateExpiration } from '../domain/expiration'
 import { SettingsStore } from '../shared/settings-store'
@@ -29,6 +30,8 @@ export interface ShareServiceDeps {
   api: API
   saveSettings: () => Promise<void>
   authRedirect: (value: string | null) => Promise<void>
+  // undefined chooses a generated URL; null cancels the share.
+  customSlugPrompt: () => Promise<string | undefined | null>
 }
 
 /**
@@ -120,6 +123,26 @@ export class ShareService {
 
       const leaf = this.internals.workspace.getActiveFileView()?.leaf
       if (!leaf) throw new ShareError('No active file view to share')
+      const meta = this.deps.app.metadataCache.getFileCache(file)
+      const existingLink: unknown = meta?.frontmatter?.[this.field(YamlField.link)]
+      const previousShare = typeof existingLink === 'string'
+        ? parseExistingShareUrl(existingLink) ?? undefined
+        : undefined
+      const customSlugsEnabled = this.settings.customSlugs && isSelfHostedServer(this.settings.server)
+      let customSlug = resolveCustomSlug(
+        meta?.frontmatter?.[this.field(YamlField.slug)],
+        customSlugsEnabled,
+        previousShare?.filename
+      )
+      const storedId: unknown = meta?.frontmatter?.[this.field(YamlField.id)]
+      const publicationId = typeof storedId === 'string' ? storedId : undefined
+      if (customSlugsEnabled && !customSlug && !previousShare && !publicationId) {
+        const choice = await this.deps.customSlugPrompt()
+        if (choice === null) return
+        customSlug = resolveCustomSlug(choice, true)
+      }
+      if (customSlug || publicationId) await this.deps.api.checkCustomSlugSupport(!!publicationId)
+
       const startMode = leaf.getViewState()
 
       let captured
@@ -138,8 +161,6 @@ export class ShareService {
       }, VIEW_RESTORE_DELAY_MS)
 
       status.setStatus('Processing note...')
-      const meta = this.deps.app.metadataCache.getFileCache(file)
-
       // DOM transforms - each is a pure (doc, ctx) -> void function with
       // tests colocated in src/pipeline/transforms/.
       const linkCtx = {
@@ -207,11 +228,6 @@ export class ShareService {
         }
       }
 
-      const existingLink: unknown = meta?.frontmatter?.[this.field(YamlField.link)]
-      const previousShare = typeof existingLink === 'string'
-        ? parseExistingShareUrl(existingLink) ?? undefined
-        : undefined
-
       const { payload, decryptionKey } = await buildPayload({
         contentDom: captured.contentDom,
         elements: captured.elements,
@@ -227,7 +243,8 @@ export class ShareService {
       }, status)
 
       status.setStatus('Uploading note...')
-      let shareLink = await this.deps.api.createNote(payload, expiration)
+      const publication = await this.deps.api.createNote(payload, expiration, customSlug, publicationId)
+      let shareLink = publication.url
       // Fetch the uploaded file to pull it through the CDN cache.
       void requestUrl({ url: shareLink, throw: false })
 
@@ -239,6 +256,8 @@ export class ShareService {
       if (shareLink) {
         await this.deps.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
           frontmatter[this.field(YamlField.link)] = shareLink
+          if (customSlug) frontmatter[this.field(YamlField.slug)] = customSlug
+          if (publication.publicationId) frontmatter[this.field(YamlField.id)] = publication.publicationId
           frontmatter[this.field(YamlField.updated)] = moment().format()
         })
         if (this.settings.clipboard || options.forceClipboard) {

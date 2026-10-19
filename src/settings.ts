@@ -1,7 +1,8 @@
-import { App, Plugin, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent } from 'obsidian'
+import { App, Plugin, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent, ToggleComponent } from 'obsidian'
 import { buildFieldKey, YamlField } from './domain/field-keys'
 import { validateExpiration } from './domain/expiration'
 import { SettingsStore } from './shared/settings-store'
+import { isSelfHostedServer } from './domain/custom-slug'
 
 export enum ThemeMode {
   'Same as theme',
@@ -17,6 +18,7 @@ export enum TitleSource {
 
 export interface ShareSettings {
   server: string;
+  customSlugs: boolean;
   uid: string;
   apiKey: string;
   yamlField: string;
@@ -38,6 +40,7 @@ export interface ShareSettings {
 
 export const DEFAULT_SETTINGS: ShareSettings = {
   server: 'https://api.note.sx',
+  customSlugs: false,
   uid: '',
   apiKey: '',
   yamlField: 'share',
@@ -76,6 +79,7 @@ type SettingKey = keyof ShareSettings
 
 export class ShareSettingsTab extends PluginSettingTab {
   apikeyEl?: TextComponent
+  private customSlugsToggle?: ToggleComponent
   // Ephemeral - resets when Obsidian restarts. The "Danger / Advanced"
   // section must be re-opened explicitly each session.
   private showAdvanced = false
@@ -119,7 +123,12 @@ export class ShareSettingsTab extends PluginSettingTab {
       stored = fallback
     }
     Object.assign(this.settings, { [key]: stored })
+    if (!isSelfHostedServer(this.settings.server)) this.settings.customSlugs = false
     await this.saveSettings()
+    if (key === 'server') {
+      this.customSlugsToggle?.setDisabled(!isSelfHostedServer(this.settings.server))
+      this.customSlugsToggle?.setValue(this.settings.customSlugs)
+    }
   }
 
   getSettingDefinitions (): SettingDefinitionItem<SettingKey>[] {
@@ -235,6 +244,23 @@ export class ShareSettingsTab extends PluginSettingTab {
             desc: `The API server used to create shared notes. Default: ${DEFAULT_SETTINGS.server}`,
             visible: () => this.showAdvanced,
             control: { type: 'text', key: 'server', placeholder: DEFAULT_SETTINGS.server }
+          },
+          {
+            name: 'Enable custom slugs',
+            desc: `Choose a custom slug or a generated link before first sharing on a compatible self-hosted server. Set ${this.fieldKey(YamlField.slug)} to skip the prompt. Active slugs cannot be changed. Unavailable on the public server.`,
+            visible: () => this.showAdvanced,
+            render: (setting) => {
+              setting.addToggle(toggle => {
+                this.customSlugsToggle = toggle
+                toggle
+                  .setValue(isSelfHostedServer(this.settings.server) && this.settings.customSlugs)
+                  .setDisabled(!isSelfHostedServer(this.settings.server))
+                  .onChange(async (value) => {
+                    this.settings.customSlugs = value && isSelfHostedServer(this.settings.server)
+                    await this.saveSettings()
+                  })
+              })
+            }
           }
         ]
       }

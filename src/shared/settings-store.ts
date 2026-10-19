@@ -1,5 +1,6 @@
 import { Plugin } from 'obsidian'
 import { DEFAULT_SETTINGS, ShareSettings } from '../settings'
+import { isSelfHostedServer } from '../domain/custom-slug'
 
 /**
  * Wraps Obsidian's plugin data persistence and exposes the current settings
@@ -20,6 +21,7 @@ export class SettingsStore {
   async load (): Promise<void> {
     const stored = (await this.plugin.loadData()) as Partial<ShareSettings> | null
     this.data = { ...DEFAULT_SETTINGS, ...stored }
+    if (!isSelfHostedServer(this.data.server)) this.data.customSlugs = false
   }
 
   async save (): Promise<void> {

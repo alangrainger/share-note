@@ -80,3 +80,40 @@ Your identifier on the server. Read-only.
 ### Server URL
 
 The API server the plugin talks to. Default `https://api.note.sx`. Only change this if you're [running your own server](./running-your-own-server).
+
+
+## Enable custom slugs
+
+Off by default and unavailable on the public server. Configure a self-hosted
+Server URL, enable `ALLOW_CUSTOM_SLUGS=true` on a compatible backend, then turn
+on **Enable custom slugs** under Sharing. Switching back to the public server
+turns this setting off.
+
+When first sharing a note without a `share_slug` value, choose **Enter custom
+slug** or **Use the default generated link**. Closing the dialog cancels sharing.
+A chosen custom slug is saved to the note only after a successful upload.
+You can also set a text property such as `share_slug: my_project-notes` beforehand
+to skip the prompt. The property follows your configured prefix. Existing shares
+keep their URL without prompting again.
+
+Use 2-64 uppercase or lowercase letters, numbers, underscores, and hyphens, starting with a
+letter or number (`^[0-9A-Za-z][0-9A-Za-z_-]{1,63}$`). Reserved routes and names already
+in use are rejected; values are never automatically rewritten. Slugs are
+case-sensitive: `My_Note` and `my_note` are different URLs. Reserved names are
+blocked regardless of case.
+
+An active shared URL cannot change. A different slug returns an error; restore
+the original value or remove the property. Removing it or turning the setting
+off keeps the existing URL. Existing random shares cannot be converted in place.
+
+Deleting or expiring a publication releases its slug immediately. Re-sharing an
+expired note automatically reclaims its original slug if free, with a new
+publication identifier and the existing encryption key. If another note has
+claimed it, the share returns a conflict and leaves that publication untouched.
+To publish separately, remove the old `share_link`, `share_updated`, and
+`share_id` properties, then choose an available slug.
+
+The plugin manages `share_id` for custom-slug publications. Keep it with
+`share_link`: both are needed to update or delete that publication. The slug is
+visible even when the contents are encrypted, and a released URL may later
+point to another publication.

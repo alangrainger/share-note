@@ -13,6 +13,7 @@ function stubDeps (overrides: Partial<ShareServiceDeps> = {}): ShareServiceDeps 
     api: {} as unknown as API,
     saveSettings: vi.fn(async () => undefined),
     authRedirect: vi.fn(async () => undefined),
+    customSlugPrompt: vi.fn(async () => undefined),
     ...overrides
   }
 }

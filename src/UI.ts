@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from 'obsidian'
 import ShareStyleModal from './ShareStyleModal'
+import CustomSlugModal, { CustomSlugChoice } from './CustomSlugModal'
 import { ShareStyle } from './domain/share-style'
 
 type ConfirmCallback = () => void | Promise<void>
@@ -40,6 +41,13 @@ export default class UI {
     const dialog = new ConfirmDialog(this.app, title, body, onConfirm)
     dialog.open()
     return dialog
+  }
+
+  /** Choose a custom slug, a generated link, or cancel sharing. */
+  customSlugPrompt (): Promise<CustomSlugChoice> {
+    return new Promise(resolve => {
+      new CustomSlugModal(this.app, resolve).open()
+    })
   }
 
   /**

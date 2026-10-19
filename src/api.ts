@@ -6,7 +6,8 @@ import { parseExistingShareUrl } from './domain/share-link'
 import { compressImage } from './Compressor'
 import { SettingsStore } from './shared/settings-store'
 import { logger } from './shared/logger'
-import { AuthError, NetworkError, UploadError } from './shared/errors'
+import { AuthError, NetworkError, UploadError, ShareError } from './shared/errors'
+import { isSelfHostedServer } from './domain/custom-slug'
 
 export interface ApiDeps {
   settings: SettingsStore
@@ -30,6 +31,8 @@ export interface FileUpload {
 export type PostData = {
   files?: FileUpload[]
   filename?: string
+  customSlug?: string
+  publicationId?: string
   filetype?: string
   hash?: string
   byteLength?: number
@@ -45,6 +48,7 @@ export interface UploadQueueItem {
 
 export interface CheckFilesResult {
   success: boolean
+  capabilities?: { customSlugs?: boolean }
   files: FileUpload[]
   css?: {
     url: string
@@ -78,6 +82,12 @@ export default class API {
     }
     if (data?.byteLength) headers['x-sharenote-bytelength'] = data.byteLength.toString()
     const body: PostData = { ...data }
+    if (body.customSlug !== undefined && (!this.settings.customSlugs || !isSelfHostedServer(this.settings.server))) {
+      throw new ShareError('Custom slugs require an enabled self-hosted server setting.')
+    }
+    if (body.publicationId !== undefined && !isSelfHostedServer(this.settings.server)) {
+      throw new ShareError('This self-hosted publication cannot be modified on the public server.')
+    }
     if (this.settings.debug) body.debug = this.settings.debug
 
     while (retries > 0) {
@@ -201,22 +211,37 @@ export default class API {
     return res.url
   }
 
-  async createNote (payload: NotePayload, expiration?: number) {
-    const res = await this.post<{ url: string }>('/v1/file/create-note', {
+  async checkCustomSlugSupport (existingPublication = false): Promise<void> {
+    if (!isSelfHostedServer(this.settings.server)) {
+      throw new ShareError('This self-hosted publication cannot be modified on the public server.')
+    }
+    const support = await this.post<CheckFilesResult>('/v1/file/check-files', { files: [] })
+    const capability = support.capabilities?.customSlugs
+    if (typeof capability !== 'boolean' || (!existingPublication && !capability)) {
+      throw new ShareError('Custom slugs are unavailable. Upgrade your self-hosted server and enable ALLOW_CUSTOM_SLUGS for new publications.')
+    }
+  }
+
+  async createNote (payload: NotePayload, expiration?: number, customSlug?: string, publicationId?: string) {
+    const res = await this.post<{ url: string, publicationId?: string }>('/v1/file/create-note', {
       filename: payload.filename,
+      customSlug,
+      publicationId,
       filetype: 'html',
       hash: await sha1(payload.content),
       expiration,
       template: payload // wire key kept as 'template' for server backwards compat
     }, 3)
-    return res.url
+    return res
   }
 
-  async deleteSharedNote (shareUrl: string) {
+  async deleteSharedNote (shareUrl: string, publicationId?: string) {
     const url = parseExistingShareUrl(shareUrl)
     if (url) {
+      if (publicationId) await this.checkCustomSlugSupport(true)
       await this.post('/v1/file/delete', {
         filename: url.filename,
+        publicationId,
         filetype: 'html'
       })
       new StatusMessage('The note has been deleted 🗑️', StatusType.Info)

@@ -26,7 +26,9 @@ describe('buildFieldKeys', () => {
       unencrypted: 'share_unencrypted',
       title: 'share_title',
       expires: 'share_expires',
-      source: 'share_source'
+      source: 'share_source',
+      slug: 'share_slug',
+      id: 'share_id'
     })
   })
 })
