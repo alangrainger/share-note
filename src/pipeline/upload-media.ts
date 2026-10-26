@@ -23,7 +23,13 @@ const EXTENSION_BY_MIMETYPE: Record<string, string> = {
   'image/webp': 'webp',
   'image/gif': 'gif',
   'image/svg+xml': 'svg',
-  'video/webm': 'webm'
+  'video/webm': 'webm',
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+  'audio/webm': 'weba'
 }
 
 export interface UploadMediaResult extends CheckFilesResult {
@@ -36,7 +42,7 @@ export interface UploadMediaResult extends CheckFilesResult {
 }
 
 /**
- * Walk the rendered DOM's `<img>`/`<video>` elements, queue each local asset
+ * Walk the rendered DOM's `<img>`/`<video>`/`<audio>` elements, queue each local asset
  * for upload, and resolve to the server's check-files result plus the
  * hash -> hosted URL map of everything uploaded.
  *
@@ -57,7 +63,7 @@ export async function uploadMedia (
   status.setStatus('Processing attachments...')
   const mediaUrls = new Map<string, string>()
 
-  for (const el of contentDom.querySelectorAll('img,video')) {
+  for (const el of contentDom.querySelectorAll('img,video,audio')) {
     const src = el.getAttribute('src')
     if (!src) continue
 
